@@ -41,7 +41,7 @@ describe("PersistedWorkflowSnapshotMapper", () => {
   const mapper = new PersistedWorkflowSnapshotMapper();
 
   describe("MCP server attachment nodes", () => {
-    it("emits an attachment node for each MCP server (shorthand array form)", () => {
+    it("emits an attachment node for each declared MCP server id", () => {
       const agentConfig = makeMinimalAgentConfig({ mcpServers: ["gmail"] });
       const snapshot = makeSnapshot("agent1", agentConfig);
 
@@ -53,21 +53,6 @@ describe("PersistedWorkflowSnapshotMapper", () => {
       expect(mcpNode?.role).toBe("tool");
       expect(mcpNode?.parentNodeId).toBe("agent1");
       expect(mcpNode?.type).toBe("gmail");
-    });
-
-    it("emits an attachment node for each MCP server (record/explicit form)", () => {
-      const agentConfig = makeMinimalAgentConfig({
-        mcpServers: { gmail: { credential: "cred-1" } },
-      });
-      const snapshot = makeSnapshot("agent1", agentConfig);
-
-      const dto = mapper.map(snapshot);
-
-      const mcpNodeId = ConnectionNodeIdFactory.mcpConnectionNodeId("agent1", "gmail");
-      const mcpNode = dto.nodes.find((n) => n.id === mcpNodeId);
-      expect(mcpNode).toBeDefined();
-      expect(mcpNode?.role).toBe("tool");
-      expect(mcpNode?.parentNodeId).toBe("agent1");
     });
 
     it("does not emit a duplicate MCP node when it is already materialized in snapshot.nodes", () => {

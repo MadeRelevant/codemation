@@ -250,16 +250,10 @@ export class PersistedWorkflowSnapshotMapper {
   }
 
   private resolveMcpServerIds(mcpServers: unknown): string[] {
-    if (!mcpServers) {
+    if (!Array.isArray(mcpServers)) {
       return [];
     }
-    if (Array.isArray(mcpServers)) {
-      return mcpServers.filter((s) => typeof s === "string");
-    }
-    if (typeof mcpServers === "object") {
-      return Object.keys(mcpServers as Record<string, unknown>);
-    }
-    return [];
+    return mcpServers.filter((s): s is string => typeof s === "string");
   }
 
   private readAttachmentLabel(presentation: unknown, fallback: string): string {

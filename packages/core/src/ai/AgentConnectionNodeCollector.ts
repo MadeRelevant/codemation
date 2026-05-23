@@ -1,6 +1,5 @@
 import type { CredentialRequirement } from "../contracts/credentialTypes";
 import type { McpServerDeclaration } from "../contracts/mcpTypes";
-import type { McpServerBindings } from "../contracts/agentMcpTypes";
 import type { NodeConfigBase, NodeConnectionName, NodeId } from "../types";
 import { ConnectionNodeIdFactory } from "../workflow/definition/ConnectionNodeIdFactory";
 import { AgentConfigInspector } from "./AgentConfigInspectorFactory";
@@ -79,9 +78,8 @@ export const AgentConnectionNodeCollector: AgentConnectionNodeCollectorApi = new
     }
 
     if (mcpServerResolver) {
-      const mcpServers = (agentConfig as unknown as { mcpServers?: McpServerBindings }).mcpServers;
-      const serverIds = this.resolveMcpServerIds(mcpServers);
-      for (const serverId of serverIds) {
+      const mcpServers = (agentConfig as unknown as { mcpServers?: ReadonlyArray<string> }).mcpServers;
+      for (const serverId of mcpServers ?? []) {
         const decl = mcpServerResolver(serverId);
         if (!decl) {
           continue;
@@ -94,33 +92,13 @@ export const AgentConnectionNodeCollector: AgentConnectionNodeCollectorApi = new
           name: decl.displayName,
           typeName: serverId,
           icon: "lucide:plug",
-          credentialSource: this.buildMcpCredentialSource(decl),
+          // MCP credential slots live on the parent agent node (slotKey `mcp:<serverId>`),
+          // not on this visual descriptor; the agent config emits them via
+          // getCredentialRequirements with catalog augmentation in the resolver.
+          credentialSource: { getCredentialRequirements: () => [] },
         });
       }
     }
-  }
-
-  private resolveMcpServerIds(mcpServers: McpServerBindings | undefined): string[] {
-    if (!mcpServers) {
-      return [];
-    }
-    return Object.keys(mcpServers);
-  }
-
-  private buildMcpCredentialSource(decl: McpServerDeclaration): AgentConnectionCredentialSource {
-    const types = decl.acceptedCredentialTypes;
-    if (!types || types.length === 0) {
-      return { getCredentialRequirements: () => [] };
-    }
-    return {
-      getCredentialRequirements: () => [
-        {
-          slotKey: "credential",
-          label: decl.displayName,
-          acceptedTypes: types,
-        } satisfies CredentialRequirement,
-      ],
-    };
   }
 
   private collectNestedAgentTools(

@@ -4,9 +4,9 @@ import {
   CodemationTelemetryAttributeNames,
   inject,
   injectable,
+  mcpSlotKey,
   type AgentMcpIntegration,
   type AgentMcpToolMap,
-  type McpServerBindings,
   type McpServerDeclaration,
   type NeedsReconsentEvent,
   type TelemetrySpanEventRecord,
@@ -20,12 +20,10 @@ import type { CredentialStore } from "../domain/credentials/CredentialServices";
 /**
  * Host-side implementation of AgentMcpIntegration.
  *
- * Resolves mcpServers bindings declared on an agent config:
- *  1. Looks up the credential instance in the store (AgentBindError if missing).
- *  2. Looks up each server in the catalog (AgentBindError if missing).
- *  3. Validates requiredScopes ⊆ grantedScopes (AgentBindError if not).
- *  4. Opens pool connections (lazy-open via McpConnectionPool.getClient).
- *  5. Returns a ToolSet map with execute callbacks wrapped for telemetry + 403 detection.
+ * Resolves the credential binding for each declared MCP server via the standard
+ * credential-binding table (slot key `mcp:<serverId>` on the agent node), opens
+ * pool connections, and returns a ToolSet map with execute callbacks wrapped
+ * for telemetry + 403 detection.
  */
 @injectable()
 export class AgentMcpIntegrationImpl implements AgentMcpIntegration {
@@ -37,17 +35,18 @@ export class AgentMcpIntegrationImpl implements AgentMcpIntegration {
   ) {}
 
   async prepareMcpTools(args: Parameters<AgentMcpIntegration["prepareMcpTools"]>[0]): Promise<AgentMcpToolMap> {
-    const { mcpServers, pinnedMcpTools: _pinnedMcpTools, emitSpanEvent, startChildSpan } = args;
+    const { workflowId, agentNodeId, serverIds, pinnedMcpTools: _pinnedMcpTools, emitSpanEvent, startChildSpan } = args;
 
-    const explicit = await this.normalise(mcpServers);
     const result = new Map<string, Readonly<Record<string, unknown>>>();
     const logger = this.loggers.create("AgentMcpIntegrationImpl");
 
-    for (const [serverId, credentialInstanceId] of explicit.entries()) {
+    for (const serverId of serverIds) {
       const decl = this.catalog.get(serverId);
       if (!decl) {
         throw new AgentBindError(`MCP server "${serverId}" not found in catalog`);
       }
+
+      const credentialInstanceId = await this.resolveCredentialInstanceId(workflowId, agentNodeId, serverId);
 
       // Validate scopes before opening the connection.
       await this.validateScopes(decl, credentialInstanceId);
@@ -75,21 +74,25 @@ export class AgentMcpIntegrationImpl implements AgentMcpIntegration {
   }
 
   /**
-   * Converts McpServerBindings (explicit) into a resolved map of
-   * serverId → credentialInstanceId.
+   * Looks up the credential binding for the agent's MCP slot and verifies the
+   * referenced credential instance still exists.
    */
-  private async normalise(bindings: McpServerBindings): Promise<Map<string, string>> {
-    const out = new Map<string, string>();
-
-    for (const [serverId, binding] of Object.entries(bindings)) {
-      const instance = await this.credentialStore.getInstance(binding.credential);
-      if (!instance) {
-        throw new AgentBindError(`Credential instance "${binding.credential}" not found for mcpServer "${serverId}"`);
-      }
-      out.set(serverId, instance.instanceId);
+  private async resolveCredentialInstanceId(workflowId: string, agentNodeId: string, serverId: string): Promise<string> {
+    const slotKey = mcpSlotKey(serverId);
+    const binding = await this.credentialStore.getBinding({ workflowId, nodeId: agentNodeId, slotKey });
+    if (!binding) {
+      throw new AgentBindError(
+        `MCP server "${serverId}" has no credential bound on agent node "${agentNodeId}" (slot "${slotKey}"). ` +
+          `Bind a credential instance via the canvas credential dropdown before activation.`,
+      );
     }
-
-    return out;
+    const instance = await this.credentialStore.getInstance(binding.instanceId);
+    if (!instance) {
+      throw new AgentBindError(
+        `Credential instance "${binding.instanceId}" not found for mcpServer "${serverId}" (slot "${slotKey}")`,
+      );
+    }
+    return instance.instanceId;
   }
 
   /**

@@ -39,8 +39,8 @@ real Gmail MCP server URL:
 GMAIL_MCP_URL=https://mcp.googleapis.com/gmail   # or your self-hosted instance
 ```
 
-Restart the control-plane after changing this env var. The `McpRegistryFetcher` in the
-framework host polls this URL and merges the declaration into the catalog.
+Restart the control-plane after changing this env var. The `ControlPlaneCatalogFetcher` in
+the framework host polls this URL and merges the declaration into the catalog.
 
 > **Note:** As of Story 12, no live Gmail MCP server URL is guaranteed by the framework.
 > The operator must provide one. If no real URL is available, the agent's tool calls will
@@ -55,7 +55,7 @@ CODEMATION_CONTROL_PLANE_URL=http://localhost:4000   # or wherever CP runs
 WORKSPACE_PAIRING_SECRET=<shared secret from CP admin panel>
 ```
 
-The `McpRegistryFetcher` uses HMAC-signed requests (`PairedFetch`) — it no-ops
+The `ControlPlaneCatalogFetcher` uses HMAC-signed requests (`PairedFetch`) — it no-ops
 entirely if `WORKSPACE_PAIRING_SECRET` is not set, so the Gmail catalog entry will never
 arrive.
 
@@ -68,17 +68,9 @@ In the Codemation UI (concierge chat or credential panel):
 3. Confirm that a `CredentialInstance` with `oauthAppKey = "google-mail"` and
    `status = "connected"` appears on the installation.
 
-The `mcpServers: ["gmail"]` shorthand auto-resolves when **exactly one** such credential
-instance exists. If multiple exist, the agent will throw at bind time — switch to the
-explicit binding form:
-
-```ts
-mcpServers: {
-  gmail: {
-    credential: "<instanceId>";
-  }
-}
-```
+The `mcpServers: ["gmail"]` entry on the agent declares a credential slot keyed
+`mcp:gmail` on the agent node. Bind a `oauth.google.gmail` credential instance to that
+slot via the canvas credential dropdown before activating the workflow.
 
 ### 5. Ensure OPENAI_API_KEY is set
 
@@ -162,10 +154,10 @@ This verifies Story 11's `NeedsReconsentEvent` path end-to-end.
    click Connect in the UI before the smoke can run with real data.
 
 3. **Pairing required for catalog merge.** If `WORKSPACE_PAIRING_SECRET` is not set, the
-   `McpRegistryFetcher` no-ops and the `"gmail"` catalog entry never arrives. The agent
-   will fail at bind time with a "unknown MCP server" error. This is expected and correct
-   behaviour — it is a deployment configuration gap, not a framework bug.
+   `ControlPlaneCatalogFetcher` no-ops and the `"gmail"` catalog entry never arrives. The
+   agent will fail at bind time with a "unknown MCP server" error. This is expected and
+   correct behaviour — it is a deployment configuration gap, not a framework bug.
 
-4. **`McpRegistryFetcher` poll interval defaults to 300 s.** On first startup, the catalog
-   entry may not be immediately available. Override with
-   `CODEMATION_REGISTRY_POLL_INTERVAL_SECONDS=10` during dev to speed up the initial fetch.
+4. **`ControlPlaneCatalogFetcher` poll interval defaults to 300 s.** On first startup, the
+   catalog entry may not be immediately available. Override with
+   `CODEMATION_CATALOG_POLL_INTERVAL_SECONDS=10` during dev to speed up the initial fetch.

@@ -6,6 +6,7 @@ import {
   ConnectionNodeIdFactory,
   inject,
   injectable,
+  mcpSlotKey,
 } from "@codemation/core";
 import { McpServerCatalog } from "../../mcp/McpServerCatalog";
 
@@ -52,6 +53,10 @@ export class WorkflowCredentialNodeResolver {
     nodeId: string,
     slotKey: string,
   ): Readonly<{ nodeName: string; requirement: CredentialRequirement }> | undefined {
+    const agentMcp = this.findAgentMcpRequirement(workflow, nodeId, slotKey);
+    if (agentMcp) {
+      return agentMcp;
+    }
     const direct = this.findDirectRequirement(workflow, nodeId, slotKey);
     if (direct) {
       return direct;
@@ -108,7 +113,8 @@ export class WorkflowCredentialNodeResolver {
     slotsByKey: Map<string, WorkflowCredentialSlotRef>,
   ): void {
     const mcpResolver = this.mcpCatalog ? (id: string) => this.mcpCatalog!.get(id) : undefined;
-    for (const entry of AgentConnectionNodeCollector.collect(rootAgentNodeId, agentConfig, mcpResolver)) {
+    const descriptors = AgentConnectionNodeCollector.collect(rootAgentNodeId, agentConfig, mcpResolver);
+    for (const entry of descriptors) {
       this.addSlotsForRequirements(
         workflowId,
         entry.nodeId,
@@ -117,6 +123,73 @@ export class WorkflowCredentialNodeResolver {
         slotsByKey,
       );
     }
+    this.addAgentMcpSlotsFromConfig(workflowId, rootAgentNodeId, agentConfig, slotsByKey);
+  }
+
+  /**
+   * MCP credential slots are owned by the agent node itself (one per declared server,
+   * slot key `mcp:<serverId>`) so a single canvas-level binding flow drives both the
+   * agent's runtime and the credential-health UI. Requirements are augmented with
+   * `displayName` + `acceptedCredentialTypes` from the MCP catalog at slot-listing time.
+   */
+  private addAgentMcpSlotsFromConfig(
+    workflowId: string,
+    agentNodeId: string,
+    agentConfig: Parameters<typeof AgentConnectionNodeCollector.collect>[1],
+    slotsByKey: Map<string, WorkflowCredentialSlotRef>,
+  ): void {
+    if (!this.mcpCatalog) {
+      return;
+    }
+    const mcpServers = (agentConfig as unknown as { mcpServers?: ReadonlyArray<string> }).mcpServers;
+    if (!mcpServers || mcpServers.length === 0) {
+      return;
+    }
+    const agentLabel = (agentConfig as { name?: string }).name ?? agentNodeId;
+    for (const serverId of mcpServers) {
+      const decl = this.mcpCatalog.get(serverId);
+      if (!decl) {
+        continue;
+      }
+      const requirement: CredentialRequirement = {
+        slotKey: mcpSlotKey(serverId),
+        label: decl.displayName,
+        acceptedTypes: decl.acceptedCredentialTypes ?? [],
+      };
+      this.addSlotsForRequirements(workflowId, agentNodeId, agentLabel, [requirement], slotsByKey);
+    }
+  }
+
+  private findAgentMcpRequirement(
+    workflow: WorkflowDefinition,
+    nodeId: string,
+    slotKey: string,
+  ): Readonly<{ nodeName: string; requirement: CredentialRequirement }> | undefined {
+    if (!this.mcpCatalog) {
+      return undefined;
+    }
+    if (!slotKey.startsWith("mcp:")) {
+      return undefined;
+    }
+    const serverId = slotKey.slice("mcp:".length);
+    const node = workflow.nodes.find((entry) => entry.id === nodeId);
+    if (!node || !AgentConfigInspector.isAgentNodeConfig(node.config)) {
+      return undefined;
+    }
+    const mcpServers = (node.config as unknown as { mcpServers?: ReadonlyArray<string> }).mcpServers;
+    if (!mcpServers?.includes(serverId)) {
+      return undefined;
+    }
+    const decl = this.mcpCatalog.get(serverId);
+    if (!decl) {
+      return undefined;
+    }
+    const requirement: CredentialRequirement = {
+      slotKey: mcpSlotKey(serverId),
+      label: decl.displayName,
+      acceptedTypes: decl.acceptedCredentialTypes ?? [],
+    };
+    return { nodeName: node.name ?? node.config.name ?? node.id, requirement };
   }
 
   private addSlotsForRequirements(

@@ -182,11 +182,14 @@ export class AIAgentNode implements RunnableNode<AIAgent<any, any>> {
   private async prepareMcpToolsByServer(
     ctx: NodeExecutionContext<AIAgent<any, any>>,
   ): Promise<ReadonlyMap<string, ToolSet>> {
-    if (!ctx.config.mcpServers) {
+    const serverIds = ctx.config.mcpServers ?? [];
+    if (serverIds.length === 0) {
       return new Map();
     }
     const toolMap: AgentMcpToolMap = await this.agentMcpIntegration.prepareMcpTools({
-      mcpServers: ctx.config.mcpServers,
+      workflowId: ctx.workflowId,
+      agentNodeId: ctx.nodeId,
+      serverIds,
       pinnedMcpTools: ctx.config.pinnedMcpTools ?? [],
       emitSpanEvent: (event) => ctx.telemetry.addSpanEvent(event),
       startChildSpan: (args) => ctx.telemetry.startChildSpan({ name: args.name, attributes: args.attributes }),

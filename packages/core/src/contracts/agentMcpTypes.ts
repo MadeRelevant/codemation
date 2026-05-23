@@ -1,21 +1,5 @@
+import type { NodeId, WorkflowId } from "./baseTypes";
 import type { TelemetrySpanEventRecord } from "./telemetryTypes";
-
-/**
- * Explicit binding form: { gmail: { credential: "<instanceId>" } }
- */
-export type McpServerExplicitBinding = Readonly<{
-  credential: string; // CredentialInstance.id
-}>;
-
-/**
- * Bindings declared on an agent config.
- * Explicit binding is required: { gmail: { credential: "<instanceId>" } }
- *
- * A user may have multiple instances of the same credential type (personal vs work Gmail);
- * explicit binding eliminates ambiguity. The slot-credential dropdown UI surfaces all
- * matching instances; the user picks.
- */
-export type McpServerBindings = Readonly<Record<string, McpServerExplicitBinding>>;
 
 /**
  * Emitted as a span event when a credential is missing required scopes
@@ -37,23 +21,28 @@ export interface NeedsReconsentEvent {
 export type AgentMcpToolMap = ReadonlyMap<string, Readonly<Record<string, unknown>>>;
 
 /**
- * Contract implemented by the host. Resolves MCP server bindings declared
- * on an agent config into a ready-to-use tool map (with wrapped execute
- * callbacks for telemetry and 403 detection). Core-nodes imports this
- * interface so AIAgentNode can inject it without depending on the host.
+ * Contract implemented by the host. Resolves MCP server bindings for an agent run
+ * via the standard credential-binding table (one slot per declared server, keyed
+ * by `(workflowId, agentNodeId, "mcp:<serverId>")`), and returns a ready-to-use
+ * tool map with wrapped execute callbacks for telemetry and 403 detection.
+ * Core-nodes imports this interface so AIAgentNode can inject it without
+ * depending on the host.
  */
 export interface AgentMcpIntegration {
   /**
-   * Validate bindings, open pool connections, and return a tool map
-   * keyed by serverId. Each tool's execute callback includes:
+   * Look up the credential binding per server, validate scopes, open pool
+   * connections, and return a tool map keyed by serverId. Each tool's
+   * execute callback includes:
    * - Telemetry child span (mcp.server_id, mcp.tool_name attributes)
    * - 403/permission error detection → emits a NeedsReconsentEvent span event
    *
-   * Throws `AgentBindError` on validation failures (missing server, missing
-   * credential instance, insufficient scopes).
+   * Throws `AgentBindError` on validation failures (missing server, unbound
+   * credential slot, missing credential instance, insufficient scopes).
    */
   prepareMcpTools(args: {
-    readonly mcpServers: McpServerBindings;
+    readonly workflowId: WorkflowId;
+    readonly agentNodeId: NodeId;
+    readonly serverIds: ReadonlyArray<string>;
     readonly pinnedMcpTools: readonly string[];
     readonly emitSpanEvent: (event: TelemetrySpanEventRecord) => void;
     readonly startChildSpan: (args: { readonly name: string; readonly attributes?: Record<string, string> }) => {
@@ -61,3 +50,9 @@ export interface AgentMcpIntegration {
     };
   }): Promise<AgentMcpToolMap>;
 }
+
+/**
+ * Deterministic slot key for the credential binding of an MCP server attached
+ * to an agent. The binding lives at `(workflowId, agentNodeId, mcpSlotKey(serverId))`.
+ */
+export const mcpSlotKey = (serverId: string): string => `mcp:${serverId}`;

@@ -8,7 +8,7 @@ compatibility: Requires an installation paired with a connected control plane (S
 
 ## Use this skill when
 
-Use this skill before writing `agent({ mcpServers: { ... } })` to discover what server ids are
+Use this skill before writing `agent({ mcpServers: ["..."] })` to discover what server ids are
 available and what credential types they require. Without it, you'd have to guess server ids or
 ask the user.
 
@@ -43,7 +43,7 @@ An empty query string returns all registered servers.
 | Field                    | Type     | Notes                                                                 |
 | ------------------------ | -------- | --------------------------------------------------------------------- |
 | `kind`                   | string   | Always `"mcp-server"` for now. Future: `"node"`, `"credential-type"` |
-| `id`                     | string   | Stable slug — use this as the mcpServers key in the workflow          |
+| `id`                     | string   | Stable slug — add this string to the agent's mcpServers array         |
 | `displayName`            | string   | Human-readable name for UI or explanations                            |
 | `description`            | string   | What the server does                                                  |
 | `acceptedCredentialTypes`| string[] | Credential type ids accepted by this server (empty = no credential)   |
@@ -58,29 +58,27 @@ An empty query string returns all registered servers.
 
 ## Using results in workflow config
 
-The `id` field from the response maps directly to the `mcpServers` key in the agent config.
-Explicit binding is **required** — the user picks a specific credential instance from the
-slot-credential dropdown. A user may have multiple instances of the same type (personal vs work
-Gmail); explicit binding eliminates ambiguity.
+The `id` field from the response is added to the agent's `mcpServers` array. Each entry
+surfaces a credential slot (`mcp:<serverId>`) on the agent node; the user picks a
+specific credential instance via the canvas credential dropdown — same flow as a trigger
+credential. A user may have multiple instances of the same type (personal vs work Gmail);
+the dropdown surfaces all matching instances.
 
 ```ts
-// Explicit binding — required form
 new AIAgent({
   name: "Gmail reader",
-  mcpServers: {
-    gmail: { credential: "<credentialInstanceId>" },
-  },
+  mcpServers: ["gmail"],
   // ...
 });
 ```
 
-Replace `<credentialInstanceId>` with the actual instance ID, or use the UI credential binding
-flow to bind the slot before activation.
+Bind the credential instance via the UI before activation; there is no inline credential
+field on the workflow definition.
 
 ## Example flow
 
 1. User asks: "Build a workflow that reads Gmail and summarises unread messages."
 2. Call `GET /api/registry/capabilities?query=gmail` → find `id: "gmail"`, `acceptedCredentialTypes: ["oauth.google.gmail"]`.
 3. Report back: "Gmail MCP is available. The user will need to bind a `oauth.google.gmail` credential instance."
-4. In the workflow, use `mcpServers: { gmail: { credential: "<credentialInstanceId>" } }`.
-5. The user binds their credential instance via the slot-credential dropdown before activating.
+4. In the workflow, use `mcpServers: ["gmail"]`.
+5. The user binds their credential instance via the canvas credential dropdown before activating.

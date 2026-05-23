@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { McpServerDeclaration, TelemetrySpanEventRecord } from "@codemation/core";
-import { AgentBindError } from "@codemation/core";
+import { AgentBindError, mcpSlotKey } from "@codemation/core";
 import { AgentMcpIntegrationImpl } from "../../src/mcp/AgentMcpIntegrationImpl";
 import { McpServerCatalog } from "../../src/mcp/McpServerCatalog";
 import { McpConnectionPool } from "../../src/mcp/McpConnectionPool";
@@ -11,13 +11,19 @@ import type { CredentialInstanceRecord } from "../../src/domain/credentials/Cred
 import { FakeLoggerFactory, makeAppConfig } from "../testkit";
 import { FakeMcpClient, FakeClientFactory, FakeCredentials } from "./testkit/McpTestKit";
 
+const WORKFLOW_ID = "wf.test";
+const AGENT_NODE_ID = "agent-1";
+
 function makeCatalog(declarations: McpServerDeclaration[]): McpServerCatalog {
   const catalog = new McpServerCatalog(new FakeLoggerFactory() as unknown as LoggerFactory, makeAppConfig());
   catalog.merge("config", declarations);
   return catalog;
 }
 
-function makeCredentialStore(instances: Partial<CredentialInstanceRecord>[]): CredentialStore {
+function makeCredentialStore(
+  instances: Partial<CredentialInstanceRecord>[],
+  bindings: ReadonlyArray<Readonly<{ workflowId: string; nodeId: string; slotKey: string; instanceId: string }>> = [],
+): CredentialStore {
   const instanceMap = new Map(
     instances.map((inst) => [
       inst.instanceId ?? "default-id",
@@ -33,6 +39,17 @@ function makeCredentialStore(instances: Partial<CredentialInstanceRecord>[]): Cr
         createdAt: "2024-01-01T00:00:00Z",
         updatedAt: "2024-01-01T00:00:00Z",
       } satisfies CredentialInstanceRecord,
+    ]),
+  );
+
+  const bindingsByKey = new Map(
+    bindings.map((b) => [
+      `${b.workflowId}\0${b.nodeId}\0${b.slotKey}`,
+      {
+        key: { workflowId: b.workflowId, nodeId: b.nodeId, slotKey: b.slotKey },
+        instanceId: b.instanceId,
+        updatedAt: "2024-01-01T00:00:00Z",
+      },
     ]),
   );
 
@@ -67,7 +84,8 @@ function makeCredentialStore(instances: Partial<CredentialInstanceRecord>[]): Cr
     saveOAuth2Material: async () => {},
     deleteOAuth2Material: async () => {},
     upsertBinding: async () => {},
-    getBinding: async () => undefined,
+    getBinding: async (key) =>
+      bindingsByKey.get(`${key.workflowId}\0${key.nodeId}\0${key.slotKey}`),
     listBindingsByWorkflowId: async () => [],
     saveTestResult: async () => {},
     getLatestTestResult: async () => undefined,
@@ -127,24 +145,35 @@ const gmailDecl: McpServerDeclaration = {
 // --- Tests ---
 
 describe("AgentMcpIntegrationImpl", () => {
-  describe("explicit-form binding", () => {
-    it("resolves a valid explicit binding and returns a tool map", async () => {
+  describe("binding resolution from CredentialBinding", () => {
+    it("resolves the binding for the agent's MCP slot and returns a tool map", async () => {
       const catalog = makeCatalog([gmailDecl]);
       const creds = new FakeCredentials();
-      const store = makeCredentialStore([
-        {
-          instanceId: "cred-1",
-          scopes: ["https://mail.google.com/"],
-        } as any,
-      ]);
+      const store = makeCredentialStore(
+        [
+          {
+            instanceId: "cred-1",
+            scopes: ["https://mail.google.com/"],
+          } as any,
+        ],
+        [
+          {
+            workflowId: WORKFLOW_ID,
+            nodeId: AGENT_NODE_ID,
+            slotKey: mcpSlotKey("gmail"),
+            instanceId: "cred-1",
+          },
+        ],
+      );
       const pool = makePool(catalog, creds);
 
-      // Inject a fake tool into the pool's client factory
       const integration = new AgentMcpIntegrationImpl(catalog, pool, store, new FakeLoggerFactory());
       const cb = makeNoopSpanCallbacks();
 
       const result = await integration.prepareMcpTools({
-        mcpServers: { gmail: { credential: "cred-1" } },
+        workflowId: WORKFLOW_ID,
+        agentNodeId: AGENT_NODE_ID,
+        serverIds: ["gmail"],
         pinnedMcpTools: [],
         emitSpanEvent: cb.emitSpanEvent,
         startChildSpan: cb.startChildSpan,
@@ -153,17 +182,49 @@ describe("AgentMcpIntegrationImpl", () => {
       expect(result.has("gmail")).toBe(true);
     });
 
-    it("throws AgentBindError when credential instance is not found", async () => {
+    it("throws AgentBindError when no binding exists for the agent MCP slot", async () => {
       const catalog = makeCatalog([gmailDecl]);
       const creds = new FakeCredentials();
-      const store = makeCredentialStore([]);
+      const store = makeCredentialStore([{ instanceId: "cred-1" }], []);
       const pool = makePool(catalog, creds);
       const integration = new AgentMcpIntegrationImpl(catalog, pool, store, new FakeLoggerFactory());
       const cb = makeNoopSpanCallbacks();
 
       await expect(
         integration.prepareMcpTools({
-          mcpServers: { gmail: { credential: "nonexistent-cred" } },
+          workflowId: WORKFLOW_ID,
+          agentNodeId: AGENT_NODE_ID,
+          serverIds: ["gmail"],
+          pinnedMcpTools: [],
+          emitSpanEvent: cb.emitSpanEvent,
+          startChildSpan: cb.startChildSpan,
+        }),
+      ).rejects.toThrow(AgentBindError);
+    });
+
+    it("throws AgentBindError when the bound credential instance no longer exists", async () => {
+      const catalog = makeCatalog([gmailDecl]);
+      const creds = new FakeCredentials();
+      const store = makeCredentialStore(
+        [],
+        [
+          {
+            workflowId: WORKFLOW_ID,
+            nodeId: AGENT_NODE_ID,
+            slotKey: mcpSlotKey("gmail"),
+            instanceId: "missing-cred",
+          },
+        ],
+      );
+      const pool = makePool(catalog, creds);
+      const integration = new AgentMcpIntegrationImpl(catalog, pool, store, new FakeLoggerFactory());
+      const cb = makeNoopSpanCallbacks();
+
+      await expect(
+        integration.prepareMcpTools({
+          workflowId: WORKFLOW_ID,
+          agentNodeId: AGENT_NODE_ID,
+          serverIds: ["gmail"],
           pinnedMcpTools: [],
           emitSpanEvent: cb.emitSpanEvent,
           startChildSpan: cb.startChildSpan,
@@ -181,7 +242,9 @@ describe("AgentMcpIntegrationImpl", () => {
 
       await expect(
         integration.prepareMcpTools({
-          mcpServers: { gmail: { credential: "cred-1" } },
+          workflowId: WORKFLOW_ID,
+          agentNodeId: AGENT_NODE_ID,
+          serverIds: ["gmail"],
           pinnedMcpTools: [],
           emitSpanEvent: cb.emitSpanEvent,
           startChildSpan: cb.startChildSpan,
@@ -198,19 +261,31 @@ describe("AgentMcpIntegrationImpl", () => {
       };
       const catalog = makeCatalog([declWithScopes]);
       const creds = new FakeCredentials();
-      const store = makeCredentialStore([
-        {
-          instanceId: "cred-1",
-          scopes: ["https://mail.google.com/", "https://www.googleapis.com/auth/userinfo.email"],
-        } as any,
-      ]);
+      const store = makeCredentialStore(
+        [
+          {
+            instanceId: "cred-1",
+            scopes: ["https://mail.google.com/", "https://www.googleapis.com/auth/userinfo.email"],
+          } as any,
+        ],
+        [
+          {
+            workflowId: WORKFLOW_ID,
+            nodeId: AGENT_NODE_ID,
+            slotKey: mcpSlotKey("gmail"),
+            instanceId: "cred-1",
+          },
+        ],
+      );
       const pool = makePool(catalog, creds);
       const integration = new AgentMcpIntegrationImpl(catalog, pool, store, new FakeLoggerFactory());
       const cb = makeNoopSpanCallbacks();
 
       await expect(
         integration.prepareMcpTools({
-          mcpServers: { gmail: { credential: "cred-1" } },
+          workflowId: WORKFLOW_ID,
+          agentNodeId: AGENT_NODE_ID,
+          serverIds: ["gmail"],
           pinnedMcpTools: [],
           emitSpanEvent: cb.emitSpanEvent,
           startChildSpan: cb.startChildSpan,
@@ -225,19 +300,31 @@ describe("AgentMcpIntegrationImpl", () => {
       };
       const catalog = makeCatalog([declWithScopes]);
       const creds = new FakeCredentials();
-      const store = makeCredentialStore([
-        {
-          instanceId: "cred-1",
-          scopes: ["https://www.googleapis.com/auth/gmail.readonly"],
-        } as any,
-      ]);
+      const store = makeCredentialStore(
+        [
+          {
+            instanceId: "cred-1",
+            scopes: ["https://www.googleapis.com/auth/gmail.readonly"],
+          } as any,
+        ],
+        [
+          {
+            workflowId: WORKFLOW_ID,
+            nodeId: AGENT_NODE_ID,
+            slotKey: mcpSlotKey("gmail"),
+            instanceId: "cred-1",
+          },
+        ],
+      );
       const pool = makePool(catalog, creds);
       const integration = new AgentMcpIntegrationImpl(catalog, pool, store, new FakeLoggerFactory());
       const cb = makeNoopSpanCallbacks();
 
       const err = await integration
         .prepareMcpTools({
-          mcpServers: { gmail: { credential: "cred-1" } },
+          workflowId: WORKFLOW_ID,
+          agentNodeId: AGENT_NODE_ID,
+          serverIds: ["gmail"],
           pinnedMcpTools: [],
           emitSpanEvent: cb.emitSpanEvent,
           startChildSpan: cb.startChildSpan,
@@ -253,7 +340,17 @@ describe("AgentMcpIntegrationImpl", () => {
     it("wraps tool execute with a telemetry span tagged mcp.server_id and mcp.tool_name", async () => {
       const catalog = makeCatalog([gmailDecl]);
       const creds = new FakeCredentials();
-      const store = makeCredentialStore([{ instanceId: "cred-1" }]);
+      const store = makeCredentialStore(
+        [{ instanceId: "cred-1" }],
+        [
+          {
+            workflowId: WORKFLOW_ID,
+            nodeId: AGENT_NODE_ID,
+            slotKey: mcpSlotKey("gmail"),
+            instanceId: "cred-1",
+          },
+        ],
+      );
 
       // Pre-seed the client with a successful tool so we get a real span on execute.
       const seededClient = new FakeMcpClient();
@@ -274,7 +371,9 @@ describe("AgentMcpIntegrationImpl", () => {
       const cb = makeNoopSpanCallbacks();
 
       const result = await integration.prepareMcpTools({
-        mcpServers: { gmail: { credential: "cred-1" } },
+        workflowId: WORKFLOW_ID,
+        agentNodeId: AGENT_NODE_ID,
+        serverIds: ["gmail"],
         pinnedMcpTools: [],
         emitSpanEvent: cb.emitSpanEvent,
         startChildSpan: cb.startChildSpan,
@@ -296,7 +395,17 @@ describe("AgentMcpIntegrationImpl", () => {
     it("emits NeedsReconsentEvent span event when tool execute returns 403 error", async () => {
       const catalog = makeCatalog([gmailDecl]);
       const creds = new FakeCredentials();
-      const store = makeCredentialStore([{ instanceId: "cred-1" }]);
+      const store = makeCredentialStore(
+        [{ instanceId: "cred-1" }],
+        [
+          {
+            workflowId: WORKFLOW_ID,
+            nodeId: AGENT_NODE_ID,
+            slotKey: mcpSlotKey("gmail"),
+            instanceId: "cred-1",
+          },
+        ],
+      );
 
       // Pre-seed the client with a tool that throws 403 BEFORE the pool opens it.
       const seededClient = new FakeMcpClient();
@@ -319,7 +428,9 @@ describe("AgentMcpIntegrationImpl", () => {
       const cb = makeNoopSpanCallbacks();
 
       const result = await integration.prepareMcpTools({
-        mcpServers: { gmail: { credential: "cred-1" } },
+        workflowId: WORKFLOW_ID,
+        agentNodeId: AGENT_NODE_ID,
+        serverIds: ["gmail"],
         pinnedMcpTools: [],
         emitSpanEvent: cb.emitSpanEvent,
         startChildSpan: cb.startChildSpan,

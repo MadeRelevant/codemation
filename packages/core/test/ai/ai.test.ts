@@ -305,7 +305,7 @@ test("AgentConnectionNodeCollector treats callable tools as tool role not nested
   assert.equal(toolDesc?.role, "tool");
 });
 
-test("AgentConnectionNodeCollector emits tool-slot descriptors for MCP servers via resolver", () => {
+test("AgentConnectionNodeCollector emits MCP descriptors with empty credential sources (slots live on the agent node)", () => {
   const token = { name: "T" } as AgentNodeConfig<any, any>["type"];
   const chatModelType = token as unknown as AgentNodeConfig<any, any>["chatModel"]["type"];
   const gmailDecl: McpServerDeclaration = {
@@ -322,7 +322,7 @@ test("AgentConnectionNodeCollector emits tool-slot descriptors for MCP servers v
     type: token,
     messages: [{ role: "user" as const, content: "hi" }],
     chatModel: { name: "llm", type: chatModelType },
-    mcpServers: { gmail: { credential: "my-gmail-cred" } },
+    mcpServers: ["gmail"],
   } as unknown as AgentNodeConfig<any, any>;
 
   const collected = AgentConnectionNodeCollector.collect("root", agent, resolver);
@@ -333,10 +333,8 @@ test("AgentConnectionNodeCollector emits tool-slot descriptors for MCP servers v
   assert.equal(mcpDesc.role, "tool");
   assert.equal(mcpDesc.name, "Gmail");
   assert.equal(mcpDesc.typeName, "gmail");
-  const reqs = mcpDesc.credentialSource.getCredentialRequirements?.() ?? [];
-  assert.equal(reqs.length, 1);
-  assert.equal(reqs[0]?.slotKey, "credential");
-  assert.deepEqual(reqs[0]?.acceptedTypes, ["oauth.google.gmail"]);
+  // MCP credential slots are emitted by the resolver on the agent node, not by the descriptor.
+  assert.deepEqual(mcpDesc.credentialSource.getCredentialRequirements?.() ?? [], []);
 });
 
 test("AgentConnectionNodeCollector skips MCP servers when resolver is absent", () => {
@@ -347,7 +345,7 @@ test("AgentConnectionNodeCollector skips MCP servers when resolver is absent", (
     type: token,
     messages: [{ role: "user" as const, content: "hi" }],
     chatModel: { name: "llm", type: chatModelType },
-    mcpServers: { gmail: { credential: "my-gmail-cred" } },
+    mcpServers: ["gmail"],
   } as unknown as AgentNodeConfig<any, any>;
 
   const collected = AgentConnectionNodeCollector.collect("root", agent);
@@ -363,69 +361,12 @@ test("AgentConnectionNodeCollector skips unknown MCP server ids (resolver return
     type: token,
     messages: [{ role: "user" as const, content: "hi" }],
     chatModel: { name: "llm", type: chatModelType },
-    mcpServers: { "unknown-server": { credential: "some-cred" } },
+    mcpServers: ["unknown-server"],
   } as unknown as AgentNodeConfig<any, any>;
 
   const collected = AgentConnectionNodeCollector.collect("root", agent, () => undefined);
   const hasMcp = collected.some((c) => ConnectionNodeIdFactory.isMcpConnectionNodeId(c.nodeId));
   assert.equal(hasMcp, false, "Unknown server ids are silently skipped");
-});
-
-test("AgentConnectionNodeCollector handles explicit McpServerBindings object form", () => {
-  const token = { name: "T" } as AgentNodeConfig<any, any>["type"];
-  const chatModelType = token as unknown as AgentNodeConfig<any, any>["chatModel"]["type"];
-  const slackDecl: McpServerDeclaration = {
-    id: "slack",
-    displayName: "Slack",
-    description: "Slack MCP server",
-    transport: "http",
-    url: "https://mcp.example.com/slack",
-    acceptedCredentialTypes: ["slack_token"],
-  };
-  const resolver = (id: string): McpServerDeclaration | undefined => (id === "slack" ? slackDecl : undefined);
-  const agent = {
-    kind: "node" as const,
-    type: token,
-    messages: [{ role: "user" as const, content: "hi" }],
-    chatModel: { name: "llm", type: chatModelType },
-    mcpServers: { slack: { credential: "my-slack-cred" } },
-  } as unknown as AgentNodeConfig<any, any>;
-
-  const collected = AgentConnectionNodeCollector.collect("root", agent, resolver);
-  const mcpDesc = collected.find((c) => c.nodeId === ConnectionNodeIdFactory.mcpConnectionNodeId("root", "slack"));
-
-  assert.ok(mcpDesc, "MCP descriptor for slack should be collected");
-  assert.equal(mcpDesc.name, "Slack");
-  const reqs = mcpDesc.credentialSource.getCredentialRequirements?.() ?? [];
-  assert.equal(reqs.length, 1);
-  assert.deepEqual(reqs[0]?.acceptedTypes, ["slack_token"]);
-});
-
-test("AgentConnectionNodeCollector emits empty credential requirements for server without acceptedCredentialTypes", () => {
-  const token = { name: "T" } as AgentNodeConfig<any, any>["type"];
-  const chatModelType = token as unknown as AgentNodeConfig<any, any>["chatModel"]["type"];
-  const openDecl: McpServerDeclaration = {
-    id: "open-server",
-    displayName: "Open Server",
-    description: "No auth required",
-    transport: "http",
-    url: "https://mcp.example.com/open",
-  };
-  const agent = {
-    kind: "node" as const,
-    type: token,
-    messages: [{ role: "user" as const, content: "hi" }],
-    chatModel: { name: "llm", type: chatModelType },
-    mcpServers: { "open-server": { credential: "no-cred-needed" } },
-  } as unknown as AgentNodeConfig<any, any>;
-
-  const collected = AgentConnectionNodeCollector.collect("root", agent, () => openDecl);
-  const mcpDesc = collected.find(
-    (c) => c.nodeId === ConnectionNodeIdFactory.mcpConnectionNodeId("root", "open-server"),
-  );
-
-  assert.ok(mcpDesc);
-  assert.deepEqual(mcpDesc.credentialSource.getCredentialRequirements?.(), []);
 });
 
 test("ConnectionNodeIdFactory builds and parses MCP connection node ids", () => {

@@ -19,7 +19,7 @@ export default createWorkflowBuilder({
       name: "MCP Agent",
       messages: [{ role: "user", content: "Test." }],
       chatModel: openAiChatModelPresets.demoGpt4oMini,
-      mcpServers: { gmail: { credential: "" } },
+      mcpServers: ["gmail"],
       guardrails: { maxTurns: 1 },
     }),
   )

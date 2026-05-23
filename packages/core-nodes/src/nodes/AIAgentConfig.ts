@@ -4,7 +4,6 @@ import {
   type AgentMessageConfig,
   type AgentNodeConfig,
   type ChatModelConfig,
-  type McpServerBindings,
   type NodeInspectorSummaryRow,
   type RetryPolicySpec,
   type RunnableNodeConfig,
@@ -27,14 +26,13 @@ export interface AIAgentOptions<TInputJson = unknown, _TOutputJson = unknown> {
   readonly inputSchema?: ZodType<TInputJson>;
   readonly outputSchema?: ZodType<_TOutputJson>;
   /**
-   * MCP servers to connect for this agent run.
-   * Explicit binding is required: `{ gmail: { credential: "<instanceId>" } }`
-   *
-   * A user may have multiple instances of the same credential type (e.g. personal vs work Gmail).
-   * Explicit binding is the only form supported; the slot-credential dropdown UI surfaces all
-   * matching instances for the user to pick from.
+   * MCP servers to connect for this agent run. Each entry is the server id from
+   * the MCP catalog (e.g. `"gmail"`). Credential instances are bound via the
+   * standard credential-binding flow — one slot per server, keyed by
+   * `(workflowId, agentNodeId, "mcp:<serverId>")`. There is no inline credential
+   * field; bind through the canvas credential dropdown before activation.
    */
-  readonly mcpServers?: McpServerBindings;
+  readonly mcpServers?: ReadonlyArray<string>;
   /**
    * Tool ids to always include without going through `find_tools`.
    * Format: `"serverId:toolName"` (e.g. `"gmail:send_message"`). Max 16.
@@ -71,7 +69,7 @@ export class AIAgent<TInputJson = unknown, TOutputJson = unknown>
   readonly guardrails?: AgentGuardrailConfig;
   readonly inputSchema?: ZodType<TInputJson>;
   readonly outputSchema?: ZodType<TOutputJson>;
-  readonly mcpServers?: McpServerBindings;
+  readonly mcpServers?: ReadonlyArray<string>;
   readonly pinnedMcpTools?: readonly string[];
   readonly untrustedSources?: ReadonlyArray<string>;
 

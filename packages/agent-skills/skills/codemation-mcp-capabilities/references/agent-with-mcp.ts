@@ -2,17 +2,15 @@
  * Reference: using an MCP server in a workflow agent node.
  *
  * Before writing this, call GET /api/registry/capabilities?query=<name> to confirm
- * the server id and credential type. Then use the id here with an explicit binding.
+ * the server id and credential type. Then list the server id under `mcpServers`.
  *
  * Cron / webhook workflows use createWorkflowBuilder({id, name}).trigger(new XxxTrigger(...))
  * and chain with .then(new SomeNodeConfig(...)). The fluent .map/.if/.agent helpers are
  * only available via workflow("id").manualTrigger(...). See codemation-workflow-dsl skill.
  *
- * EXPLICIT BINDING REQUIRED:
- * mcpServers must use the explicit object form: { serverId: { credential: "<instanceId>" } }
- * A user may have multiple credential instances of the same type (personal vs work Gmail).
- * The slot-credential dropdown UI surfaces all matching instances; the user picks one.
- * Replace "<instanceId>" with the actual credential instance ID, or bind via the UI.
+ * `mcpServers` is a plain array of server ids. Each declared server surfaces a credential
+ * slot (`mcp:<serverId>`) on the agent node. The user binds a credential instance via the
+ * canvas credential dropdown before activation — same flow as trigger credentials.
  */
 
 import { AIAgent, CronTrigger, createWorkflowBuilder } from "@codemation/core-nodes";
@@ -29,9 +27,7 @@ export const summariseEmailsWorkflow = createWorkflowBuilder({
   .then(
     new AIAgent({
       name: "Summarise",
-      // Explicit binding: replace "<instanceId>" with the user's credential instance ID,
-      // or bind it via the UI credential dropdown before activation.
-      mcpServers: { gmail: { credential: "<instanceId>" } },
+      mcpServers: ["gmail"],
       messages: [
         {
           role: "system",
