@@ -28,6 +28,7 @@ export * from "./realtime/WorkflowQueryRetryPolicy";
 export * from "./realtime/realtimeClientBridge";
 export * from "./realtime/realtimeQueryKeys";
 export * from "./realtime/realtimeRunMutations";
+export * from "./realtime/CurrentStatusLabelSelector";
 export * from "./realtime/realtimeTelemetryMutations";
 export * from "./realtime/realtimeTestSuiteMutations";
 export * from "./realtime/workflowTypes";

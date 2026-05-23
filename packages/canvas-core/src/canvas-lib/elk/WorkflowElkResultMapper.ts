@@ -2,6 +2,7 @@ import { MarkerType, Position, type Edge as ReactFlowEdge, type Node as ReactFlo
 
 import type { WorkflowDto } from "@codemation/host/dto";
 import type { ConnectionInvocationRecord, NodeExecutionSnapshot } from "../../realtime/realtimeDomainTypes";
+import { CurrentStatusLabelSelector } from "../../realtime/CurrentStatusLabelSelector";
 import { WorkflowCanvasEdgeCountResolver } from "../WorkflowCanvasEdgeCountResolver";
 import { WorkflowCanvasEdgeStyleResolver } from "../WorkflowCanvasEdgeStyleResolver";
 import {
@@ -96,6 +97,7 @@ export class WorkflowElkResultMapper {
       onClearPinnedOutput,
       onRequestOpenCredentialEditForNode,
     } = input;
+    const { connectionInvocations } = input;
     const { workflow, positionsByNodeId, sizingByNodeId, portInfoByNodeId } = positionedLayout;
 
     return workflow.nodes.map((n) => {
@@ -140,6 +142,7 @@ export class WorkflowElkResultMapper {
           hasNodeErrorHandler: n.hasNodeErrorHandler,
           continueWhenEmptyOutput: n.continueWhenEmptyOutput,
           credentialAttentionTooltip: credentialAttentionTooltipByNodeId.get(n.id),
+          currentStatusLabel: CurrentStatusLabelSelector.select(n.id, connectionInvocations),
           sourceOutputPorts,
           sourceOutputPortCounts,
           targetInputPorts,

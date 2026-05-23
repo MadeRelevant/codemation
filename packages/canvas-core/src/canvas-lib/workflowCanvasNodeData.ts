@@ -38,6 +38,8 @@ export type WorkflowCanvasNodeData = Readonly<{
   continueWhenEmptyOutput?: boolean;
   /** When set, show a credential warning icon with this tooltip (required slot unbound). */
   credentialAttentionTooltip?: string;
+  /** Latest non-empty statusLabel from connection invocations on this node; rendered as a sub-line on the card. */
+  currentStatusLabel?: string;
   /** Distinct source output port names on this node (for multi-handle Right routing). */
   sourceOutputPorts: readonly string[];
   /** Item counts keyed by source output port name. */

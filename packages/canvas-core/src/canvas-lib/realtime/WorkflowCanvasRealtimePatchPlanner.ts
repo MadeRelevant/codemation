@@ -2,6 +2,7 @@ import type { Edge as ReactFlowEdge, Node as ReactFlowNode, EdgeReplaceChange, N
 
 import type { WorkflowDto } from "@codemation/host/dto";
 import type { ConnectionInvocationRecord, NodeExecutionSnapshot } from "../../realtime/realtimeDomainTypes";
+import { CurrentStatusLabelSelector } from "../../realtime/CurrentStatusLabelSelector";
 import { WorkflowCanvasEdgeCountResolver } from "../WorkflowCanvasEdgeCountResolver";
 import { WorkflowCanvasEdgeStyleResolver } from "../WorkflowCanvasEdgeStyleResolver";
 import type { WorkflowCanvasNodeData } from "../workflowCanvasNodeData";
@@ -118,6 +119,8 @@ export class WorkflowCanvasRealtimePatchPlanner {
       incomingEdgesByNodeId.get(edge.target)!.push(edge);
     }
 
+    const invocationsChanged = prevConnectionInvocations !== nextConnectionInvocations;
+    const patchedNodeIds = new Set<string>();
     // Check every node id that appears in either prev or next snapshots
     const allChangedNodeIds = new Set([...Object.keys(prevSnapshots), ...Object.keys(nextSnapshots)]);
     for (const nodeId of allChangedNodeIds) {
@@ -129,12 +132,18 @@ export class WorkflowCanvasRealtimePatchPlanner {
       const nextDisplayedStatus = nextDisplayed[nodeId];
       const displayedStatusChanged = prevDisplayedStatus !== nextDisplayedStatus;
 
-      if (!displayedStatusChanged && !this.portCountsChanged(prev, next)) {
+      const currentNode = nodesById.get(nodeId);
+      const nextStatusLabel = currentNode
+        ? CurrentStatusLabelSelector.select(nodeId, nextConnectionInvocations)
+        : undefined;
+      const statusLabelChanged =
+        currentNode !== undefined && invocationsChanged && currentNode.data.currentStatusLabel !== nextStatusLabel;
+
+      if (!displayedStatusChanged && !this.portCountsChanged(prev, next) && !statusLabelChanged) {
         console.info(`[canvas-update] skipped node=${nodeId} reason=no-change`);
         continue;
       }
 
-      const currentNode = nodesById.get(nodeId);
       if (!currentNode) continue; // node not on canvas (e.g. attachment with no direct card)
 
       // Use the cap-adjusted displayed status for canvas rendering
@@ -156,9 +165,11 @@ export class WorkflowCanvasRealtimePatchPlanner {
           status: newStatus,
           sourceOutputPortCounts: newSourceOutputPortCounts,
           hasOutputData: Boolean(next?.outputs !== undefined || currentNode.data.isPinned),
+          currentStatusLabel: nextStatusLabel,
         },
       };
       nodeChanges.push({ id: nodeId, item: updatedNode, type: "replace" });
+      patchedNodeIds.add(nodeId);
       console.info(
         `[canvas-update] applied node=${nodeId} status=${newStatus ?? "undefined"} outgoing-edges-touched=${(outgoingEdgesByNodeId.get(nodeId) ?? []).length}`,
       );
@@ -181,6 +192,20 @@ export class WorkflowCanvasRealtimePatchPlanner {
           edgeChanges.push(edgeChange);
           patchedEdgeIds.add(edge.id);
         }
+      }
+    }
+
+    if (invocationsChanged) {
+      for (const currentNode of currentNodes) {
+        if (patchedNodeIds.has(currentNode.id)) continue;
+        const nextStatusLabel = CurrentStatusLabelSelector.select(currentNode.id, nextConnectionInvocations);
+        if (currentNode.data.currentStatusLabel === nextStatusLabel) continue;
+        const updatedNode: ReactFlowNode<WorkflowCanvasNodeData> = {
+          ...currentNode,
+          data: { ...currentNode.data, currentStatusLabel: nextStatusLabel },
+        };
+        nodeChanges.push({ id: currentNode.id, item: updatedNode, type: "replace" });
+        patchedNodeIds.add(currentNode.id);
       }
     }
 

@@ -176,6 +176,8 @@ export interface ConnectionInvocationRecord {
   readonly status: NodeExecutionStatus;
   readonly managedInput?: JsonValue;
   readonly managedOutput?: JsonValue;
+  /** Short human-readable description of what this invocation is doing right now (e.g. `"calling search_messages"`). Rendered as a sub-line on the canvas node card. */
+  readonly statusLabel?: string;
   readonly error?: NodeExecutionError;
   readonly queuedAt?: string;
   readonly startedAt?: string;
@@ -198,6 +200,7 @@ export type ConnectionInvocationAppendArgs = Readonly<{
   status: NodeExecutionStatus;
   managedInput?: JsonValue;
   managedOutput?: JsonValue;
+  statusLabel?: string;
   error?: NodeExecutionError;
   queuedAt?: string;
   startedAt?: string;

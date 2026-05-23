@@ -20,6 +20,7 @@ export function WorkflowCanvasCodemationNodeCard(
   const isNestedAgent = data.role === "nestedAgent";
   const treatAsSmallAttachment = isAttachment && !isNestedAgent;
   const isAgentInlineTitle = (!isAttachment && data.role === "agent") || isNestedAgent;
+  const statusLabel = data.currentStatusLabel;
   const isActive = data.status === "queued" || data.status === "running";
   const isSelected = data.selected;
   const isPropertiesTarget = data.propertiesTarget;
@@ -87,6 +88,30 @@ export function WorkflowCanvasCodemationNodeCard(
         }}
       >
         <WorkflowCanvasCodemationNodeMainGlyph data={data} iconPx={iconPx} isAgentInlineTitle={isAgentInlineTitle} />
+
+        {statusLabel ? (
+          <div
+            data-testid={`canvas-node-status-label-${data.nodeId}`}
+            style={{
+              position: "absolute",
+              left: 6,
+              right: 6,
+              bottom: 4,
+              fontSize: 9,
+              lineHeight: 1.2,
+              color: "#64748b",
+              fontWeight: 500,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+              textAlign: isAgentInlineTitle ? "left" : "center",
+              pointerEvents: "none",
+              zIndex: 1,
+            }}
+          >
+            {statusLabel}
+          </div>
+        ) : null}
 
         {hasTopBadges ? (
           <div

@@ -109,6 +109,8 @@ export type ConnectionInvocationRecord = Readonly<{
   status: NodeExecutionSnapshot["status"];
   managedInput?: JsonValue;
   managedOutput?: JsonValue;
+  /** Short human-readable description of what this invocation is doing right now (e.g. `"calling search_messages"`). Rendered as a sub-line on the canvas node card. */
+  statusLabel?: string;
   error?: NodeExecutionSnapshot["error"];
   queuedAt?: string;
   startedAt?: string;
