@@ -1,5 +1,38 @@
 # create-codemation
 
+## 0.2.0
+
+### Minor Changes
+
+- 8285ec0: Add `managed` scaffold template and workflow auto-discovery config fields
+  - New `create-codemation` template `managed` — pre-configured for managed mode with PostgreSQL, CP-JWT auth, and workflow auto-discovery from `./src/workflows`.
+  - `defineCodemationApp` now accepts `workflowsDir` (maps to `workflowDiscovery.directories`), `database.urlEnv`, `execution.modeEnv`, and `execution.redisUrlEnv` for env-resolved config values.
+  - `CodemationConfigNormalizer` enforces managed-mode invariants: PostgreSQL required, at least one workflow source required.
+  - New `WorkflowDirectoryDiscoverer` class for walking a directory and collecting exported workflows with test-file exclusion.
+  - `WorkflowModulePathFinder` now excludes `*.test.*` and `*.spec.*` files from discovery.
+
+### Patch Changes
+
+- 8285ec0: test(create-codemation): push package coverage to ≥90% lines (Sprint 16 Story 01)
+- 8285ec0: Allow SQLite in managed mode. The Sprint 3 Story 6 normalizer rule that
+  forced PostgreSQL when `auth.kind === "managed"` is removed for now —
+  the provisioner doesn't inject `DATABASE_URL` into spawned workspaces,
+  so the constraint blocked local provisioning. The managed scaffold
+  template now defaults to a per-workspace SQLite file.
+- 8285ec0: Add smoke seed workflow to managed scaffold template (`src/workflows/_smoke/smoke-workflow.ts`). Fires every 10 seconds via cron and emits `{event: "SMOKE_TICK"}` — used by the sprint-3 managed lifecycle smoke test to verify run events stream over WebSocket.
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+  - @codemation/agent-skills@0.2.0
+
 ## 0.1.1
 
 ### Patch Changes

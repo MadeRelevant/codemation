@@ -1,5 +1,106 @@
 # @codemation/core-nodes-msgraph
 
+## 0.3.0
+
+### Minor Changes
+
+- 7b50018: feat(core-nodes,msgraph,gmail): inspectorSummary on every built-in node
+
+  Implements `inspectorSummary()` on all built-in node and trigger config classes so the workflow
+  inspector panel introduced in #136 has content for every shipped node.
+  - `@codemation/core`: extends `definePollingTrigger` to accept and plumb an `inspectorSummary`
+    option, mirroring the existing `defineNode` / `defineBatchNode` pattern. Also extends
+    `defineRestNode` (in `@codemation/core-nodes`) with the same option.
+  - `@codemation/core-nodes`: `inspectorSummary()` on `HttpRequest`, `AIAgent`, `CronTrigger`,
+    `ManualTrigger`, `SubWorkflow`, `Callback`, `If`, `Switch`, `Filter`, `Split`, `Merge`,
+    `Wait`, `WebhookTrigger`, `TestTrigger`, `Aggregate`, `MapData`, `Assertion`.
+  - `@codemation/core-nodes-msgraph`: `inspectorSummary` option on all 17 mail/drive/excel nodes
+    plus the `onNewMsGraphMailTrigger` polling trigger.
+  - `@codemation/core-nodes-gmail`: `inspectorSummary()` on `OnNewGmailTrigger`.
+    Gmail action nodes (`SendGmailMessage`, `ReplyToGmailMessage`, `ModifyGmailLabels`) return
+    `undefined` — all their config is per-item via `inputSchema`, nothing to surface at design time.
+  - `@codemation/core`: `WorkflowSnapshotCodec.serializeConfig` now pre-serializes the result of
+    `inspectorSummary()` into the snapshot JSON as `_inspectorSummary` so the browser-side mapper
+    can surface the same rows without calling class methods.
+  - `@codemation/next-host`: `PersistedWorkflowSnapshotMapper` now reads `_inspectorSummary` from
+    the serialized config and includes it in the node DTO, maintaining parity with the live mapper.
+
+### Patch Changes
+
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [e4d3e1a]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [e4d3e1a]
+- Updated dependencies [7b50018]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [e4d3e1a]
+- Updated dependencies [0082ab5]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [51b728d]
+  - @codemation/host@0.7.0
+  - @codemation/core@0.11.0
+
 ## 0.2.1
 
 ### Patch Changes

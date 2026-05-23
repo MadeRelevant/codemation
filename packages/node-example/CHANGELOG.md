@@ -1,5 +1,34 @@
 # @codemation/node-example
 
+## 0.0.38
+
+### Patch Changes
+
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [e4d3e1a]
+- Updated dependencies [7b50018]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [e4d3e1a]
+- Updated dependencies [0082ab5]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+  - @codemation/core@0.11.0
+
 ## 0.0.37
 
 ### Patch Changes

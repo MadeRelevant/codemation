@@ -1,5 +1,178 @@
 # @codemation/core
 
+## 0.11.0
+
+### Minor Changes
+
+- 8285ec0: Add a `statusLabel` field to `ConnectionInvocationRecord` / `ConnectionInvocationAppendArgs` so connection invocations can carry a short human-readable description of what they are doing (e.g. `"calling search_messages"`). The engine-side `NodeRunStateWriter` persists it; the canvas-side mirror picks it up via the standard patch projection.
+
+  Wire per-MCP-tool-call lifecycle invocations through `AgentMcpIntegration`. `prepareMcpTools` now accepts an optional `appendMcpInvocation` callback (plus the agent activation / iteration / item / parent-invocation context). When the host-side `AgentMcpIntegrationImpl` wraps a tool's `execute`, it emits a `running` record with `statusLabel: "calling <toolName>"` and a matching `completed` or `failed` record; the existing telemetry span and 403 `NeedsReconsentEvent` paths are preserved. `@codemation/canvas-core` exposes a `CurrentStatusLabelSelector` and `WorkflowCanvasNodeData.currentStatusLabel`; `@codemation/canvas` renders the latest non-empty label as a sub-line under the node card. The two capabilities work together: MCP tool calls under an agent now stream the same invocation events the LLM and node-backed tool paths already emit, and the canvas surfaces the running label per-node.
+
+- 8285ec0: Add optional `subjectName?: string` to `ConnectionInvocationRecord` and `ConnectionInvocationAppendArgs` — a stable identifier for the thing an invocation acts on that persists across status transitions. The MCP integration's `wrapToolExecutes` sets it to the tool name on every transition (running / completed / failed), so the inspector's tool-call timeline entries can render `"Tool call · <toolName>"` for MCP servers (which expose many tools through a single connection node) instead of an opaque `"Tool call"`.
+
+  For node-backed agent tools, the parent connection node id already encodes the tool name — `subjectName` stays unset there and the inspector renders the existing `"Tool call"` title unchanged.
+
+  `statusLabel` (the running-only sentence rendered on the canvas card sub-line) is unchanged; `subjectName` is the persistent structural sibling used by the inspector.
+
+- 8285ec0: Export `McpServerDeclaration` and `McpServerTransport` from `@codemation/core` main entry point and contracts subpath.
+- 7b50018: feat(core-nodes,msgraph,gmail): inspectorSummary on every built-in node
+
+  Implements `inspectorSummary()` on all built-in node and trigger config classes so the workflow
+  inspector panel introduced in #136 has content for every shipped node.
+  - `@codemation/core`: extends `definePollingTrigger` to accept and plumb an `inspectorSummary`
+    option, mirroring the existing `defineNode` / `defineBatchNode` pattern. Also extends
+    `defineRestNode` (in `@codemation/core-nodes`) with the same option.
+  - `@codemation/core-nodes`: `inspectorSummary()` on `HttpRequest`, `AIAgent`, `CronTrigger`,
+    `ManualTrigger`, `SubWorkflow`, `Callback`, `If`, `Switch`, `Filter`, `Split`, `Merge`,
+    `Wait`, `WebhookTrigger`, `TestTrigger`, `Aggregate`, `MapData`, `Assertion`.
+  - `@codemation/core-nodes-msgraph`: `inspectorSummary` option on all 17 mail/drive/excel nodes
+    plus the `onNewMsGraphMailTrigger` polling trigger.
+  - `@codemation/core-nodes-gmail`: `inspectorSummary()` on `OnNewGmailTrigger`.
+    Gmail action nodes (`SendGmailMessage`, `ReplyToGmailMessage`, `ModifyGmailLabels`) return
+    `undefined` — all their config is per-item via `inputSchema`, nothing to surface at design time.
+  - `@codemation/core`: `WorkflowSnapshotCodec.serializeConfig` now pre-serializes the result of
+    `inspectorSummary()` into the snapshot JSON as `_inspectorSummary` so the browser-side mapper
+    can surface the same rows without calling class methods.
+  - `@codemation/next-host`: `PersistedWorkflowSnapshotMapper` now reads `_inspectorSummary` from
+    the serialized config and includes it in the node DTO, maintaining parity with the live mapper.
+
+- 8285ec0: Add LocalOAuthFlowExecutor for framework (OSS/standalone) mode. Reads clientId from the credential instance's publicConfig and clientSecret from its secret material; builds PKCE-protected consent URLs; exchanges auth codes and refresh tokens directly against the provider's token endpoint. Also patches OAuthFlowExecutor.refresh to accept typeId and instanceId alongside the material, since looking up the tokenUrl and app credentials requires the instance.
+- 8285ec0: Remove the MCP credential bypass on AI agents. `AIAgent.mcpServers` is now a plain
+  `ReadonlyArray<string>` of server ids — the inline `{ credential }` field is gone. Each
+  declared server surfaces a standard credential slot on the agent node (key
+  `mcp:<serverId>`, label and accepted types from the MCP catalog) and binds through the
+  same `CredentialBinding` table as every other slot. At execute time the host resolves the
+  binding via `getBinding({ workflowId, agentNodeId, slotKey: mcp:<serverId> })`, then opens
+  the MCP pool with the resolved credential instance — no more reading the credential id
+  out of the workflow config.
+
+  Breaking — config shape change. Replace:
+
+  ```ts
+  mcpServers: {
+    gmail: {
+      credential: "<instanceId>";
+    }
+  }
+  ```
+
+  with:
+
+  ```ts
+  mcpServers: ["gmail"];
+  ```
+
+  Then bind the credential through the canvas credential dropdown before activating the
+  workflow, the same way trigger credentials are bound. The `McpServerBindings` /
+  `McpServerExplicitBinding` types are removed from `@codemation/core`;
+  `AgentMcpIntegration.prepareMcpTools` now takes `{ workflowId, agentNodeId, serverIds }`.
+
+- 8285ec0: Replace `McpServerDeclaration.credentialKind` / `credentialTypeId` / `oauthAppKey` with `acceptedCredentialTypes?: ReadonlyArray<string>`, matching the `CredentialRequirement.acceptedTypes` shape. Absent or empty array means no credential required. Gmail MCP declaration now uses `["oauth.google.gmail"]`, the same type as the Gmail trigger node.
+- 8285ec0: Add `McpServerDeclaration` type and `McpServerCatalog` service (Story 7).
+  - `@codemation/core` exports `McpServerDeclaration` and `McpServerTransport` from `packages/core/src/contracts/mcpTypes.ts`.
+  - `CodemationPlugin` gains an optional `mcpServers?: ReadonlyArray<McpServerDeclaration>` field.
+  - `CodemationConfig` gains an optional `mcpServers?: ReadonlyArray<McpServerDeclaration>` field (also threaded through `AppConfig` and `DefineCodemationAppOptions`).
+  - `McpServerCatalog` in `packages/host/src/mcp/` merges declarations from three sources (`plugin`, `config`, `controlPlane`) with deterministic precedence and validation (id regex, stdio gate, credential requirements).
+  - `CodemationPluginDiscovery.isPluginConfig` now recognises `mcpServers`-only plugins.
+  - Plugin registrar and app container factory wire catalog merge on startup.
+
+- 8285ec0: MCP servers are now first-class agent connection slots with credential pickers.
+
+  `AgentConnectionNodeCollector.collect()` accepts an optional `mcpServerResolver` callback (Pattern A). When provided, each entry in `agentConfig.mcpServers` is resolved and emitted as a `"tools"` connection slot descriptor — identical pattern to tools. Each MCP slot gets a stable node id via `ConnectionNodeIdFactory.mcpConnectionNodeId()` and exposes `getCredentialRequirements()` from the resolved `McpServerDeclaration`.
+
+  `AIAgentConnectionWorkflowExpander` accepts the resolver in its constructor; `AppContainerFactory` wires `McpServerCatalog.get` there. MCP credential pickers are now visible on the canvas alongside tool slots.
+
+  Removes the `AIAgent.inspectorSummary()` band-aid that listed MCP server ids as plain text — those are now first-class connection nodes rendered on the canvas directly.
+
+- 0082ab5: Adds an `inspectorSummary` hook on node configs (and `defineNode({ inspectorSummary })` for plugin-author nodes). Returns 2–6 short label/value pairs that describe what the node will do at design time — model + prompt for an agent, method + URL for an HTTP call, schedule + timezone for a cron, etc. Surfaced in the workflow editor's node-properties panel as a new "Configuration" section that renders before any run telemetry exists. Hidden when no rows are produced; node configs that don't implement the hook contribute nothing. Built-in nodes will fill these in across follow-up PRs.
+- 8285ec0: Define `OAuthFlowExecutor` interface — the mode-agnostic contract for the OAuth dance (start → callback → token storage) and refresh. Implementations (local and managed) will register behind this single interface via DI.
+- 8285ec0: Remove deprecated broker-era MCP fields: `NeedsReconsentEvent.oauthAppKey`, shorthand `McpServerBindings` string array form, and `AgentMcpIntegrationImpl.autoResolveCredential`. Explicit binding (`{ serverId: { credential: "<instanceId>" } }`) is now the only supported form — eliminating ambiguity when multiple credential instances of the same type exist.
+- 8285ec0: feat(host/binary): S3BinaryStorage implementation + boot connectivity check (Sprint 15 Story 03)
+
+  Adds `S3BinaryStorage` — a Scaleway-compatible S3 implementation of `BinaryStorage` using
+  `@aws-sdk/client-s3` + `@aws-sdk/lib-storage` (multipart for large payloads). Key scheme:
+  `<workspaceId>/<runId>/<binaryId>`.
+
+  Runtime selection is controlled by `BINARY_STORAGE_KIND` env var (`"local"` default | `"s3"`).
+  When `"s3"`, all `BINARY_STORAGE_S3_*` vars are required and validated at boot. A `HeadBucket`
+  connectivity check fails loudly on startup if the bucket is unreachable.
+
+  Extends `BinaryStorage` interface (core) with `deleteMany(keys)` and `listByPrefix(prefix)` for
+  bulk-delete (1000-key S3 batching) and workspace-prefix enumeration (GDPR erasure). All existing
+  implementations (`InMemoryBinaryStorage`, `LocalFilesystemBinaryStorage`, `UnavailableBinaryStorage`)
+  updated with correct implementations.
+
+- 8285ec0: feat(story-11): Wire MCP catalog into agent — explicit and shorthand binding, scope validation, pool integration, telemetry, and runtime 403 detection
+  - `@codemation/core`: `AgentMcpIntegration` interface + token, `McpServerBindings` types, `NeedsReconsentEvent`, `AgentBindError`, `NoOpAgentMcpIntegration` fallback, `CodemationTelemetryAttributeNames.mcpServerId/mcpToolName`
+  - `@codemation/core-nodes`: `AIAgentConfig` + `AIAgent` extended with `mcpServers` and `pinnedMcpTools`; `DeferredMetaToolStrategy.ownsToolName` covers MCP tools; `AIAgentNode` injects `AgentMcpIntegration` and strips AI SDK auto-execute from strategy tools
+  - `@codemation/host`: `AgentMcpIntegrationImpl` — resolves bindings, validates scopes, opens pool, wraps tool execute with telemetry spans and 403/permission error detection
+
+### Patch Changes
+
+- 8285ec0: Fix workflow detail screen hydration mismatch caused by overlay siblings (tabs, run button, error banner, realtime badge) being rendered conditionally on controller state that diverges between SSR and a warm React Query client cache. Overlay siblings are now gated behind the same `hasMounted` flag as the canvas root.
+
+  Render AIAgent MCP-server attachments in the canvas. `WorkflowDefinitionMapper` (the server-side mapper that feeds `/api/workflows/:id`) now passes an `McpServerResolver` backed by the host's `McpServerCatalog` to `AgentConnectionNodeCollector.collect`, so virtual connection nodes for declared `mcpServers` are emitted alongside the LLM and tool children. The MCP descriptor itself carries `icon: "lucide:plug"` and `lucide:plug` is added to the curated `WorkflowCanvasLucideIconRegistry` so MCP servers render with a distinct icon on the synchronous zero-HTTP path.
+
+- 8285ec0: test: push @codemation/core coverage to ≥90% (Sprint 16 Story 01)
+- 8285ec0: Stop leaking `node:crypto` and `node:module` into canvas's browser bundle. `NodeIterationIdFactory` and `ConnectionInvocationIdFactory` now use `globalThis.crypto.randomUUID()` instead of importing `randomUUID` from `node:crypto`. Canvas's `tsdown` build is configured with `platform: "neutral"` so the dist no longer ships `createRequire(import.meta.url)` from `node:module`. Fixes consumer Turbopack OOMs when the canvas dist is included in a Next.js client bundle.
+- e4d3e1a: perf(core): yield event loop between node activations in InlineDrivingScheduler
+
+  Switch `scheduleDrain` from `setTimeout(0)` to `setImmediate` and process one
+  activation per drain call instead of draining the entire queue in a while loop.
+  This ensures HTTP responses and WebSocket frames can flush to clients between
+  node activations — previously synchronous SQLite writes during a 20-node run
+  could block the proxy event loop for 3–4 s, making the canvas appear frozen
+  until the run completed.
+
+- 8285ec0: MCP credential slots now live on the MCP connection node, matching ChatModel and Tool
+  connection nodes. Each declared `mcpServers` entry materializes an MCP connection node
+  and the credential slot is attached to that node with slot key `"credential"` (label
+  and accepted types derived from the MCP catalog declaration). The standard credential
+  slot traversal picks them up via `AgentConnectionNodeCollector` — no special-case path.
+
+  Removed the agent-owned `mcp:<serverId>` slot key. Removed the `mcpSlotKey(serverId)`
+  helper from `@codemation/core` (and its re-export from the type-only `contracts`
+  subpath). At runtime, `AgentMcpIntegration.prepareMcpTools` now resolves the binding at
+  `(workflowId, ConnectionNodeIdFactory.mcpConnectionNodeId(agentNodeId, serverId), "credential")`.
+
+  Gmail MCP `requiredScopes` trimmed to `["https://www.googleapis.com/auth/gmail.modify"]`
+  — `gmail.modify` is a superset of `gmail.readonly` + `gmail.send` for messages, threads,
+  drafts, and labels, so the previous list was redundant.
+
+- e4d3e1a: perf(core): fail fast on unbound required credential slots before node execution
+
+  `NodeExecutor` now checks all required (non-optional) credential slots via
+  `ctx.getCredential` before entering the retry runner or calling the node's
+  `execute`. This means a misconfigured credential surfaces as an immediate error
+  without burning the retry budget or running any node setup work. The session is
+  created and cached during the pre-flight, so the node itself pays no extra cost
+  when it subsequently calls `getCredential`. Optional slots (`optional: true` in
+  `getCredentialRequirements`) are skipped.
+
+  Also adds a `shouldRetry` predicate to `InProcessRetryRunner.run` and uses it
+  in `NodeExecutor` to skip all retry delays when the node throws a
+  `CredentialUnboundError` (or an error whose `.cause` is one). Previously, nodes
+  like `AIAgent` that check credentials inside `execute` rather than via
+  `getCredentialRequirements` would burn their full retry budget (e.g. 3 × 2 s
+  for AI agents) before surfacing the "slot not bound" error.
+
+- 8285ec0: fix: validate edge output ports against declared node ports at load time
+
+  Adds `WorkflowEdgePortValidator` to `@codemation/core`. The validator checks that every edge's `from.output` port is declared by the source node's `declaredOutputPorts`; nodes without declared ports are treated as unconstrained (legacy behaviour).
+
+  The validator is wired into `WorkflowDefinitionExportsResolver` in `@codemation/host`, which is the common chokepoint for both the `CodemationConsumerConfigLoader` and `CodemationConsumerAppResolver` load paths. On violation, all errors are reported at once so an agent can self-correct in a single pass.
+
+  `WorkflowElkPortInfoResolver` in `@codemation/canvas-core` is tightened to render _exactly_ the declared ports (plus the synthetic `error` port when applicable) when a node has `declaredOutputPorts`, preventing phantom handles from rogue edges on the canvas. Legacy nodes without declared ports continue to infer ports from edges as before.
+
+  Root cause: an LLM agent created an `If` workflow node (declares `["true", "false"]`) with a rogue edge using `output: "main"`, which the canvas unioned into the port list, producing a phantom third handle.
+
+- 8285ec0: Sprint 14 coverage: tests for WhenBuilder DSL helper, InMemoryWorkflowExecutionRepository retention paths, DevTrackedProcessTreeKiller edge cases, ConsumerCliTsconfigPreparation resolution, ListenPortConflictDescriber ss fallback, RedisRunEventBus publish/subscribe/teardown, CodemationChatModelFactory HMAC signing, registerCoreNodes smoke, single-react-component-per-file rule branches, and CodemationAgentSkillsCli error/help paths. No production code changes.
+- 8285ec0: Remove the `development` export condition from `@codemation/canvas`, `@codemation/core`, and `@codemation/host` package.json exports. Module resolution now consistently uses the built `dist/` regardless of `NODE_ENV`.
+
+  **Why:** the `development` condition is auto-applied by bundlers (Next.js dev mode, Vite dev, etc.) and was making every cross-repo monorepo consumer fall through to TypeScript source. For the framework's own `@codemation/next-host`, this was fine — turbo's `dev` already runs `tsdown --watch` on these packages so dist is always fresh in dev. For external consumers (notably the managed control plane), it caused multi-hundred-file recursive source compiles on every cold page load.
+
+  **Impact:** zero behavior change for normal users (they consume published `dist/`). Framework monorepo devs editing canvas/core/host source still see live updates as long as `tsdown --watch` is running for the package — which is what `pnpm dev` (turbo) orchestrates by default. If you're running an app in isolation without the package's watch task, you now need to start it explicitly.
+
 ## 0.10.2
 
 ### Patch Changes
