@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import type { McpServerDeclaration, TelemetrySpanEventRecord } from "@codemation/core";
+import type {
+  ConnectionInvocationAppendArgs,
+  McpServerDeclaration,
+  TelemetrySpanEventRecord,
+} from "@codemation/core";
 import { AgentBindError, ConnectionNodeIdFactory } from "@codemation/core";
 import { AgentMcpIntegrationImpl } from "../../src/mcp/AgentMcpIntegrationImpl";
 import { McpServerCatalog } from "../../src/mcp/McpServerCatalog";
@@ -451,6 +455,133 @@ describe("AgentMcpIntegrationImpl", () => {
       expect(cb.events).toHaveLength(1);
       expect(cb.events[0].name).toBe("mcp.needs_reconsent");
       expect(cb.events[0].attributes?.["mcp.server_id"]).toBe("gmail");
+    });
+  });
+
+  describe("per-tool invocation lifecycle", () => {
+    function makeAppendCapture() {
+      const calls: ConnectionInvocationAppendArgs[] = [];
+      return {
+        calls,
+        append: async (args: ConnectionInvocationAppendArgs) => {
+          calls.push(args);
+        },
+      };
+    }
+
+    function setupSeededIntegration(toolName: string, execute: () => Promise<unknown>) {
+      const catalog = makeCatalog([gmailDecl]);
+      const store = makeCredentialStore(
+        [{ instanceId: "cred-1", scopes: [] } as any],
+        [
+          {
+            workflowId: WORKFLOW_ID,
+            nodeId: GMAIL_MCP_NODE_ID,
+            slotKey: "credential",
+            instanceId: "cred-1",
+          },
+        ],
+      );
+      const seededClient = new FakeMcpClient();
+      seededClient.toolsResult[toolName] = {
+        description: "Test tool",
+        execute,
+      };
+      const clientFactory = new FakeClientFactory(seededClient);
+      const pool = new McpConnectionPool(
+        catalog,
+        new FakeOAuth2MaterialReader() as unknown as CredentialOAuth2MaterialReader,
+        new FakeLoggerFactory(),
+        clientFactory,
+      );
+      return new AgentMcpIntegrationImpl(catalog, pool, store, new FakeLoggerFactory());
+    }
+
+    it("emits a running invocation with statusLabel=`calling <toolName>` then completed on success", async () => {
+      const integration = setupSeededIntegration("list_messages", async () => ({ messages: [] }));
+      const cb = makeNoopSpanCallbacks();
+      const capture = makeAppendCapture();
+
+      const result = await integration.prepareMcpTools({
+        workflowId: WORKFLOW_ID,
+        agentNodeId: AGENT_NODE_ID,
+        serverIds: ["gmail"],
+        pinnedMcpTools: [],
+        emitSpanEvent: cb.emitSpanEvent,
+        startChildSpan: cb.startChildSpan,
+        appendMcpInvocation: capture.append,
+        parentAgentActivationId: "act-1",
+      });
+      const tool = result.get("gmail")?.["list_messages"] as { execute: (input: unknown) => Promise<unknown> };
+      await tool.execute({ q: "test" });
+
+      expect(capture.calls).toHaveLength(2);
+      const [running, completed] = capture.calls;
+      expect(running.status).toBe("running");
+      expect(completed.status).toBe("completed");
+      expect(running.statusLabel).toBe("calling list_messages");
+      expect(running.invocationId).toBe(completed.invocationId);
+      expect(running.connectionNodeId).toBe(GMAIL_MCP_NODE_ID);
+      expect(completed.connectionNodeId).toBe(GMAIL_MCP_NODE_ID);
+      expect(running.parentAgentNodeId).toBe(AGENT_NODE_ID);
+      expect(running.parentAgentActivationId).toBe("act-1");
+    });
+
+    it("emits running then failed with error.message on a non-permission error", async () => {
+      const integration = setupSeededIntegration("send_email", async () => {
+        throw new Error("network down");
+      });
+      const cb = makeNoopSpanCallbacks();
+      const capture = makeAppendCapture();
+
+      const result = await integration.prepareMcpTools({
+        workflowId: WORKFLOW_ID,
+        agentNodeId: AGENT_NODE_ID,
+        serverIds: ["gmail"],
+        pinnedMcpTools: [],
+        emitSpanEvent: cb.emitSpanEvent,
+        startChildSpan: cb.startChildSpan,
+        appendMcpInvocation: capture.append,
+        parentAgentActivationId: "act-1",
+      });
+      const tool = result.get("gmail")?.["send_email"] as { execute: (input: unknown) => Promise<unknown> };
+      await tool.execute({}).catch(() => undefined);
+
+      expect(capture.calls).toHaveLength(2);
+      const [running, failed] = capture.calls;
+      expect(running.status).toBe("running");
+      expect(failed.status).toBe("failed");
+      expect(failed.error?.message).toBe("network down");
+      expect(running.invocationId).toBe(failed.invocationId);
+    });
+
+    it("emits failed AND a NeedsReconsentEvent on a 403/permission error", async () => {
+      const integration = setupSeededIntegration("send_email", async () => {
+        throw new Error("403 Forbidden");
+      });
+      const cb = makeNoopSpanCallbacks();
+      const capture = makeAppendCapture();
+
+      const result = await integration.prepareMcpTools({
+        workflowId: WORKFLOW_ID,
+        agentNodeId: AGENT_NODE_ID,
+        serverIds: ["gmail"],
+        pinnedMcpTools: [],
+        emitSpanEvent: cb.emitSpanEvent,
+        startChildSpan: cb.startChildSpan,
+        appendMcpInvocation: capture.append,
+        parentAgentActivationId: "act-1",
+      });
+      const tool = result.get("gmail")?.["send_email"] as { execute: (input: unknown) => Promise<unknown> };
+      await tool.execute({}).catch(() => undefined);
+
+      expect(capture.calls).toHaveLength(2);
+      const [running, failed] = capture.calls;
+      expect(running.status).toBe("running");
+      expect(failed.status).toBe("failed");
+      expect(failed.error?.message).toContain("permission error");
+      expect(cb.events).toHaveLength(1);
+      expect(cb.events[0].name).toBe("mcp.needs_reconsent");
     });
   });
 });

@@ -186,6 +186,12 @@ export class AIAgentNode implements RunnableNode<AIAgent<any, any>> {
     if (serverIds.length === 0) {
       return new Map();
     }
+    const nodeState = ctx.nodeState;
+    const appendMcpInvocation = nodeState
+      ? async (args: Parameters<NonNullable<typeof nodeState>["appendConnectionInvocation"]>[0]) => {
+          await nodeState.appendConnectionInvocation(args);
+        }
+      : undefined;
     const toolMap: AgentMcpToolMap = await this.agentMcpIntegration.prepareMcpTools({
       workflowId: ctx.workflowId,
       agentNodeId: ctx.nodeId,
@@ -193,6 +199,11 @@ export class AIAgentNode implements RunnableNode<AIAgent<any, any>> {
       pinnedMcpTools: ctx.config.pinnedMcpTools ?? [],
       emitSpanEvent: (event) => ctx.telemetry.addSpanEvent(event),
       startChildSpan: (args) => ctx.telemetry.startChildSpan({ name: args.name, attributes: args.attributes }),
+      appendMcpInvocation,
+      parentAgentActivationId: ctx.activationId,
+      iterationId: ctx.iterationId,
+      itemIndex: ctx.itemIndex,
+      parentInvocationId: ctx.parentInvocationId,
     });
     // Cast from AgentMcpToolMap (core contract, no ai dependency) to ToolSet (ai SDK type).
     return toolMap as unknown as ReadonlyMap<string, ToolSet>;

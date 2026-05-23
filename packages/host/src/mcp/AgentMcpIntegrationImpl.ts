@@ -2,13 +2,19 @@ import type { ToolSet } from "ai";
 import {
   AgentBindError,
   CodemationTelemetryAttributeNames,
+  ConnectionInvocationIdFactory,
   ConnectionNodeIdFactory,
   inject,
   injectable,
   type AgentMcpIntegration,
   type AgentMcpToolMap,
+  type ConnectionInvocationAppendArgs,
+  type JsonValue,
   type McpServerDeclaration,
   type NeedsReconsentEvent,
+  type NodeActivationId,
+  type NodeIterationId,
+  type ConnectionInvocationId,
   type TelemetrySpanEventRecord,
 } from "@codemation/core";
 import { ApplicationTokens } from "../applicationTokens";
@@ -36,7 +42,19 @@ export class AgentMcpIntegrationImpl implements AgentMcpIntegration {
   ) {}
 
   async prepareMcpTools(args: Parameters<AgentMcpIntegration["prepareMcpTools"]>[0]): Promise<AgentMcpToolMap> {
-    const { workflowId, agentNodeId, serverIds, pinnedMcpTools: _pinnedMcpTools, emitSpanEvent, startChildSpan } = args;
+    const {
+      workflowId,
+      agentNodeId,
+      serverIds,
+      pinnedMcpTools: _pinnedMcpTools,
+      emitSpanEvent,
+      startChildSpan,
+      appendMcpInvocation,
+      parentAgentActivationId,
+      iterationId,
+      itemIndex,
+      parentInvocationId,
+    } = args;
 
     const result = new Map<string, Readonly<Record<string, unknown>>>();
     const logger = this.loggers.create("AgentMcpIntegrationImpl");
@@ -59,14 +77,20 @@ export class AgentMcpIntegrationImpl implements AgentMcpIntegration {
       const rawTools = await this.pool.getTools(credentialInstanceId, serverId);
 
       // Wrap each tool's execute for telemetry and 403 detection.
-      const wrappedTools = this.wrapToolExecutes(
-        rawTools as ToolSet,
+      const wrappedTools = this.wrapToolExecutes({
+        tools: rawTools as ToolSet,
         serverId,
         credentialInstanceId,
+        agentNodeId,
         emitSpanEvent,
         startChildSpan,
         logger,
-      );
+        appendMcpInvocation,
+        parentAgentActivationId,
+        iterationId,
+        itemIndex,
+        parentInvocationId,
+      });
 
       result.set(serverId, wrappedTools as unknown as Readonly<Record<string, unknown>>);
     }
@@ -125,18 +149,39 @@ export class AgentMcpIntegrationImpl implements AgentMcpIntegration {
    * - On 403 / permission errors: emits a NeedsReconsentEvent span event, closes the span with
    *   error status, and re-throws a descriptive error. The agent turn continues for other tools.
    */
-  private wrapToolExecutes(
-    tools: ToolSet,
-    serverId: string,
-    credentialInstanceId: string,
-    emitSpanEvent: (event: TelemetrySpanEventRecord) => void,
+  private wrapToolExecutes(args: {
+    tools: ToolSet;
+    serverId: string;
+    credentialInstanceId: string;
+    agentNodeId: string;
+    emitSpanEvent: (event: TelemetrySpanEventRecord) => void;
     startChildSpan: (args: { name: string; attributes?: Record<string, string> }) => {
       end: (args?: { status?: "ok" | "error"; statusMessage?: string }) => void;
-    },
-    logger: ReturnType<LoggerFactory["create"]>,
-  ): ToolSet {
+    };
+    logger: ReturnType<LoggerFactory["create"]>;
+    appendMcpInvocation?: (args: ConnectionInvocationAppendArgs) => Promise<void>;
+    parentAgentActivationId?: NodeActivationId;
+    iterationId?: NodeIterationId;
+    itemIndex?: number;
+    parentInvocationId?: ConnectionInvocationId;
+  }): ToolSet {
+    const {
+      tools,
+      serverId,
+      credentialInstanceId,
+      agentNodeId,
+      emitSpanEvent,
+      startChildSpan,
+      logger,
+      appendMcpInvocation,
+      parentAgentActivationId,
+      iterationId,
+      itemIndex,
+      parentInvocationId,
+    } = args;
     const wrapped: Record<string, ToolSet[string]> = {};
     const checkPermissionError = (err: unknown): boolean => this.isPermissionError(err);
+    const connectionNodeId = ConnectionNodeIdFactory.mcpConnectionNodeId(agentNodeId, serverId);
 
     for (const [toolName, toolDef] of Object.entries(tools)) {
       const originalExecute = (toolDef as { execute?: (input: unknown) => Promise<unknown> }).execute;
@@ -150,12 +195,46 @@ export class AgentMcpIntegrationImpl implements AgentMcpIntegration {
               [CodemationTelemetryAttributeNames.mcpToolName]: toolName,
             },
           });
+          const invocationId = ConnectionInvocationIdFactory.create();
+          const startedAtIso = new Date().toISOString();
+          const baseRecord = {
+            invocationId,
+            connectionNodeId,
+            parentAgentNodeId: agentNodeId,
+            parentAgentActivationId: parentAgentActivationId ?? agentNodeId,
+            iterationId,
+            itemIndex,
+            parentInvocationId,
+          };
+          const summarizedInput = this.summarizeForInvocation(input);
+          if (appendMcpInvocation) {
+            await appendMcpInvocation({
+              ...baseRecord,
+              status: "running",
+              managedInput: summarizedInput,
+              queuedAt: startedAtIso,
+              startedAt: startedAtIso,
+              statusLabel: `calling ${toolName}`,
+            });
+          }
           try {
             if (!originalExecute) {
               throw new Error(`MCP tool "${toolName}" on server "${serverId}" has no execute callback`);
             }
             const result = await originalExecute(input);
             span.end({ status: "ok" });
+            if (appendMcpInvocation) {
+              const finishedAtIso = new Date().toISOString();
+              await appendMcpInvocation({
+                ...baseRecord,
+                status: "completed",
+                managedInput: summarizedInput,
+                managedOutput: this.summarizeForInvocation(result),
+                queuedAt: startedAtIso,
+                startedAt: startedAtIso,
+                finishedAt: finishedAtIso,
+              });
+            }
             return result;
           } catch (error) {
             if (checkPermissionError(error)) {
@@ -177,18 +256,42 @@ export class AgentMcpIntegrationImpl implements AgentMcpIntegration {
                   `NeedsReconsentEvent emitted for credential instance "${credentialInstanceId}".`,
                 error instanceof Error ? error : undefined,
               );
-              // The event carries the structured data; the agent turn continues for other tools.
-              throw new Error(
+              const wrapped = new Error(
                 `MCP tool "${toolName}" on server "${serverId}" returned a permission error. ` +
                   `Reconnect the credential "${credentialInstanceId}" via the Connect flow. ` +
                   `needsReconsent: ${JSON.stringify(event satisfies NeedsReconsentEvent)}`,
                 { cause: error },
               );
+              if (appendMcpInvocation) {
+                await appendMcpInvocation({
+                  ...baseRecord,
+                  status: "failed",
+                  managedInput: summarizedInput,
+                  error: { message: wrapped.message, name: wrapped.name },
+                  queuedAt: startedAtIso,
+                  startedAt: startedAtIso,
+                  finishedAt: new Date().toISOString(),
+                });
+              }
+              // The event carries the structured data; the agent turn continues for other tools.
+              throw wrapped;
             }
+            const effectiveMessage = error instanceof Error ? error.message : String(error);
             span.end({
               status: "error",
-              statusMessage: error instanceof Error ? error.message : String(error),
+              statusMessage: effectiveMessage,
             });
+            if (appendMcpInvocation) {
+              await appendMcpInvocation({
+                ...baseRecord,
+                status: "failed",
+                managedInput: summarizedInput,
+                error: { message: effectiveMessage, name: error instanceof Error ? error.name : undefined },
+                queuedAt: startedAtIso,
+                startedAt: startedAtIso,
+                finishedAt: new Date().toISOString(),
+              });
+            }
             throw error;
           }
         },
@@ -197,6 +300,19 @@ export class AgentMcpIntegrationImpl implements AgentMcpIntegration {
     }
 
     return wrapped as ToolSet;
+  }
+
+  private summarizeForInvocation(value: unknown): JsonValue | undefined {
+    if (value === undefined) return undefined;
+    try {
+      const serialized = JSON.stringify(value);
+      if (serialized.length > 1024) {
+        return { truncated: true, preview: serialized.slice(0, 1024) };
+      }
+      return JSON.parse(serialized) as JsonValue;
+    } catch {
+      return undefined;
+    }
   }
 
   /**

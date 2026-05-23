@@ -1,5 +1,7 @@
 import type { NodeId, WorkflowId } from "./baseTypes";
+import type { ConnectionInvocationAppendArgs, ConnectionInvocationId } from "./runTypes";
 import type { TelemetrySpanEventRecord } from "./telemetryTypes";
+import type { NodeActivationId, NodeIterationId } from "./workflowTypes";
 
 /**
  * Emitted as a span event when a credential is missing required scopes
@@ -48,5 +50,15 @@ export interface AgentMcpIntegration {
     readonly startChildSpan: (args: { readonly name: string; readonly attributes?: Record<string, string> }) => {
       readonly end: (args?: { status?: "ok" | "error"; statusMessage?: string }) => void;
     };
+    /** Per-MCP-tool-call invocation appender. Optional; when omitted the wrapper emits only telemetry spans. */
+    readonly appendMcpInvocation?: (args: ConnectionInvocationAppendArgs) => Promise<void>;
+    /** Agent activation id to attach to each invocation record (used by canvas + inspector grouping). */
+    readonly parentAgentActivationId?: NodeActivationId;
+    /** Per-item iteration id when the agent runs inside a per-item loop. */
+    readonly iterationId?: NodeIterationId;
+    /** Item index (0-based) of the iteration that owns these tool calls. */
+    readonly itemIndex?: number;
+    /** Parent invocation id when this agent is itself executing as a sub-agent. */
+    readonly parentInvocationId?: ConnectionInvocationId;
   }): Promise<AgentMcpToolMap>;
 }
