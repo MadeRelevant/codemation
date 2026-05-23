@@ -14,15 +14,11 @@ export type OAuthGoogleGmailMaterial = Readonly<{
   grantedScopes: string[];
 }>;
 
+// Matches n8n's Gmail node defaults: gmail.modify is a superset of read/send/compose for
+// messages and threads; gmail.labels is required separately to create/delete custom labels.
 const GMAIL_DEFAULT_SCOPES = [
-  "https://www.googleapis.com/auth/gmail.readonly",
-  "https://www.googleapis.com/auth/gmail.send",
-  "https://www.googleapis.com/auth/gmail.compose",
   "https://www.googleapis.com/auth/gmail.modify",
   "https://www.googleapis.com/auth/gmail.labels",
-  "https://www.googleapis.com/auth/gmail.metadata",
-  "https://www.googleapis.com/auth/gmail.settings.basic",
-  "https://www.googleapis.com/auth/gmail.settings.sharing",
 ] as const;
 
 export const oauthGoogleGmailType: CredentialType<
@@ -99,11 +95,26 @@ export const oauthGoogleGmailType: CredentialType<
         scopes: material.grantedScopes.length > 0 ? material.grantedScopes : [...GMAIL_DEFAULT_SCOPES],
       });
       await session.client.users.getProfile({ userId: session.userId });
+      const actualScopes = await introspectTokenScopes(material.accessToken);
+      const hasReadonly = actualScopes !== undefined && tokenHasReadonlyOrModify(actualScopes);
+      if (actualScopes !== undefined && !hasReadonly) {
+        return {
+          status: "failing",
+          message:
+            "Token only has metadata-level scope. Disconnect and reconnect to re-authorize with read access (gmail.readonly).",
+          testedAt: new Date().toISOString(),
+          details: { emailAddress: session.emailAddress, storedScopes: session.scopes, actualScopes },
+        };
+      }
       return {
         status: "healthy",
         message: "Connected to Gmail successfully.",
         testedAt: new Date().toISOString(),
-        details: { emailAddress: session.emailAddress, scopes: session.scopes },
+        details: {
+          emailAddress: session.emailAddress,
+          storedScopes: session.scopes,
+          actualScopes: actualScopes ?? "<tokeninfo unavailable>",
+        },
       };
     } catch (error) {
       return {
@@ -114,3 +125,26 @@ export const oauthGoogleGmailType: CredentialType<
     }
   },
 };
+
+async function introspectTokenScopes(accessToken: string): Promise<ReadonlyArray<string> | undefined> {
+  try {
+    const response = await fetch(
+      `https://oauth2.googleapis.com/tokeninfo?access_token=${encodeURIComponent(accessToken)}`,
+    );
+    if (!response.ok) return undefined;
+    const body = (await response.json()) as { scope?: string };
+    if (typeof body.scope !== "string" || body.scope.length === 0) return undefined;
+    return body.scope.split(/\s+/).filter((s) => s.length > 0);
+  } catch {
+    return undefined;
+  }
+}
+
+function tokenHasReadonlyOrModify(scopes: ReadonlyArray<string>): boolean {
+  return scopes.some(
+    (s) =>
+      s === "https://www.googleapis.com/auth/gmail.readonly" ||
+      s === "https://www.googleapis.com/auth/gmail.modify" ||
+      s === "https://mail.google.com/",
+  );
+}

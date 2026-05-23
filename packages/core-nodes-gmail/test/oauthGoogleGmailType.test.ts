@@ -19,15 +19,16 @@ describe("oauthGoogleGmailType", () => {
     expect("tokenUrl" in auth && auth.tokenUrl).toBe("https://oauth2.googleapis.com/token");
   });
 
-  it("defaultScopes includes gmail.readonly and gmail.send", () => {
+  it("defaultScopes are the minimal n8n-style set: gmail.modify + gmail.labels", () => {
     const auth = definition.auth;
     expect(auth?.kind).toBe("oauth2");
     if (!auth || auth.kind !== "oauth2") {
       throw new Error("auth is not oauth2");
     }
-    const scopes = auth.scopes;
-    expect(scopes).toContain("https://www.googleapis.com/auth/gmail.readonly");
-    expect(scopes).toContain("https://www.googleapis.com/auth/gmail.send");
+    expect([...auth.scopes]).toEqual([
+      "https://www.googleapis.com/auth/gmail.modify",
+      "https://www.googleapis.com/auth/gmail.labels",
+    ]);
   });
 
   it("publicFields has clientId with required: true", () => {
