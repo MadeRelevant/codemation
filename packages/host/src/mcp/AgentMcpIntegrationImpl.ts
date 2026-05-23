@@ -205,6 +205,7 @@ export class AgentMcpIntegrationImpl implements AgentMcpIntegration {
             iterationId,
             itemIndex,
             parentInvocationId,
+            subjectName: toolName,
           };
           const summarizedInput = this.summarizeForInvocation(input);
           if (appendMcpInvocation) {

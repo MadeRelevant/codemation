@@ -520,6 +520,8 @@ describe("AgentMcpIntegrationImpl", () => {
       expect(running.status).toBe("running");
       expect(completed.status).toBe("completed");
       expect(running.statusLabel).toBe("calling list_messages");
+      expect(running.subjectName).toBe("list_messages");
+      expect(completed.subjectName).toBe("list_messages");
       expect(running.invocationId).toBe(completed.invocationId);
       expect(running.connectionNodeId).toBe(GMAIL_MCP_NODE_ID);
       expect(completed.connectionNodeId).toBe(GMAIL_MCP_NODE_ID);

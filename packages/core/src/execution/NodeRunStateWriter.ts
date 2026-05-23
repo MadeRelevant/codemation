@@ -157,6 +157,7 @@ export class NodeRunStateWriter implements NodeExecutionStatePublisher {
         managedInput: args.managedInput,
         managedOutput: args.managedOutput,
         statusLabel: args.statusLabel,
+        subjectName: args.subjectName,
         error: args.error,
         queuedAt: args.queuedAt,
         startedAt: args.startedAt,

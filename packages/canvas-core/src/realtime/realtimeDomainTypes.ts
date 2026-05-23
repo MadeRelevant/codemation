@@ -111,6 +111,8 @@ export type ConnectionInvocationRecord = Readonly<{
   managedOutput?: JsonValue;
   /** Short human-readable description of what this invocation is doing right now (e.g. `"calling search_messages"`). Rendered as a sub-line on the canvas node card. */
   statusLabel?: string;
+  /** Stable identifier for the thing this invocation acts on (e.g. an MCP tool name). Persists across status transitions so the inspector can show it on completed/failed entries too. */
+  subjectName?: string;
   error?: NodeExecutionSnapshot["error"];
   queuedAt?: string;
   startedAt?: string;

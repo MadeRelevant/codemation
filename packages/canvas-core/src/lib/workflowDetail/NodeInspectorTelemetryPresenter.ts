@@ -733,7 +733,7 @@ export class NodeInspectorTelemetryPresenter {
     return {
       key: invocation.invocationId,
       kind: "tool",
-      title: "Tool call",
+      title: invocation.subjectName ? `Tool call · ${invocation.subjectName}` : "Tool call",
       subtitle: [this.formatWhen(invocation.updatedAt), `Invocation ${invocation.invocationId}`].join(" · "),
       pills: [
         { label: "Status", value: invocation.status },
