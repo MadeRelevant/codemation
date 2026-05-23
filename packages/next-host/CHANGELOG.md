@@ -1,5 +1,258 @@
 # @codemation/next-host
 
+## 0.5.0
+
+### Minor Changes
+
+- 54c3a39: Consumer-supplied `lucide:<name>` icons now resolve to any of lucide's 1,700+ glyphs without needing a framework PR — names not in the curated registry render via `WorkflowCanvasLucideRemoteGlyph`, a CSS `mask-image` pointing at the new `/api/lucide-icon/<name>.svg` route. The route serves SVGs from `lucide-static` server-side; the full icon set never enters the client bundle (the May 2026 OOM regression — commit ddaa265f — is preserved). The curated registry stays as the fast path for icons used by core node plugins (sync, no HTTP, no flicker). Browser caches each unique icon forever (`Cache-Control: immutable`).
+- 0082ab5: Adds an `inspectorSummary` hook on node configs (and `defineNode({ inspectorSummary })` for plugin-author nodes). Returns 2–6 short label/value pairs that describe what the node will do at design time — model + prompt for an agent, method + URL for an HTTP call, schedule + timezone for a cron, etc. Surfaced in the workflow editor's node-properties panel as a new "Configuration" section that renders before any run telemetry exists. Hidden when no rows are produced; node configs that don't implement the hook contribute nothing. Built-in nodes will fill these in across follow-up PRs.
+- 51b728d: Stream telemetry spans over WebSocket transport, eliminating HTTP polling.
+
+  **Backend (@codemation/host):**
+  - Added `TelemetrySpanPublisher` interface + `NoOpTelemetrySpanPublisher` default.
+  - Added `telemetryEvent` variant to `WorkflowWebsocketMessage` carrying `TelemetrySpanUpsert`.
+  - New `TelemetrySpanWebsocketRelay` class publishes each span upsert to a per-run room (`run:<runId>`) after it is committed to persistent storage.
+  - `OtelExecutionTelemetryFactory` injects `TelemetrySpanPublisher` (defaults to no-op when unregistered).
+  - `StoredTelemetrySpanScope.upsert()` calls the publisher after the span store write so reconnect HTTP catch-up and WS pushes are consistent.
+
+  **Frontend (@codemation/next-host):**
+  - `useWorkflowRealtimeInfrastructure` handles `kind: "telemetryEvent"` messages via `applyTelemetrySpanEvent`, which merges spans into the `telemetry-run-trace` query cache by `spanId` (deduped, sorted by `startTime`).
+  - New `retainRunSubscription` API manages per-run WS room subscribe/unsubscribe with reference counting.
+  - Auto-unsubscribe from run rooms when the tab is hidden for ≥ 5 minutes (Page Visibility API); re-subscribes on tab return.
+  - `useTelemetryRunTraceQuery` drops HTTP polling (`refetchInterval: false`); refetches once on WS reconnect for catch-up.
+  - `resolveTelemetryTraceRefetchIntervalMs` is now a no-op (always returns `false`) — retained for call-site compatibility.
+
+### Patch Changes
+
+- 8285ec0: **Breaking (canvas):** `WorkflowCanvasConfig` gains a `renderCredentialBindings` slot. The canvas no longer imports from `@codemation/next-host`; the credential UI is a consumer responsibility.
+
+  **Migration:** Add `renderCredentialBindings` to your `WorkflowCanvasConfig`. Use `NextHostCredentialBindingsRenderer` from `@codemation/next-host/src/features/workflows/canvas-adapter/NextHostCredentialBindingsRenderer` to preserve the existing dropdown + create/edit dialog behavior. See `WorkflowDetailScreenPage.tsx` in next-host for an example.
+
+  If `renderCredentialBindings` is omitted, a small "Credential UI not configured" notice is shown in the inspector panel.
+
+- 8285ec0: Add `createWorkflowCanvasApiClient` factory to `@codemation/canvas`.
+
+  The factory creates a `WorkflowCanvasApiClient` that talks directly to a
+  workspace's HTTP API with configurable `apiBase` and `getToken`. Key behaviours:
+  - When `getToken` returns `null`, no `Authorization` header is sent and
+    cookie/credentials auth is preserved (self-hosted mode).
+  - On HTTP 401, the client calls `getToken({ forceRefresh: true })` once and
+    retries. After a second 401, the error is surfaced normally.
+
+  `WorkflowRealtimeProvider` and `useWorkflowRealtimeInfrastructure` gain an
+  optional `getWsToken` prop. When supplied, the JWT is appended as `?token=` on
+  the WebSocket URL. On close-code `4401` (token expired), the hook calls
+  `getWsToken({ forceRefresh: true })` and reconnects with exponential backoff
+  capped at 30 s.
+
+  `next-host` now wires the canvas using `createWorkflowCanvasApiClient` with
+  `apiBase: ""` and `getToken: () => null`, preserving current same-origin
+  cookie behaviour unchanged.
+
+- 8285ec0: Fix `/api/lucide-icon/*` 404s in `codemation dev` mode. The CLI dev gateway used to route every `/api/*` request to the disposable Hono runtime, but the lucide icon route lives in next-host's app router only. Added a gateway exception that forwards `/api/lucide-icon/*` to the Next UI proxy in dev. Also added `outputFileTracingIncludes` for `lucide-static` so the same route works in standalone production builds where Next.js's static tracer couldn't see the dynamic `createRequire` load.
+- 8285ec0: Add credential dialog Create-then-Connect flow for OAuth2 credential types.
+
+  New endpoints `POST /api/credentials/oauth/start` and `GET /api/credentials/oauth/callback` drive the `OAuthFlowExecutor` directly from the credential dialog. The frontend starts the consent flow via a popup opened against the consent URL returned by `/start`; the `/callback` page exchanges the code, persists the tokens, and posts a message to close the popup.
+
+  The `OAuthFlowExecutor` interface gains a `lookupInstanceId(stateToken)` method (additive; no breaking change to callers). `CredentialDialog` footer shows Connect / Reconnect for OAuth2 instances in edit mode.
+
+- 8285ec0: fix(next-host): open create dialog when canvas credential-edit toolbar is clicked for unbound slot
+
+  When `pendingCredentialEditForNodeId` is set (via the canvas node credential-key toolbar button)
+  and no credential is yet bound on any slot for that node, the handler previously silently consumed
+  the request. Now it opens `openCreateDialog` filtered to the first slot's accepted types, so the
+  user can create a new credential directly instead of seeing no response.
+
+- 7b50018: feat(core-nodes,msgraph,gmail): inspectorSummary on every built-in node
+
+  Implements `inspectorSummary()` on all built-in node and trigger config classes so the workflow
+  inspector panel introduced in #136 has content for every shipped node.
+  - `@codemation/core`: extends `definePollingTrigger` to accept and plumb an `inspectorSummary`
+    option, mirroring the existing `defineNode` / `defineBatchNode` pattern. Also extends
+    `defineRestNode` (in `@codemation/core-nodes`) with the same option.
+  - `@codemation/core-nodes`: `inspectorSummary()` on `HttpRequest`, `AIAgent`, `CronTrigger`,
+    `ManualTrigger`, `SubWorkflow`, `Callback`, `If`, `Switch`, `Filter`, `Split`, `Merge`,
+    `Wait`, `WebhookTrigger`, `TestTrigger`, `Aggregate`, `MapData`, `Assertion`.
+  - `@codemation/core-nodes-msgraph`: `inspectorSummary` option on all 17 mail/drive/excel nodes
+    plus the `onNewMsGraphMailTrigger` polling trigger.
+  - `@codemation/core-nodes-gmail`: `inspectorSummary()` on `OnNewGmailTrigger`.
+    Gmail action nodes (`SendGmailMessage`, `ReplyToGmailMessage`, `ModifyGmailLabels`) return
+    `undefined` — all their config is per-item via `inputSchema`, nothing to surface at design time.
+  - `@codemation/core`: `WorkflowSnapshotCodec.serializeConfig` now pre-serializes the result of
+    `inspectorSummary()` into the snapshot JSON as `_inspectorSummary` so the browser-side mapper
+    can surface the same rows without calling class methods.
+  - `@codemation/next-host`: `PersistedWorkflowSnapshotMapper` now reads `_inspectorSummary` from
+    the serialized config and includes it in the node DTO, maintaining parity with the live mapper.
+
+- 8285ec0: fix(next-host): keep workflow activation toggle visible on unbound credentials
+
+  Retain the last known live-chrome state in a ref so the activation toggle stays
+  mounted during transient chrome=null resets (e.g. WorkflowDetailScreen remount after
+  activation failure). Toggle renders as disabled-pending during the null window rather
+  than disappearing.
+
+- 8285ec0: test-only: cover pure helpers (parser, time-range, schema factory)
+- 8285ec0: test(next-host): push @codemation/next-host coverage to ≥90% (Sprint 16 Story 01 — next-host work unit)
+
+  Add coverage.all: true to vitest.config.ts so all source files count in the denominator, bringing measurement in line with merged-lcov. Document exclusions inline for untestable files (Next.js runtime bootstrap, edge-crypto APIs, canvas hooks requiring router context). Write behavioural tests for: appLayoutPageTitle pure function, WorkflowListItemCard/Root/FolderSection, WorkflowsList states, WorkflowSidebarNavTree/Folder, WorkflowDetailChromeProvider context, UsersScreenUserStatusBadge, UsersRegenerateDialog, CredentialsScreenHealthBadge/TestFailureAlert/InstancesTable, DashboardMetricCard, DashboardWorkflowRunsTable (pagination), DashboardCostAmountFormatter, DashboardDateTimeFormatter, DashboardFilterStorage, CodemationDataTable, CodemationFormattedDateTime, OauthProviderIcon, credentialFieldHelpers, CodemationRuntimeBootstrapClient, CollectionBulkDeleteDialog, CollectionDeleteRowDialog.
+
+- 8285ec0: test(next-host/credentials): cover useCredentialDialogSession orchestrator (Sprint 14 coverage)
+- 8285ec0: test(next-host/credentials): cover copy-button, env-field-status, OAuth2 dialog states (Sprint 14 coverage)
+  - Add `CredentialFieldCopyButton.test.tsx`: clipboard write success, error path, empty-value disabled state, copied→idle timer reset.
+  - Add `CredentialEnvFieldStatusRow.test.tsx`: managed and missing render variants with aria-label assertions.
+  - Add `CredentialDialogFormSections.test.tsx`: OAuth2 redirect URI rendering, connect/reconnect/disconnect button states, event handler coverage (Select interactions, display name change, secrets toggle).
+  - Add `CredentialConfirmDialog.test.tsx`: confirm and cancel action smoke tests, variant rendering.
+  - Extend `CredentialDialogFieldRows.test.tsx`: sourceKind=env prop variant (env-ref input rendering, leave-blank hint in edit mode).
+
+- 8285ec0: Defer credential dialog open past Radix Select dismissal to avoid immediate close on mount.
+- 8285ec0: Guard catch-all API route from shadowing /api/lucide-icon/\* by extracting icon logic into a shared helper and adding an early-return in the catch-all GET handler.
+- 8285ec0: fix(next-host): use stable lucide-static path resolution
+
+  Replace bare `require.resolve` with `createRequire(fileURLToPath(import.meta.url)).resolve` so
+  the lucide icons directory resolves correctly in Next.js ESM API routes and standalone builds.
+
+- 8285ec0: test(next-host): cover providers + API client + login + dashboard branches (Sprint 14 coverage)
+- 8285ec0: Remove legacy OAuth connect code path. `OAuth2ConnectService` and its `getAuthRedirect` / `handleCallback` methods are deleted; the `/api/oauth2/auth` route and the duplicate `/api/credentials/oauth/callback` route are removed. The canonical flow is now exclusively `OAuthFlowExecutor` (`LocalOAuthFlowExecutor` / `ManagedOAuthFlowExecutor`) via `POST /api/credentials/oauth/start` and `GET /api/oauth2/callback`. Redirect-URI resolution is extracted to a dedicated `OAuth2RedirectUriResolver`. `ApiPaths.oauth2Auth()` and `ApiPaths.credentialOAuthCallback()` are removed; the client now requires the server-canonical redirect URI from `ApiPaths.oauth2RedirectUri()` before starting the flow.
+- 8285ec0: post-sprint-10 batch fixes
+  - **cli (minor):** Remove `discovery` subcommand group — relocated to admin-ui catalog debug page. Discovery is a catalog-admin tool, not a workflow-author tool; the framework CLI is the wrong home.
+  - **next-host (patch):** Relax ELK nested-agent side-by-side layout test. The strict y-diff ≤ 8 geometry assertion was impossible (74+gap+74 > 160 px compound width); replaced with `toBeDefined()` checks confirming both children render.
+
+- 8285ec0: Move `simple-icons` SVG data out of the client bundle. Named imports from the ~5.2 MB `simple-icons` barrel are replaced by a server-side `/api/si-icon/[slug]` route that reads SVG files from disk, mirroring the `lucide-react` fix from commit 54c3a392. Canvas `si:` icons now render via CSS `mask-image` (same pattern as lucide remote glyphs). OAuth provider icons switch to a small inline path+hex map, eliminating the barrel import entirely. `simple-icons` removed from `optimizePackageImports` in `next.config.ts` as it is no longer imported client-side.
+- 8285ec0: test(ui): UI security tests + test-suite orchestration (Sprint 13 Story G)
+  - Fix `tooling/vitest/ui.config.ts` to include `next-host`, `canvas`, and `canvas-core` UI test suites — previously only `host` was wired.
+  - Add `packages/canvas/test/bundleBoundary.test.ts` and `packages/canvas-core/test/bundleBoundary.test.ts`: static import-graph walk asserting no server-only imports leak into browser bundles.
+  - Add `packages/next-host/test/features/users/UsersInviteDialog.test.tsx`: RHF + Zod email validation (valid submit, invalid email, empty email, server error).
+  - Add `packages/next-host/test/features/invite/InviteAcceptScreen.test.tsx`: verify-state gate, password mismatch, password length, and successful activation.
+  - Add `packages/canvas/test/screens/WorkflowDetailScreen.renderWorkflowJsonEditor.test.tsx`: slot override contract (no override / with override / updated context).
+  - Add `packages/canvas/test/screens/WorkflowDetailScreen.fullMount.smoke.test.tsx`: full-mount smoke confirming slot wiring in the real component.
+  - Add `packages/next-host/vitest.ui.config.ts`: jsdom-only config scoped to `*.test.tsx` for the UI suite.
+
+- 8285ec0: style(next-host/canvas-adapter): replace inline styles with Tailwind tokens (Sprint 14 Story 11)
+
+  Replaced hardcoded `style={{}}` blocks in `NextHostCredentialBindingsRenderer` with Tailwind
+  utility classes using design tokens (`border-border`, `bg-card`, `text-danger`, semantic spacing).
+  Added smoke test asserting no `style=` props in the rendered credential section markup.
+
+- 8285ec0: feat(ui): extract @codemation/ui shared package (Sprint 14 Story 10)
+  - New `@codemation/ui` package with shadcn primitives (button, badge, collapsible, dialog, dropdown-menu, select, tabs, input, label, switch, textarea), reui/tree widget (Tree, TreeContext, TreeDragLine, TreeItem, TreeItemLabel), composites (CodemationDialog, JsonMonacoEditor), and consolidated StatusPill.
+  - Single `cn` tailwind-merge wrapper in `src/lib/cn.ts`.
+  - Smoke tests for StatusPill (all 5 status variants + children + className).
+  - canvas and next-host migrated to import from `@codemation/ui`; duplicate local component files deleted.
+
+- 8285ec0: Make the unit-test suite pass on Windows.
+  - `PrismaMigrationDeployer`: read `CODEMATION_PRISMA_CLI_PATH`, `CODEMATION_PRISMA_CONFIG_PATH`, `CODEMATION_HOST_PACKAGE_ROOT` from the `env` argument passed to `deploy(...)`/`deployPersistence(...)` instead of `process.env` at call time. Tests can now pass their CLI path through the deployer's existing `env` parameter rather than mutating shared `process.env`, removing the cross-file env-race that flaked SQLite deployer tests under thread-pool parallelism.
+  - `NodeInspectorTelemetryPresenter` + `DashboardCostAmountFormatter`: pin currency formatting to `en-US` with `currencyDisplay: "narrowSymbol"` so Node ICU versions produce `"$0.000039"` rather than `"US$0.000039"`.
+  - `DashboardAiUsageSummaryCard`: pin token-count formatting to `en-US` so the dashboard renders `"1,840"` regardless of system locale.
+
+  Companion test changes (not user-visible): test fixtures pass the test-only env via the deployer's `env` argument, several CLI tests wrap expected paths in `path.resolve(...)` so Windows backslash output matches, `PrismaMigrationDeployer` recovery test moved to its own file (libsql native state from earlier tests in the same file leaked into the recovery flow on Windows), and `vitest.unit.config.ts` switched to the forks pool for libsql native-module isolation across files.
+
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [fc5f9b7]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [e4d3e1a]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [e4d3e1a]
+- Updated dependencies [7b50018]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [e4d3e1a]
+- Updated dependencies [0082ab5]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [51b728d]
+  - @codemation/host@0.7.0
+  - @codemation/canvas-core@0.1.0
+  - @codemation/core@0.11.0
+  - @codemation/canvas@0.1.0
+  - @codemation/ui@0.2.0
+
 ## 0.4.0
 
 ### Minor Changes

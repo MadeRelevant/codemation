@@ -1,5 +1,37 @@
 # @codemation/agent-skills
 
+## 0.2.0
+
+### Minor Changes
+
+- 8285ec0: Add `codemation-ai-agent-node` skill teaching the coding agent the `AIAgent` constructor signature, message shape, output contract (`{ output: string }`), and the four managed model IDs currently in the allowlist. Also covers BYOK (`OpenAIChatModelConfig`) and MCP tool attachment.
+- 8285ec0: Add `codemation-mcp-capabilities` skill: documents the control-plane `GET /api/registry/capabilities` endpoint, MCP server credential kinds, and the workflow-author flow for discovering and binding MCP servers. Originally produced under Story 14 in a workspace-local install; relocated here so `pnpm codemation skills sync` picks it up.
+
+### Patch Changes
+
+- 8285ec0: docs(codemation-workflow-dsl): add "Verifying your workflow" section pointing agents to use `verify_workflow` MCP tool instead of `pnpm typecheck`.
+- 8285ec0: Reorganize agent skills for faster coding-agent start-up (Story C).
+  - `codemation-framework-concepts` promoted to router skill: adds "Where to go next" section mapping tasks to skills, and updated frontmatter describing it as the index to read first.
+  - `codemation-custom-node-development` split into a slim TOC (53 lines) plus three new focused refs: `define-node-per-item.md`, `define-batch-node.md`, `credential-aware-nodes.md`. Binary/HTTP/MS-Graph patterns consolidated into the existing `node-patterns.md`.
+
+- 8285ec0: Remove dead references to `describe_node` and `list_nodes` from workflow-dsl and ai-agent-node skills; replace with `find_examples` as the discovery surface.
+- 8285ec0: Sprint 11 Story D: deepen `find_examples` as the canonical discovery surface in skills.
+  - Expand `codemation-workflow-dsl` "Discovering nodes and patterns" section with why examples are canonical, when to call first, two query patterns, zero-hit response (ask user or adapt with confirmation), and anti-pattern (don't grep node_modules).
+  - Strengthen `codemation-ai-agent-node` call-to-action with concrete `find_examples` query suggestions for AIAgent patterns.
+
+- 8285ec0: docs(codemation-workflow-dsl): note that search results include install-state fields (`installed`, `requiresInstall`) and how agents should use them to plan `install_package` calls.
+- 8285ec0: Sprint 12 Story C: add self-solving fallback chain to `codemation-workflow-dsl` skill.
+  - Add "When no example matches — the self-solving fallback chain" section after "Discovering nodes and patterns".
+  - Four-tier chain: retry with intent variations → defineRestNode (HTTP APIs) → HttpRequest (inline one-off) → defineNode (non-HTTP custom logic).
+  - Explicit "What NOT to do" and "Surfacing what you did" sub-sections.
+  - Agent never asks the non-technical user for fallback choices; picks per the chain and reports what it used.
+
+- 8285ec0: Sprint 14 coverage: tests for WhenBuilder DSL helper, InMemoryWorkflowExecutionRepository retention paths, DevTrackedProcessTreeKiller edge cases, ConsumerCliTsconfigPreparation resolution, ListenPortConflictDescriber ss fallback, RedisRunEventBus publish/subscribe/teardown, CodemationChatModelFactory HMAC signing, registerCoreNodes smoke, single-react-component-per-file rule branches, and CodemationAgentSkillsCli error/help paths. No production code changes.
+- 8285ec0: docs(skills): add complete workflow example to workflow-dsl skill
+- 8285ec0: Fix workflow-dsl skill docs: `workflow("id")` is manual-trigger only. Cron, webhook, and other non-manual triggers must use `createWorkflowBuilder({id, name}).trigger(new XxxTrigger(...))` and chain with `.then(new SomeNodeConfig(...))` — the fluent `.map`/`.if`/`.agent`/`.node` sugar is only available via `manualTrigger(...)`.
+
+  Affected: `codemation-workflow-dsl/SKILL.md`, `codemation-workflow-dsl/references/builder-patterns.md`, `codemation-workflow-dsl/references/complete-example.md`, `codemation-mcp-capabilities/references/agent-with-mcp.ts`.
+
 ## 0.1.10
 
 ### Patch Changes

@@ -1,5 +1,169 @@
 # @codemation/cli
 
+## 0.2.0
+
+### Minor Changes
+
+- 8285ec0: Add `--api-only` devMode (`codemation dev --api-only`) that skips spawning the workspace Next UI. Useful when an external host (e.g. the control plane customer-ui) serves the UI; only the API runtime, WebSocket, and proxy are started. Also respects `CODEMATION_DEV_MODE=api-only` env var.
+- 8285ec0: Runtime DI parity: hoist TypeInfo registrar into AppContainerFactory so CLI runs get the same DI graph as the HTTP host. Add codemation run workflow CLI command that dispatches StartWorkflowRunCommand and polls until terminal status.
+- 8285ec0: post-sprint-10 batch fixes
+  - **cli (minor):** Remove `discovery` subcommand group — relocated to admin-ui catalog debug page. Discovery is a catalog-admin tool, not a workflow-author tool; the framework CLI is the wrong home.
+  - **next-host (patch):** Relax ELK nested-agent side-by-side layout test. The strict y-diff ≤ 8 geometry assertion was impossible (74+gap+74 > 160 px compound width); replaced with `toBeDefined()` checks confirming both children render.
+
+### Patch Changes
+
+- 8285ec0: test(cli): push @codemation/cli unit coverage to ≥90% (Sprint 16 Story 01)
+
+  Adds behavioral unit tests and vitest coverage exclusions to raise the
+  @codemation/cli unit-suite line coverage from 47% (unit-only) / 80%
+  (merged) to 91% on the unit gate.
+
+  New tests cover:
+  - CliAsciiTableBuilder (formatter)
+  - DevelopmentConditionNodeOptions (node option appending)
+  - TypeScriptRuntimeConfigurator (env setter)
+  - ConsumerOutputBuilderFactory (factory)
+  - NextHostEdgeSeedLoader.resolveDevelopmentServerToken + loadForConsumer
+  - DevCliBannerRenderer api-only mode + redisUrlRedacted branch
+  - DevRebuildQueue concurrent enqueue path
+  - DevNextChildProcessOutputFilter null-stream guard
+  - ConsumerOutputBuilder: inline workflows, config override error, JS config,
+    .mts/.cts extension conversion, spread/destructuring/computed-property
+    config parse branches, import specifier rewriting
+  - DatabaseMigrationsApplyService.applyForConsumer no-op path
+  - CollectionsCliOptionsParser (pure logic)
+  - ListenPortConflictDescriber: readSsOutput, execFileStdout, parseSsListenOutput branches
+  - DevSourceWatcher: isIgnoredPath/isRelevantPath/flushPendingChange branches,
+    stop-with-debounce, scheduleDebouncedChange double-call
+  - DevNextHostEnvironmentBuilder: fallback WebSocket port from URL without port
+  - DevTrackedProcessTreeKiller: trySigTermProcessGroup catch, trySigTerm throw,
+    trySigKillProcessGroup, waitForExit no-timeout path
+  - CliDevProxyServer: telemetryEvent, workflowChanged, error message kind branches,
+    empty message drop, child socket close → client 4401
+
+  Exclusions added to vitest.config.ts with rationale comments for files that are
+  composition roots, CLI entrypoints, or require live DB/process infra (all
+  exercised by integration tests).
+
+- 8285ec0: `codemation dev` now reaps a prior session's process + port instead of refusing to start, and reloads consumer `.env*` files in place instead of asking the user to restart manually.
+
+  `DevLock.acquire` on `EEXIST`: SIGTERM the recorded pid and its process group, then `lsof` the recorded port and SIGTERM anything still holding it (covers detached children that outlived a crashed CLI parent). SIGKILL fallback on stragglers; port-free poll is the real gate.
+
+  `DevCommand` env-only change handler: re-reads `consumerEnvLoader.load(consumerRoot)` and updates `prepared.consumerEnv` in place, then enqueues a normal rebuild. The runtime spawn picks up the fresh values.
+
+- 8285ec0: Fix workflow WebSocket proxy in managed-auth mode: per-client child sockets now forward the browser's `?token=` query parameter upstream, so the inner runtime's `ManagedAuthMiddleware` can authenticate the upgrade request. Previously a single shared child socket was opened without credentials, causing the runtime to return HTTP 401 and leaving the canvas stuck on the 5-second polling fallback.
+- 8285ec0: Fix `/api/lucide-icon/*` 404s in `codemation dev` mode. The CLI dev gateway used to route every `/api/*` request to the disposable Hono runtime, but the lucide icon route lives in next-host's app router only. Added a gateway exception that forwards `/api/lucide-icon/*` to the Next UI proxy in dev. Also added `outputFileTracingIncludes` for `lucide-static` so the same route works in standalone production builds where Next.js's static tracer couldn't see the dynamic `createRequire` load.
+- 8285ec0: Fix dev proxy not forwarding `/internal/*` requests to the inner runtime. Previously these fell through to the Next.js UI proxy; now they are routed to the runtime (or return 503 when building/errored), enabling workspace-mcp HMAC calls to `/internal/workflows` and `/internal/credentials`.
+- 8285ec0: Fix: dev proxy now opens the per-client upstream WS to the runtime BEFORE signaling `{kind:"ready"}` to the browser client. Previously the proxy sent `ready` immediately and opened the upstream asynchronously — clients that subscribed to a workflow room right after `ready` had their subscribe silently dropped because `state.childSocket` was still null. For workflows that finish in ~150ms (e.g. a `Wait(0)` + `Callback`), the run completed before the upstream opened and re-issued the subscription, so no `runCreated`/`nodeStarted`/`runSaved` events ever reached the browser.
+
+  Now we await the upstream open, then send `ready`. Subscriptions land on a real upstream socket the moment they arrive.
+
+- 8285ec0: Coverage Phase 2: testkits (LoggerTestKit, McpTestKit, CoreNodesTestContextFactory,
+  TelemetryTestKit, GmailTestKit, AppConfigFixturesFactory, HookTestkit), per-package
+  vitest coverage thresholds, and new tests on previously zero-coverage critical paths
+  (mergeNode, switchNode, waitNode, connectionCredentialNode, canvas-lib pure, hook smoke).
+  No production code changes.
+- 8285ec0: feat(examples): add @codemation/examples workspace package with dev harness, frontmatter convention, verify-examples CI gate, and codemation example:verify CLI command (Sprint 10 Story B)
+- 8285ec0: Introduce a cross-platform `ProcessRunner` seam (interface + execa-backed `ExecaProcessRunner`) exported from `@codemation/host/server`, registered in `AppContainerFactory` under `ApplicationTokens.ProcessRunner`. Migrate every CLI site that previously spawned bare external commands (`pnpm exec next dev` and the packaged Next UI in `DevCommand`, `pnpm exec next start` in `ServeWebCommand`, `pnpm --filter … dev` in `WorkspacePluginDevProcessCoordinator`, `pnpm exec prisma migrate deploy` in `PrismaMigrateDeployInvoker`) so Windows finds `pnpm.cmd` / `pnpm.ps1` shims via execa's PATH resolution instead of erroring with ENOENT. Replace the bash-only `realpath "$(command -v pnpm)"` lookup in `packages/host/scripts/generate-prisma-clients.mjs` with an `execaSync("pnpm", ["root", "-g"])` probe. Fix the root `dev:framework` script's single-quoted command tokens (broken on Windows `cmd.exe`) by switching to escaped double quotes so it works on cmd, PowerShell, bash and zsh.
+- 8285ec0: Move `simple-icons` SVG data out of the client bundle. Named imports from the ~5.2 MB `simple-icons` barrel are replaced by a server-side `/api/si-icon/[slug]` route that reads SVG files from disk, mirroring the `lucide-react` fix from commit 54c3a392. Canvas `si:` icons now render via CSS `mask-image` (same pattern as lucide remote glyphs). OAuth provider icons switch to a small inline path+hex map, eliminating the barrel import entirely. `simple-icons` removed from `optimizePackageImports` in `next.config.ts` as it is no longer imported client-side.
+- 8285ec0: Sprint 14 coverage: tests for WhenBuilder DSL helper, InMemoryWorkflowExecutionRepository retention paths, DevTrackedProcessTreeKiller edge cases, ConsumerCliTsconfigPreparation resolution, ListenPortConflictDescriber ss fallback, RedisRunEventBus publish/subscribe/teardown, CodemationChatModelFactory HMAC signing, registerCoreNodes smoke, single-react-component-per-file rule branches, and CodemationAgentSkillsCli error/help paths. No production code changes.
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [e4d3e1a]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [7b50018]
+- Updated dependencies [8285ec0]
+- Updated dependencies [54c3a39]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [0082ab5]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [51b728d]
+  - @codemation/host@0.7.0
+  - @codemation/agent-skills@0.2.0
+  - @codemation/next-host@0.5.0
+
 ## 0.1.3
 
 ### Patch Changes

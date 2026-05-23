@@ -1,5 +1,436 @@
 # @codemation/host
 
+## 0.7.0
+
+### Minor Changes
+
+- 8285ec0: Add framework-side OAuth broker delegation (Story 4): HMAC-verified `POST /internal/credentials/push` and `GET /internal/credentials` endpoints on the installation's internal HTTP API; `BrokerClient` for calling the control-plane refresh endpoint via `PairedFetch`; `RemoteOAuthRefreshDelegate` with single-flight deduplication for refreshing expired access tokens through the broker.
+- 8285ec0: Add `ControlPlaneCatalogFetcher` — polls the three control-plane catalog endpoints (`/api/catalog/oauth-apps`, `/api/catalog/mcp-servers`, `/api/catalog/credential-types`) on a configurable interval, caches last-known-good responses per endpoint independently, and exposes `oauthApps`, `mcpServers`, and `credentialTypeOverrides` getters. No-ops when pairing config is absent.
+- 8285ec0: Add credential dialog Create-then-Connect flow for OAuth2 credential types.
+
+  New endpoints `POST /api/credentials/oauth/start` and `GET /api/credentials/oauth/callback` drive the `OAuthFlowExecutor` directly from the credential dialog. The frontend starts the consent flow via a popup opened against the consent URL returned by `/start`; the `/callback` page exchanges the code, persists the tokens, and posts a message to close the popup.
+
+  The `OAuthFlowExecutor` interface gains a `lookupInstanceId(stateToken)` method (additive; no breaking change to callers). `CredentialDialog` footer shows Connect / Reconnect for OAuth2 instances in edit mode.
+
+- 8285ec0: `CredentialTypeRegistry` now accepts named sources with priority shadowing (parity with `McpServerCatalog`). Sources are ordered `plugin` < `config` < `controlPlane`; higher-priority sources shadow lower ones, lower-priority duplicates are ignored, and both cases log a warn.
+
+  `applyControlPlaneOverrides` is removed. Control-plane payload now flows through `mergeDefinitions("controlPlane", …)` and can add new types — not just override existing ones. Plugins/config use `merge(source, types)` for full credential types.
+
+  `McpRegistryFetcher` is removed; `ControlPlaneCatalogFetcher` is the single control-plane catalog poller and now merges credential-type definitions in addition to MCP server declarations and OAuth app catalog entries.
+
+- 8285ec0: Declare Gmail MCP server via plugin source (standalone framework). Add mcpServers to DefinePluginOptions and thread it through createPlugin. Add gmail MCP server declaration to core-nodes-gmail plugin. Break host↔gmail cycle by removing gmail from host devDependencies.
+- 8285ec0: feat(host/audit): workflow audit retention + tier-gated emission (Sprint 14 Story 06)
+  - WorkflowAuditLogPruneScheduler: deletes WorkflowAuditLog rows older than 90 days (CODEMATION_AUDIT_WORKFLOW_RETENTION_SECONDS override)
+  - TelemetryRetentionTimestampFactory: hard-coded defaults (span 7d, artifact 3d, metric 30d) so telemetry retention works out-of-box with no env vars required
+
+- 8285ec0: Runtime DI parity: hoist TypeInfo registrar into AppContainerFactory so CLI runs get the same DI graph as the HTTP host. Add codemation run workflow CLI command that dispatches StartWorkflowRunCommand and polls until terminal status.
+- 8285ec0: Add internal workflow introspection endpoints (`GET /internal/workflows` and `GET /internal/workflows/:workflowId`) protected by HMAC pairing-secret middleware. These allow the concierge agent to enumerate workflow summaries and fetch individual workflow DAGs (nodes + edges) via the paired-fetch channel.
+- 8285ec0: Add `POST /internal/workflows/:id/test-run` HMAC-protected endpoint. Runs a workflow once synchronously without requiring it to be active, letting the coding agent verify a workflow before activating it. Body: `{ input?: unknown }`. Returns `{ ok, runId?, output?, error?, durationMs }` with a 30-second timeout.
+- 8285ec0: feat(host/audit): RunEvent-driven WorkflowAuditLog persistence (Sprint 13 Story B)
+
+  Adds a workspace-local audit trail that captures run-events as queryable rows.
+  - `WorkflowAuditLog` Prisma model with indexes on `(actor_user_id, occurred_at)` and `(workflow_id, occurred_at)`
+  - `WorkflowAuditLogWriter` subscribes to `RunEventBus` and persists `nodeCompleted`, `nodeFailed`, `runSaved` (terminal), and `connectionInvocationStarted` events
+  - `PrismaWorkflowAuditLogRepository` implements `IWorkflowAuditEmitter` using the workspace Prisma client
+  - Emission is best-effort: errors are logged and swallowed so workflow execution is never blocked
+  - Only active when `persistence.kind !== "none"`
+
+- 8285ec0: Add WebSocket JWT authentication for managed mode.
+
+  In `auth.kind: "managed"` mode the workspace WebSocket server now requires a CP-signed JWT
+  passed as `?token=<jwt>` in the upgrade URL. Connections with a missing, expired, wrong-audience,
+  or otherwise invalid token are closed immediately with code 4401 ("unauthorized"). Self-hosted
+  mode behavior is unchanged.
+
+  New exports: `WebsocketAuthenticator` interface (types), `ManagedWebsocketAuthenticator` class.
+  The `JwksCache` instance is shared between the HTTP JWT verifier and the WS authenticator so
+  key rotation propagates to both transports without a restart.
+
+- 8285ec0: Add LocalOAuthFlowExecutor for framework (OSS/standalone) mode. Reads clientId from the credential instance's publicConfig and clientSecret from its secret material; builds PKCE-protected consent URLs; exchanges auth codes and refresh tokens directly against the provider's token endpoint. Also patches OAuthFlowExecutor.refresh to accept typeId and instanceId alongside the material, since looking up the tokenUrl and app credentials requires the instance.
+- 8285ec0: Add `GET /api/me` endpoint in managed-auth mode (Story A). Returns `{ userId, workspaceId }` from the bearer JWT principal. Only mounted when `auth.kind === "managed"`.
+- 8285ec0: Add ManagedOAuthFlowExecutor for managed (paired) mode. Delegates the OAuth dance to the control plane over HMAC-signed calls, keeping client secrets off the host. AppContainerFactory now selects ManagedOAuthFlowExecutor when pairing is configured and LocalOAuthFlowExecutor otherwise.
+- 8285ec0: Add McpConnectionPool — lazy, keyed MCP client pool for managed HTTP connections.
+
+  Pools `experimental_createMCPClient` connections keyed by `(credentialInstanceId, serverId)`.
+  Reads bearer tokens fresh from the OAuth2-via-broker credential session at open time.
+  Caches `tools/list` results per entry and applies `toolDescriptionOverrides` from the catalog declaration.
+  Supports `closeForCredential` (revocation) and `closeAll` (host shutdown).
+
+- 8285ec0: Remove the MCP credential bypass on AI agents. `AIAgent.mcpServers` is now a plain
+  `ReadonlyArray<string>` of server ids — the inline `{ credential }` field is gone. Each
+  declared server surfaces a standard credential slot on the agent node (key
+  `mcp:<serverId>`, label and accepted types from the MCP catalog) and binds through the
+  same `CredentialBinding` table as every other slot. At execute time the host resolves the
+  binding via `getBinding({ workflowId, agentNodeId, slotKey: mcp:<serverId> })`, then opens
+  the MCP pool with the resolved credential instance — no more reading the credential id
+  out of the workflow config.
+
+  Breaking — config shape change. Replace:
+
+  ```ts
+  mcpServers: {
+    gmail: {
+      credential: "<instanceId>";
+    }
+  }
+  ```
+
+  with:
+
+  ```ts
+  mcpServers: ["gmail"];
+  ```
+
+  Then bind the credential through the canvas credential dropdown before activating the
+  workflow, the same way trigger credentials are bound. The `McpServerBindings` /
+  `McpServerExplicitBinding` types are removed from `@codemation/core`;
+  `AgentMcpIntegration.prepareMcpTools` now takes `{ workflowId, agentNodeId, serverIds }`.
+
+- 8285ec0: Replace `McpServerDeclaration.credentialKind` / `credentialTypeId` / `oauthAppKey` with `acceptedCredentialTypes?: ReadonlyArray<string>`, matching the `CredentialRequirement.acceptedTypes` shape. Absent or empty array means no credential required. Gmail MCP declaration now uses `["oauth.google.gmail"]`, the same type as the Gmail trigger node.
+- 8285ec0: Add `McpServerDeclaration` type and `McpServerCatalog` service (Story 7).
+  - `@codemation/core` exports `McpServerDeclaration` and `McpServerTransport` from `packages/core/src/contracts/mcpTypes.ts`.
+  - `CodemationPlugin` gains an optional `mcpServers?: ReadonlyArray<McpServerDeclaration>` field.
+  - `CodemationConfig` gains an optional `mcpServers?: ReadonlyArray<McpServerDeclaration>` field (also threaded through `AppConfig` and `DefineCodemationAppOptions`).
+  - `McpServerCatalog` in `packages/host/src/mcp/` merges declarations from three sources (`plugin`, `config`, `controlPlane`) with deterministic precedence and validation (id regex, stdio gate, credential requirements).
+  - `CodemationPluginDiscovery.isPluginConfig` now recognises `mcpServers`-only plugins.
+  - Plugin registrar and app container factory wire catalog merge on startup.
+
+- 8285ec0: Add `McpRegistryFetcher` — installation-side polling service that fetches `GET /internal/registry/mcp-servers` from the control plane via the paired HMAC channel on startup and on a configurable interval (default 5 minutes), merging results into `McpServerCatalog` as source `"controlPlane"` (Story 13).
+- 8285ec0: Wire `ControlPlaneCatalogFetcher` into app bootstrap so credential-type overrides fetched from the control plane take highest precedence in `CredentialTypeRegistryImpl` (control plane > consumer config > framework default). Add `applyControlPlaneOverrides` to `CredentialTypeRegistryImpl` — full replacement per typeId, preserving runtime callbacks.
+- 0082ab5: Adds an `inspectorSummary` hook on node configs (and `defineNode({ inspectorSummary })` for plugin-author nodes). Returns 2–6 short label/value pairs that describe what the node will do at design time — model + prompt for an agent, method + URL for an HTTP call, schedule + timezone for a cron, etc. Surfaced in the workflow editor's node-properties panel as a new "Configuration" section that renders before any run telemetry exists. Hidden when no rows are produced; node configs that don't implement the hook contribute nothing. Built-in nodes will fill these in across follow-up PRs.
+- 8285ec0: Remove legacy OAuth connect code path. `OAuth2ConnectService` and its `getAuthRedirect` / `handleCallback` methods are deleted; the `/api/oauth2/auth` route and the duplicate `/api/credentials/oauth/callback` route are removed. The canonical flow is now exclusively `OAuthFlowExecutor` (`LocalOAuthFlowExecutor` / `ManagedOAuthFlowExecutor`) via `POST /api/credentials/oauth/start` and `GET /api/oauth2/callback`. Redirect-URI resolution is extracted to a dedicated `OAuth2RedirectUriResolver`. `ApiPaths.oauth2Auth()` and `ApiPaths.credentialOAuthCallback()` are removed; the client now requires the server-canonical redirect URI from `ApiPaths.oauth2RedirectUri()` before starting the flow.
+- 8285ec0: Add `CredentialOAuth2MaterialReader` — a host service that reads stored OAuth2 material and proactively refreshes the access token via `OAuthFlowExecutor.refresh` when it's past expiry (or within a 60-second lead window). Re-encrypts and saves the refreshed material back so subsequent reads find a fresh token.
+
+  Wired into `McpConnectionPool` immediately: MCP HTTP transport had no SDK-level 401-and-refresh path (the Gmail trigger doesn't hit this because `googleapis.OAuth2Client` refreshes internally — that was the exception, not the rule). Before this change, the MCP pool happily sent expired tokens and the workflow failed with `401 — Request had invalid authentication credentials` about an hour after the user connected.
+
+  Concurrent reads share a single in-flight refresh per `instanceId` so the refresh token isn't exchanged twice in parallel. If the refresh call itself fails (e.g. revoked refresh token), the reader logs a warn and returns the stale material — the caller's downstream 401 is what surfaces the actual reconnect-required condition.
+
+- 8285ec0: Add `OAuth2ViaBrokerCredentialTypeFactory` — framework credential type (`host.oauth2-via-broker`) that reads the current access token from the local credential store (populated by the broker push endpoint) and injects `Authorization: Bearer <token>` on requests. Satisfies Story 8: zero credential-type code per new SaaS integration.
+- 8285ec0: Introduce a cross-platform `ProcessRunner` seam (interface + execa-backed `ExecaProcessRunner`) exported from `@codemation/host/server`, registered in `AppContainerFactory` under `ApplicationTokens.ProcessRunner`. Migrate every CLI site that previously spawned bare external commands (`pnpm exec next dev` and the packaged Next UI in `DevCommand`, `pnpm exec next start` in `ServeWebCommand`, `pnpm --filter … dev` in `WorkspacePluginDevProcessCoordinator`, `pnpm exec prisma migrate deploy` in `PrismaMigrateDeployInvoker`) so Windows finds `pnpm.cmd` / `pnpm.ps1` shims via execa's PATH resolution instead of erroring with ENOENT. Replace the bash-only `realpath "$(command -v pnpm)"` lookup in `packages/host/scripts/generate-prisma-clients.mjs` with an `execaSync("pnpm", ["root", "-g"])` probe. Fix the root `dev:framework` script's single-quoted command tokens (broken on Windows `cmd.exe`) by switching to escaped double quotes so it works on cmd, PowerShell, bash and zsh.
+- 8285ec0: Remove deprecated broker-era MCP fields: `NeedsReconsentEvent.oauthAppKey`, shorthand `McpServerBindings` string array form, and `AgentMcpIntegrationImpl.autoResolveCredential`. Explicit binding (`{ serverId: { credential: "<instanceId>" } }`) is now the only supported form — eliminating ambiguity when multiple credential instances of the same type exist.
+- 8285ec0: Remove the `host.oauth2-via-broker` credential type and all related broker-upsert machinery. The broker is now an implementation detail of `ManagedOAuthFlowExecutor`; the credential type catalog only contains mode-agnostic types.
+- 8285ec0: Remove `RemoteOAuthRefreshDelegate` and its DI registration. The only refresh path is now `OAuthFlowExecutor`. `McpConnectionPool` uses a local inline type instead of importing from `OAuth2ViaBrokerCredentialTypeFactory`.
+- 8285ec0: feat(host/binary): S3BinaryStorage implementation + boot connectivity check (Sprint 15 Story 03)
+
+  Adds `S3BinaryStorage` — a Scaleway-compatible S3 implementation of `BinaryStorage` using
+  `@aws-sdk/client-s3` + `@aws-sdk/lib-storage` (multipart for large payloads). Key scheme:
+  `<workspaceId>/<runId>/<binaryId>`.
+
+  Runtime selection is controlled by `BINARY_STORAGE_KIND` env var (`"local"` default | `"s3"`).
+  When `"s3"`, all `BINARY_STORAGE_S3_*` vars are required and validated at boot. A `HeadBucket`
+  connectivity check fails loudly on startup if the bucket is unreachable.
+
+  Extends `BinaryStorage` interface (core) with `deleteMany(keys)` and `listByPrefix(prefix)` for
+  bulk-delete (1000-key S3 batching) and workspace-prefix enumeration (GDPR erasure). All existing
+  implementations (`InMemoryBinaryStorage`, `LocalFilesystemBinaryStorage`, `UnavailableBinaryStorage`)
+  updated with correct implementations.
+
+- 8285ec0: fix(security): engine activation budget + retry ceiling + SSRF allowlist + HKDF cipher + pairing entropy (Sprint 14 Story 09)
+
+  **Engine / retry fixes (already implemented in Sprint 13/14 — tests added here):**
+  - `RunContinuationService` uses `EngineExecutionLimitsPolicy.defaultMaxNodeActivations` (100,000) as the fallback, not `Number.MAX_SAFE_INTEGER`.
+  - `InProcessRetryRunner` enforces a hard ceiling of 10 retry attempts via `HARD_MAX_RETRY_ATTEMPTS`; workflow-declared values above this are clamped with a warning log.
+
+  **SSRF allowlist (`@codemation/core-nodes`):**
+  - New `SsrfGuard` class DNS-resolves the target host before any outbound HTTP call and throws `SSRFBlockedError` if any resolved address falls in RFC-1918 (10/8, 172.16/12, 192.168/16), link-local (169.254/16), or loopback (127/8, ::1) ranges.
+  - `HttpRequestExecutor` now accepts `SsrfGuard` as an injected collaborator (4th constructor arg). All composition roots updated.
+  - `HttpRequestSpec.allowPrivateNetworkTargets` opt-in flag allows trusted workflows to bypass SSRF protection.
+  - New `SSRFBlockedError` class with `resolvedIp` field for structured error handling.
+
+  **HKDF cipher key derivation (`@codemation/host`) — BACKWARDS-INCOMPATIBLE:**
+  - `CredentialSecretCipher` switches from raw SHA-256 to HKDF-SHA-256 for AES key derivation.
+    - HKDF salt: `"codemation/credential-cipher/v1"`, info: `"aes-256-gcm-key"`.
+    - Input (`CODEMATION_CREDENTIALS_MASTER_KEY`) must now be a base64-encoded 32-byte value.
+  - New `schemaVersion: 2` for all new encryptions. Existing `schemaVersion: 1` records can still be decrypted (v1 SHA-256 read-path retained for migration).
+  - **Migration**: Re-bind affected credentials in the UI (which re-encrypts with the new HKDF key).
+  - See migration guide below.
+
+  **Pairing secret entropy validation (`@codemation/host`):**
+  - `PairingConfigFactory` now throws at boot when `WORKSPACE_PAIRING_SECRET` is present but does not decode to exactly 32 bytes from base64.
+  - Error message includes `openssl rand -base64 32` hint for generating a valid secret.
+
+  ***
+
+  ### Migration guide — CODEMATION_CREDENTIALS_MASTER_KEY
+
+  **Who is affected:** Any deployment that has `CODEMATION_CREDENTIALS_MASTER_KEY` set and has encrypted credentials stored in the database.
+
+  **What changed:** The key derivation function changed from `SHA-256(rawString)` to `HKDF-SHA-256(base64Decode(rawString), salt, info)`. The input key must now be exactly 32 bytes when base64-decoded.
+
+  **Migration steps:**
+  1. Generate a new 32-byte key: `openssl rand -base64 32`
+  2. Set `CODEMATION_CREDENTIALS_MASTER_KEY` to this new value.
+  3. Re-bind each credential in the Codemation UI (open the credential, re-enter secrets, save). This re-encrypts with the new HKDF-derived key at `schemaVersion: 2`.
+  4. Credentials not yet re-bound will throw `CredentialKeyRotatedError` when accessed — the existing key-rotation error handling applies.
+
+  **Rollback:** Keep the old key value in a safe location. To roll back, restore the old `CODEMATION_CREDENTIALS_MASTER_KEY` value — the v1 SHA-256 decrypt path is retained in this release.
+
+- 8285ec0: Add `@codemation/managed-auth` package and `auth.kind: "managed"` support in `@codemation/host`.
+
+  `@codemation/managed-auth` is a new publishable package containing the JWKS cache and EdDSA JWT verifier used by managed-mode workspaces. It has no dependency on `@codemation/host` or `@codemation/core` and is intentionally self-contained so the closed-source workspace-mcp can install it from the public registry.
+
+  `@codemation/host` gains `auth.kind: "managed"` — a new auth mode where Better Auth is not mounted, the workspace verifies CP-signed JWT bearers, and a single-origin CORS allowlist is enforced via `CP_WEB_ORIGIN`. Boot-time guard ensures all required env vars are present before startup.
+
+- 8285ec0: feat(story-11): Wire MCP catalog into agent — explicit and shorthand binding, scope validation, pool integration, telemetry, and runtime 403 detection
+  - `@codemation/core`: `AgentMcpIntegration` interface + token, `McpServerBindings` types, `NeedsReconsentEvent`, `AgentBindError`, `NoOpAgentMcpIntegration` fallback, `CodemationTelemetryAttributeNames.mcpServerId/mcpToolName`
+  - `@codemation/core-nodes`: `AIAgentConfig` + `AIAgent` extended with `mcpServers` and `pinnedMcpTools`; `DeferredMetaToolStrategy.ownsToolName` covers MCP tools; `AIAgentNode` injects `AgentMcpIntegration` and strips AI SDK auto-execute from strategy tools
+  - `@codemation/host`: `AgentMcpIntegrationImpl` — resolves bindings, validates scopes, opens pool, wraps tool execute with telemetry spans and 403/permission error detection
+
+- 8285ec0: Add `managed` scaffold template and workflow auto-discovery config fields
+  - New `create-codemation` template `managed` — pre-configured for managed mode with PostgreSQL, CP-JWT auth, and workflow auto-discovery from `./src/workflows`.
+  - `defineCodemationApp` now accepts `workflowsDir` (maps to `workflowDiscovery.directories`), `database.urlEnv`, `execution.modeEnv`, and `execution.redisUrlEnv` for env-resolved config values.
+  - `CodemationConfigNormalizer` enforces managed-mode invariants: PostgreSQL required, at least one workflow source required.
+  - New `WorkflowDirectoryDiscoverer` class for walking a directory and collecting exported workflows with test-file exclusion.
+  - `WorkflowModulePathFinder` now excludes `*.test.*` and `*.spec.*` files from discovery.
+
+- 8285ec0: Add workspace pairing primitives to `packages/host/src/pairing/`: `HmacRequestSigner`, `PairedFetch` (outgoing signed requests to the control plane), `IncomingHmacVerifier` (verify signed requests from the control plane), `InternalHmacAuthMiddleware`, and `InternalPingRegistrar`. These enable HMAC-SHA256 authenticated channels between a workspace installation and the control plane per the protocol defined in `docs/pairing-protocol.md`. Also extends `CodemationHonoApiApp` to mount optional `/internal/*` routes via the new `InternalHonoApiRouteRegistrar` token.
+- 51b728d: Stream telemetry spans over WebSocket transport, eliminating HTTP polling.
+
+  **Backend (@codemation/host):**
+  - Added `TelemetrySpanPublisher` interface + `NoOpTelemetrySpanPublisher` default.
+  - Added `telemetryEvent` variant to `WorkflowWebsocketMessage` carrying `TelemetrySpanUpsert`.
+  - New `TelemetrySpanWebsocketRelay` class publishes each span upsert to a per-run room (`run:<runId>`) after it is committed to persistent storage.
+  - `OtelExecutionTelemetryFactory` injects `TelemetrySpanPublisher` (defaults to no-op when unregistered).
+  - `StoredTelemetrySpanScope.upsert()` calls the publisher after the span store write so reconnect HTTP catch-up and WS pushes are consistent.
+
+  **Frontend (@codemation/next-host):**
+  - `useWorkflowRealtimeInfrastructure` handles `kind: "telemetryEvent"` messages via `applyTelemetrySpanEvent`, which merges spans into the `telemetry-run-trace` query cache by `spanId` (deduped, sorted by `startTime`).
+  - New `retainRunSubscription` API manages per-run WS room subscribe/unsubscribe with reference counting.
+  - Auto-unsubscribe from run rooms when the tab is hidden for ≥ 5 minutes (Page Visibility API); re-subscribes on tab return.
+  - `useTelemetryRunTraceQuery` drops HTTP polling (`refetchInterval: false`); refetches once on WS reconnect for catch-up.
+  - `resolveTelemetryTraceRefetchIntervalMs` is now a no-op (always returns `false`) — retained for call-site compatibility.
+
+### Patch Changes
+
+- 8285ec0: Add activation-time OAuth scope validation: workflows with bound OAuth credentials are now rejected at activation if the granted scopes do not cover the required scopes for the credential type.
+- 8285ec0: Add a `statusLabel` field to `ConnectionInvocationRecord` / `ConnectionInvocationAppendArgs` so connection invocations can carry a short human-readable description of what they are doing (e.g. `"calling search_messages"`). The engine-side `NodeRunStateWriter` persists it; the canvas-side mirror picks it up via the standard patch projection.
+
+  Wire per-MCP-tool-call lifecycle invocations through `AgentMcpIntegration`. `prepareMcpTools` now accepts an optional `appendMcpInvocation` callback (plus the agent activation / iteration / item / parent-invocation context). When the host-side `AgentMcpIntegrationImpl` wraps a tool's `execute`, it emits a `running` record with `statusLabel: "calling <toolName>"` and a matching `completed` or `failed` record; the existing telemetry span and 403 `NeedsReconsentEvent` paths are preserved. `@codemation/canvas-core` exposes a `CurrentStatusLabelSelector` and `WorkflowCanvasNodeData.currentStatusLabel`; `@codemation/canvas` renders the latest non-empty label as a sub-line under the node card. The two capabilities work together: MCP tool calls under an agent now stream the same invocation events the LLM and node-backed tool paths already emit, and the canvas surfaces the running label per-node.
+
+- 8285ec0: Fix workflow detail screen hydration mismatch caused by overlay siblings (tabs, run button, error banner, realtime badge) being rendered conditionally on controller state that diverges between SSR and a warm React Query client cache. Overlay siblings are now gated behind the same `hasMounted` flag as the canvas root.
+
+  Render AIAgent MCP-server attachments in the canvas. `WorkflowDefinitionMapper` (the server-side mapper that feeds `/api/workflows/:id`) now passes an `McpServerResolver` backed by the host's `McpServerCatalog` to `AgentConnectionNodeCollector.collect`, so virtual connection nodes for declared `mcpServers` are emitted alongside the LLM and tool children. The MCP descriptor itself carries `icon: "lucide:plug"` and `lucide:plug` is added to the curated `WorkflowCanvasLucideIconRegistry` so MCP servers render with a distinct icon on the synchronous zero-HTTP path.
+
+- 8285ec0: Add optional `subjectName?: string` to `ConnectionInvocationRecord` and `ConnectionInvocationAppendArgs` — a stable identifier for the thing an invocation acts on that persists across status transitions. The MCP integration's `wrapToolExecutes` sets it to the tool name on every transition (running / completed / failed), so the inspector's tool-call timeline entries can render `"Tool call · <toolName>"` for MCP servers (which expose many tools through a single connection node) instead of an opaque `"Tool call"`.
+
+  For node-backed agent tools, the parent connection node id already encodes the tool name — `subjectName` stays unset there and the inspector renders the existing `"Tool call"` title unchanged.
+
+  `statusLabel` (the running-only sentence rendered on the canvas card sub-line) is unchanged; `subjectName` is the persistent structural sibling used by the inspector.
+
+- 8285ec0: Coverage Phase 2: testkits (LoggerTestKit, McpTestKit, CoreNodesTestContextFactory,
+  TelemetryTestKit, GmailTestKit, AppConfigFixturesFactory, HookTestkit), per-package
+  vitest coverage thresholds, and new tests on previously zero-coverage critical paths
+  (mergeNode, switchNode, waitNode, connectionCredentialNode, canvas-lib pure, hook smoke).
+  No production code changes.
+- e4d3e1a: perf(host): reject workflow runs immediately when required credential slots are unbound
+
+  `StartWorkflowRunCommandHandler` now calls
+  `CredentialBindingService.assertRequiredCredentialsBound` before queuing any
+  node activations. The check does a single DB query (all bindings for the
+  workflow) and walks every slot including deeply-nested ones in AI agent nodes
+  (language model, node-backed tools, nested agents) via
+  `WorkflowCredentialNodeResolver.listSlots`. If any required slot has no
+  binding the request fails with a 400 before the run record is created, so the
+  user sees a clear error message instead of waiting for the run to start and
+  then fail several seconds later.
+
+- 8285ec0: Fix `/collections` 500 on consumer dev startup: `no such table: collections_<name>`. The CLI sets `CODEMATION_SKIP_STARTUP_MIGRATIONS=true` because it runs Prisma migrations ahead of the runtime, but the same env var was also gating consumer-defined collection-schema sync inside `FrontendRuntime.start` (and `WorkerRuntime.start`). Only the runtime knows about collections declared in `codemation.config.ts`, so the CLI can never run that sync on the runtime's behalf. The two gates are now separate: Prisma migrations remain skip-able via the env var, but collection sync always runs at runtime startup when collections are declared and persistence is configured.
+- 8285ec0: fix(host/http): generic 500 error envelope + ManagedMeHonoApi error boundary (Sprint 14 Story 08)
+  - `ServerHttpErrorResponseFactory.fromUnknown` now returns `{ error: "Internal server error" }` for unexpected errors instead of leaking `error.message` to the client (Prisma messages, stack fragments, internal state).
+  - `ManagedMeHonoApiRouteRegistrar.register` wraps `sessionVerifier.verify()` in try/catch; a thrown JWT verification error now returns 401 instead of propagating as an unhandled 500.
+  - Tests updated: `telemetryHttpRouteHandler.test.ts` reflects generic envelope; new test in `ManagedMeHonoApiRouteRegistrar.test.ts` asserts 401 on `verify()` throw; new `ServerHttpErrorResponseFactory.test.ts` asserts generic message does not contain internal details.
+
+- 8285ec0: test(host/persistence): cascade-on-delete integration tests (Sprint 13 Story C)
+
+  Adds `cascadeOnDelete.integration.test.ts` covering all 8 `onDelete: Cascade`
+  relationships declared in `schema.postgresql.prisma`. Each test creates a parent
+  row and N child rows, deletes the parent, and asserts the child count drops to 0.
+
+  Relationships tested:
+  - `RunWorkItem → Run`
+  - `ExecutionInstance → Run`
+  - `RunSlotProjection → Run`
+  - `TestAssertion → Run`
+  - `TestAssertion → TestSuiteRun`
+  - `UserInvite → User`
+  - `Account → User`
+  - `Session → User`
+
+  Gaps noted (no cascade declared in schema, no schema changes made):
+  - `Credential*` tables (CredentialSecretMaterial, CredentialOAuth2Material, etc.)
+    share `instanceId` with `CredentialInstance` but have no `@relation onDelete:
+Cascade`. GDPR right-to-erasure risk.
+  - No `Workspace` model exists in `schema.postgresql.prisma`.
+
+- 8285ec0: test(host): increase unit test coverage to ≥90% (Sprint 14 Story 13)
+
+  Adds 30+ new unit test files and extensions covering previously untested logic in
+  `@codemation/host`. New test suites include:
+  - `InMemoryCredentialStore` — full CRUD + OAuth2 state/material lifecycle
+  - `CredentialSessionServiceImpl` — getSession, createSessionForInstance, evict\*
+  - `SetPinnedNodeInputCommandHandler` — 404/403/decode/null-items paths
+  - `ReplaceMutableRunWorkflowSnapshotCommandHandler` — 400/404/403/success
+  - `ReplayWorkflowNodeCommandHandler` — 404/403/workflow-not-found/decode/mode
+  - `GetWorkflowRunDetailQueryHandler` — undefined detail, empty rollups, cost join
+  - `WorkflowRunRetentionPruneScheduler` (extended) — both-disabled early return, listRuns fallback, binary storage key fallback, artifact storage key deletion
+  - `WorkflowAuditLogPruneScheduler` — disabled, custom retention, delete path
+  - `ManagedCorsMiddleware` — preflight allow/deny, non-preflight with/without CORS headers
+  - `InMemoryDomainEventBus` — publish routing, metadata error, empty handlers
+  - `WorkflowRunRepository` wrapper — load/save/listRuns/deleteRun with URL decoding
+  - `ApiPaths` — all static path methods
+  - `CodemationConfigNormalizer` — register callback, managed-mode constraints, DefinedCollection unwrapping
+  - `LocalFilesystemBinaryStorage` — write/read/stat/delete/deleteMany/listByPrefix/path-escape
+  - `StoredTelemetrySpanScope` (extended) — addSpanEvent, attachArtifact no-op path, asNodeTelemetry view
+  - `TelemetryQueryService` (extended) — empty-spans early returns, cachedInputTokens/reasoningTokens branches
+
+  Coverage exclusions added for infrastructure-only files that require live
+  connections (SQLite, S3, module loader, internal HMAC wiring).
+
+- 8285ec0: test(host): push @codemation/host coverage to ≥90% lines (Sprint 16 Story 01)
+- 8285ec0: Surface unbound credential errors to workflow run dialog by fixing the swallowed catch block in CredentialBindingService.assertRequiredCredentialsBound.
+- 8285ec0: fix(credentials): MCP server credential slots now appear in the properties panel
+
+  `WorkflowCredentialNodeResolver` was calling `AgentConnectionNodeCollector.collect()` without the `mcpServerResolver` argument in both `addRecursiveAgentSlots` and `findRecursiveConnectionNode`, so MCP attachment nodes (e.g. Gmail) were never included in the credential slot list. The early-return guard in `findRecursiveConnectionNode` also rejected MCP node IDs because it only checked for LLM and tool connection node ID patterns. Injecting `McpServerCatalog` into the resolver and passing it as the resolver to all three `collect()` call sites fixes both paths.
+
+- 8285ec0: feat(host): warn at startup when pairing env vars are absent (Sprint 14 Story 05)
+
+  When WORKSPACE_ID, WORKSPACE_PAIRING_SECRET, or CONTROL_PLANE_URL are not set
+  at boot, the host now logs a named warning (codemation.pairing) listing the
+  missing variable names instead of silently skipping pairing registration.
+  This makes misconfigured managed-mode deployments immediately visible in logs.
+
+- 8285ec0: feat(host/storage): artifact-to-object-storage + Run snapshot dedup (Sprint 14 Story 07)
+  - TelemetryArtifact payloads > 64 KB are now offloaded to BinaryStorage (payloadStorageKey column)
+    instead of stored inline in Postgres TEXT columns. Expired artifacts with storage keys have their
+    BinaryStorage blobs deleted during prune.
+  - Run snapshot deduplication: new WorkflowSnapshot table keyed by (workflowId, snapshotHash).
+    PrismaWorkflowRunRepository.createRun/save call findOrCreate to share identical snapshot JSON
+    across runs instead of storing redundant copies per run.
+  - Schema migrations added for both PostgreSQL and SQLite (with backfill of existing rows).
+
+- 8285ec0: feat(host/security): HMAC verifier + credential cipher trust-boundary tests and `CredentialKeyRotatedError` for key rotation (Sprint 13 Story E framework-side).
+  - New `CredentialKeyRotatedError` thrown by `CredentialSecretCipher.decrypt` when the stored `encryptionKeyId` does not match the active master key — explicit fail-loud on key rotation.
+  - `CredentialSecretCipher` updated: decrypt now checks key id before attempting decryption, with missing-env → key-id-mismatch → auth-tag-failure ordering.
+  - `IncomingHmacVerifier` now throws explicitly when `pairingSecret` is empty (prevents silent signature-mismatch on misconfiguration).
+  - 8 unit tests for `IncomingHmacVerifier` (valid/wrong-workspace/tampered-body/tampered-header/skewed-timestamp/missing-secret-throws/replay/nonce-per-instance).
+  - 4 integration tests for `InternalHmacAuthMiddleware` hitting `/internal/ping` (valid 200/tampered 401/wrong-workspace 401/replay 401).
+  - 7 unit tests for `CredentialSecretCipher` (round-trip/tamper/missing-env-encrypt/missing-env-decrypt/IV-randomness/keyId-format/key-rotation-throws-CredentialKeyRotatedError).
+  - Fix pre-existing TS error: `ManagedAuthTestJwks` `KeyLike` → `CryptoKey` (jose v6 dropped the alias).
+  - New `docs/security-boundary.md` documenting HMAC trust boundary, in-memory nonce cache semantics, and cipher key rotation contract.
+
+- 8285ec0: Allow SQLite in managed mode. The Sprint 3 Story 6 normalizer rule that
+  forced PostgreSQL when `auth.kind === "managed"` is removed for now —
+  the provisioner doesn't inject `DATABASE_URL` into spawned workspaces,
+  so the constraint blocked local provisioning. The managed scaffold
+  template now defaults to a per-workspace SQLite file.
+- 8285ec0: `McpConnectionPool` now reads OAuth material directly from the credential store + cipher instead of casting the credential session to an invented `McpOAuth2Session` shape. The previous path called `CredentialSessionServiceImpl.createSessionForInstance<McpOAuth2Session>(...)`, which was an unsafe generic cast — credential types' actual session shapes (e.g. `GmailSession`) don't implement `applyToRequest`, so the call threw `TypeError: session.applyToRequest is not a function` at runtime even though it type-checked.
+
+  The pool now resolves an instance's OAuth2 material via `credentialStore.getOAuth2Material(instanceId)` + `credentialSecretCipher.decrypt(...)` and builds the `authorization: Bearer <accessToken>` header from `material.accessToken` — bypassing the session entirely. Bound MCP credential types are already gated by `McpServerDeclaration.acceptedCredentialTypes` (OAuth2-shape verified at the catalog level), so the material is always available when binding succeeds.
+
+  `CredentialSessionServiceImpl.createSessionForInstance` is removed — it was only kept to feed this dead path. `McpOAuth2Session` (the fictional local type) is deleted.
+
+- 8285ec0: MCP credential slots now live on the MCP connection node, matching ChatModel and Tool
+  connection nodes. Each declared `mcpServers` entry materializes an MCP connection node
+  and the credential slot is attached to that node with slot key `"credential"` (label
+  and accepted types derived from the MCP catalog declaration). The standard credential
+  slot traversal picks them up via `AgentConnectionNodeCollector` — no special-case path.
+
+  Removed the agent-owned `mcp:<serverId>` slot key. Removed the `mcpSlotKey(serverId)`
+  helper from `@codemation/core` (and its re-export from the type-only `contracts`
+  subpath). At runtime, `AgentMcpIntegration.prepareMcpTools` now resolves the binding at
+  `(workflowId, ConnectionNodeIdFactory.mcpConnectionNodeId(agentNodeId, serverId), "credential")`.
+
+  Gmail MCP `requiredScopes` trimmed to `["https://www.googleapis.com/auth/gmail.modify"]`
+  — `gmail.modify` is a superset of `gmail.readonly` + `gmail.send` for messages, threads,
+  drafts, and labels, so the previous list was redundant.
+
+- 8285ec0: fix: validate edge output ports against declared node ports at load time
+
+  Adds `WorkflowEdgePortValidator` to `@codemation/core`. The validator checks that every edge's `from.output` port is declared by the source node's `declaredOutputPorts`; nodes without declared ports are treated as unconstrained (legacy behaviour).
+
+  The validator is wired into `WorkflowDefinitionExportsResolver` in `@codemation/host`, which is the common chokepoint for both the `CodemationConsumerConfigLoader` and `CodemationConsumerAppResolver` load paths. On violation, all errors are reported at once so an agent can self-correct in a single pass.
+
+  `WorkflowElkPortInfoResolver` in `@codemation/canvas-core` is tightened to render _exactly_ the declared ports (plus the synthetic `error` port when applicable) when a node has `declaredOutputPorts`, preventing phantom handles from rogue edges on the canvas. Legacy nodes without declared ports continue to infer ports from edges as before.
+
+  Root cause: an LLM agent created an `If` workflow node (declares `["true", "false"]`) with a rogue edge using `output: "main"`, which the canvas unioned into the port list, producing a phantom third handle.
+
+- 8285ec0: Reduce the number of worker processes/threads spawned by the test suite so it doesn't throttle other processes on the developer's machine. Root `turbo.json` concurrency drops 12 → 4 (cross-package parallelism) and every vitest config in `tooling/vitest/*` and `packages/host/*.config.ts` drops `maxWorkers` 2 → 1 with `fileParallelism: false`. Worst-case worker count was 12 × 2 = 24 simultaneous, now 4 × 1 = 4. CI throughput will be lower but local `pnpm test` no longer pegs the box.
+- 8285ec0: Add integration test coverage for managed-auth pipeline (Sprint 13 Story F).
+  - `managedAuth.integration.test.ts`: 5 new `/api/me` end-to-end cases (happy path, anonymous, tampered, expired, wrong audience) using a real signed JWT.
+  - `managedAuthSqlite.integration.test.ts`: boot regression guard for `auth.kind: "managed"` + sqlite combination (commit 35b8732c fix).
+  - `ManagedAuthTestJwks` testkit: reusable test EdDSA keypair + JWKS server helper.
+
+- 8285ec0: fix(credentials): require ownership for ?withSecrets=1 (Sprint 14 Story 03)
+
+  `CredentialHttpRouteHandler.getCredentialInstance` now enforces workspace
+  ownership when `?withSecrets=1` is requested. In managed-auth mode a principal
+  with a `workspaceId` that differs from the installation's `pairingConfig.workspaceId`
+  receives 403 Forbidden. Local-auth mode (no pairingConfig) is unchanged.
+
+- 8285ec0: fix(security): fail-closed on null principal for ?withSecrets=1 (Sprint 14.5 fix pass)
+
+  `CredentialHttpRouteHandler.getCredentialInstance` now returns 403 when the session verifier returns null (unauthenticated request) and `?withSecrets=1` is present, closing the silent pass-through gap that existed in local-auth mode.
+
+- 8285ec0: fix(sprint-14.5/storage+ssrf): S3 403-not-as-404 + KIND unknown throw + CGN SSRF block + audit prune interval env (Sprint 14 fix pass)
+  - `S3BinaryStorage.isNotFoundError`: remove `statusCode === 403` from not-found check; propagate 403 (misconfiguration) instead of silently treating it as missing.
+  - `AppContainerFactory.createBinaryStorage`: throw `Error` for unknown `BINARY_STORAGE_KIND` values (e.g. `"gcs"`) instead of silently falling back to local storage.
+  - `WorkflowAuditLogPruneScheduler`: read interval from `CODEMATION_AUDIT_PRUNE_INTERVAL_MS` (dedicated env); fall back to `CODEMATION_RUN_PRUNE_INTERVAL_MS` then static default.
+  - `SsrfGuard.isPrivateIPv4`: add `100.64.0.0/10` (Carrier-Grade NAT, RFC 6598) to blocked ranges.
+
+- 8285ec0: Remove the `development` export condition from `@codemation/canvas`, `@codemation/core`, and `@codemation/host` package.json exports. Module resolution now consistently uses the built `dist/` regardless of `NODE_ENV`.
+
+  **Why:** the `development` condition is auto-applied by bundlers (Next.js dev mode, Vite dev, etc.) and was making every cross-repo monorepo consumer fall through to TypeScript source. For the framework's own `@codemation/next-host`, this was fine — turbo's `dev` already runs `tsdown --watch` on these packages so dist is always fresh in dev. For external consumers (notably the managed control plane), it caused multi-hundred-file recursive source compiles on every cold page load.
+
+  **Impact:** zero behavior change for normal users (they consume published `dist/`). Framework monorepo devs editing canvas/core/host source still see live updates as long as `tsdown --watch` is running for the package — which is what `pnpm dev` (turbo) orchestrates by default. If you're running an app in isolation without the package's watch task, you now need to start it explicitly.
+
+- 8285ec0: Make the unit-test suite pass on Windows.
+  - `PrismaMigrationDeployer`: read `CODEMATION_PRISMA_CLI_PATH`, `CODEMATION_PRISMA_CONFIG_PATH`, `CODEMATION_HOST_PACKAGE_ROOT` from the `env` argument passed to `deploy(...)`/`deployPersistence(...)` instead of `process.env` at call time. Tests can now pass their CLI path through the deployer's existing `env` parameter rather than mutating shared `process.env`, removing the cross-file env-race that flaked SQLite deployer tests under thread-pool parallelism.
+  - `NodeInspectorTelemetryPresenter` + `DashboardCostAmountFormatter`: pin currency formatting to `en-US` with `currencyDisplay: "narrowSymbol"` so Node ICU versions produce `"$0.000039"` rather than `"US$0.000039"`.
+  - `DashboardAiUsageSummaryCard`: pin token-count formatting to `en-US` so the dashboard renders `"1,840"` regardless of system locale.
+
+  Companion test changes (not user-visible): test fixtures pass the test-only env via the deployer's `env` argument, several CLI tests wrap expected paths in `path.resolve(...)` so Windows backslash output matches, `PrismaMigrationDeployer` recovery test moved to its own file (libsql native state from earlier tests in the same file leaked into the recovery flow on Windows), and `vitest.unit.config.ts` switched to the forks pool for libsql native-module isolation across files.
+
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [e4d3e1a]
+- Updated dependencies [7b50018]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [e4d3e1a]
+- Updated dependencies [0082ab5]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [f344d6d]
+  - @codemation/core-nodes@0.8.0
+  - @codemation/core@0.11.0
+  - @codemation/eventbus-redis@0.0.38
+  - @codemation/managed-auth@0.1.0
+
 ## 0.6.0
 
 ### Minor Changes

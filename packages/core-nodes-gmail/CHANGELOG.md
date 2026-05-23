@@ -1,5 +1,102 @@
 # @codemation/core-nodes-gmail
 
+## 0.3.0
+
+### Minor Changes
+
+- 8285ec0: Declare Gmail MCP server via plugin source (standalone framework). Add mcpServers to DefinePluginOptions and thread it through createPlugin. Add gmail MCP server declaration to core-nodes-gmail plugin. Break host↔gmail cycle by removing gmail from host devDependencies.
+- 8285ec0: Narrow the default Gmail OAuth scope set to the n8n-style minimum: `gmail.modify` + `gmail.labels`. `gmail.modify` is a superset of `gmail.readonly` + `gmail.send` + `gmail.compose` for messages and threads; `gmail.labels` is required separately to create or delete custom labels. Drops scope overreach on the consent screen.
+
+  Add tokeninfo introspection (`oauth2.googleapis.com/tokeninfo`) to the credential's `test()` health check. When the live token's actual scope diverges from the stored `grantedScopes` (e.g. Google issued a downgraded grant despite a broader request), the test now fails with a clear "disconnect and reconnect" message and surfaces both `storedScopes` and `actualScopes` in `details`.
+
+  Breaking — existing connected credentials will need to disconnect and reconnect to obtain a fresh token aligned with the narrowed scope set.
+
+- 8285ec0: Align Gmail OAuth scopes with Google's documented Gmail MCP server requirement.
+
+  Per https://developers.google.com/workspace/gmail/api/guides/configure-mcp-server, Google's Gmail MCP endpoint (`https://gmailmcp.googleapis.com/mcp/v1`) enforces a **literal scope check** for `https://www.googleapis.com/auth/gmail.readonly` + `https://www.googleapis.com/auth/gmail.compose`. It does not recognize semantic supersets — a token scoped only to `gmail.modify` is rejected with `403 "The caller does not have permission"` even though `gmail.modify` covers reading and writing for messages and threads at the Gmail API level.
+
+  Updated:
+  - `GMAIL_DEFAULT_SCOPES`: `gmail.modify` + `gmail.labels` → `gmail.readonly` + `gmail.compose`.
+  - `gmailMcpServer.requiredScopes`: `gmail.modify` → `gmail.readonly` + `gmail.compose`.
+
+  Existing connected credentials will need to disconnect and reconnect to obtain a token with the correct scope set; the MCP scope-validation gate at activation time will surface a "missing required scopes" error pointing at the right path until they do.
+
+- 7b50018: feat(core-nodes,msgraph,gmail): inspectorSummary on every built-in node
+
+  Implements `inspectorSummary()` on all built-in node and trigger config classes so the workflow
+  inspector panel introduced in #136 has content for every shipped node.
+  - `@codemation/core`: extends `definePollingTrigger` to accept and plumb an `inspectorSummary`
+    option, mirroring the existing `defineNode` / `defineBatchNode` pattern. Also extends
+    `defineRestNode` (in `@codemation/core-nodes`) with the same option.
+  - `@codemation/core-nodes`: `inspectorSummary()` on `HttpRequest`, `AIAgent`, `CronTrigger`,
+    `ManualTrigger`, `SubWorkflow`, `Callback`, `If`, `Switch`, `Filter`, `Split`, `Merge`,
+    `Wait`, `WebhookTrigger`, `TestTrigger`, `Aggregate`, `MapData`, `Assertion`.
+  - `@codemation/core-nodes-msgraph`: `inspectorSummary` option on all 17 mail/drive/excel nodes
+    plus the `onNewMsGraphMailTrigger` polling trigger.
+  - `@codemation/core-nodes-gmail`: `inspectorSummary()` on `OnNewGmailTrigger`.
+    Gmail action nodes (`SendGmailMessage`, `ReplyToGmailMessage`, `ModifyGmailLabels`) return
+    `undefined` — all their config is per-item via `inputSchema`, nothing to surface at design time.
+  - `@codemation/core`: `WorkflowSnapshotCodec.serializeConfig` now pre-serializes the result of
+    `inspectorSummary()` into the snapshot JSON as `_inspectorSummary` so the browser-side mapper
+    can surface the same rows without calling class methods.
+  - `@codemation/next-host`: `PersistedWorkflowSnapshotMapper` now reads `_inspectorSummary` from
+    the serialized config and includes it in the node DTO, maintaining parity with the live mapper.
+
+- 8285ec0: Replace `McpServerDeclaration.credentialKind` / `credentialTypeId` / `oauthAppKey` with `acceptedCredentialTypes?: ReadonlyArray<string>`, matching the `CredentialRequirement.acceptedTypes` shape. Absent or empty array means no credential required. Gmail MCP declaration now uses `["oauth.google.gmail"]`, the same type as the Gmail trigger node.
+- 8285ec0: Migrate all Gmail node credential slots from the legacy `gmail.oauth` type to `oauth.google.gmail`.
+
+  All four Gmail nodes (OnNewGmailTrigger, SendGmailMessage, ReplyToGmailMessage, ModifyGmailLabels) now declare `acceptedTypes: ["oauth.google.gmail"]` in their credential slot, aligning them with the unified OAuth credential type registered in Story 2.2. The `GmailCredentialTypes` class has been removed.
+
+- 8285ec0: Add `oauth.google.gmail` credential type preset — covers all Gmail scopes, takes `clientId` as a public field and `clientSecret` as a secret field, and returns a `GmailSession` from `createSession`. Registered automatically by the `@codemation/core-nodes-gmail` plugin. One instance satisfies both Gmail trigger nodes and the Gmail MCP server.
+
+### Patch Changes
+
+- 8285ec0: Coverage Phase 2: testkits (LoggerTestKit, McpTestKit, CoreNodesTestContextFactory,
+  TelemetryTestKit, GmailTestKit, AppConfigFixturesFactory, HookTestkit), per-package
+  vitest coverage thresholds, and new tests on previously zero-coverage critical paths
+  (mergeNode, switchNode, waitNode, connectionCredentialNode, canvas-lib pure, hook smoke).
+  No production code changes.
+- 8285ec0: MCP credential slots now live on the MCP connection node, matching ChatModel and Tool
+  connection nodes. Each declared `mcpServers` entry materializes an MCP connection node
+  and the credential slot is attached to that node with slot key `"credential"` (label
+  and accepted types derived from the MCP catalog declaration). The standard credential
+  slot traversal picks them up via `AgentConnectionNodeCollector` — no special-case path.
+
+  Removed the agent-owned `mcp:<serverId>` slot key. Removed the `mcpSlotKey(serverId)`
+  helper from `@codemation/core` (and its re-export from the type-only `contracts`
+  subpath). At runtime, `AgentMcpIntegration.prepareMcpTools` now resolves the binding at
+  `(workflowId, ConnectionNodeIdFactory.mcpConnectionNodeId(agentNodeId, serverId), "credential")`.
+
+  Gmail MCP `requiredScopes` trimmed to `["https://www.googleapis.com/auth/gmail.modify"]`
+  — `gmail.modify` is a superset of `gmail.readonly` + `gmail.send` for messages, threads,
+  drafts, and labels, so the previous list was redundant.
+
+- 8285ec0: Add `build:metadata` script to curated packages — emits `dist/metadata.json` at build time for the Sprint 10 agent capability discovery catalog.
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [e4d3e1a]
+- Updated dependencies [7b50018]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [e4d3e1a]
+- Updated dependencies [0082ab5]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+- Updated dependencies [8285ec0]
+  - @codemation/core@0.11.0
+
 ## 0.2.4
 
 ### Patch Changes
