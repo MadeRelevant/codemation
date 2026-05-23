@@ -19,15 +19,15 @@ describe("oauthGoogleGmailType", () => {
     expect("tokenUrl" in auth && auth.tokenUrl).toBe("https://oauth2.googleapis.com/token");
   });
 
-  it("defaultScopes are the minimal n8n-style set: gmail.modify + gmail.labels", () => {
+  it("defaultScopes match Google's documented Gmail MCP requirement: gmail.readonly + gmail.compose", () => {
     const auth = definition.auth;
     expect(auth?.kind).toBe("oauth2");
     if (!auth || auth.kind !== "oauth2") {
       throw new Error("auth is not oauth2");
     }
     expect([...auth.scopes]).toEqual([
-      "https://www.googleapis.com/auth/gmail.modify",
-      "https://www.googleapis.com/auth/gmail.labels",
+      "https://www.googleapis.com/auth/gmail.readonly",
+      "https://www.googleapis.com/auth/gmail.compose",
     ]);
   });
 

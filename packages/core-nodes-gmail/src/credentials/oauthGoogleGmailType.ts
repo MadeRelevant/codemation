@@ -14,11 +14,14 @@ export type OAuthGoogleGmailMaterial = Readonly<{
   grantedScopes: string[];
 }>;
 
-// Matches n8n's Gmail node defaults: gmail.modify is a superset of read/send/compose for
-// messages and threads; gmail.labels is required separately to create/delete custom labels.
+// Matches Google's documented requirement for the Gmail MCP server
+// (https://developers.google.com/workspace/gmail/api/guides/configure-mcp-server):
+// gmail.readonly + gmail.compose. Even though gmail.modify is a *semantic* superset for
+// direct Gmail API calls, the MCP server enforces a literal scope-name check — a token
+// scoped only to gmail.modify gets a 403 "The caller does not have permission" from MCP.
 const GMAIL_DEFAULT_SCOPES = [
-  "https://www.googleapis.com/auth/gmail.modify",
-  "https://www.googleapis.com/auth/gmail.labels",
+  "https://www.googleapis.com/auth/gmail.readonly",
+  "https://www.googleapis.com/auth/gmail.compose",
 ] as const;
 
 export const oauthGoogleGmailType: CredentialType<

@@ -29,7 +29,12 @@ const gmailMcpServer: McpServerDeclaration = {
   transport: "http",
   url: process.env["GMAIL_MCP_URL"] ?? "https://gmailmcp.googleapis.com/mcp/v1",
   acceptedCredentialTypes: ["oauth.google.gmail"],
-  requiredScopes: ["https://www.googleapis.com/auth/gmail.modify"],
+  // Per https://developers.google.com/workspace/gmail/api/guides/configure-mcp-server —
+  // the MCP server enforces the literal scope strings, not semantic supersets.
+  requiredScopes: [
+    "https://www.googleapis.com/auth/gmail.readonly",
+    "https://www.googleapis.com/auth/gmail.compose",
+  ],
   staticHeaders: {},
   toolDescriptionOverrides: {},
 };
