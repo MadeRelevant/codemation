@@ -228,6 +228,7 @@ export function useCredentialDialogSession(options: CredentialDialogSessionOptio
   }, [
     credentialTypesAll,
     dialogMode,
+    displayName,
     editingInstance,
     envRefValues,
     onCredentialCreated,
