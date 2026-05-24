@@ -896,9 +896,6 @@ importers:
       '@libsql/client':
         specifier: ^0.17.2
         version: 0.17.2
-      '@monaco-editor/react':
-        specifier: ^4.7.0
-        version: 4.7.0(monaco-editor@0.55.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       '@prisma/adapter-libsql':
         specifier: ^7.6.0
         version: 7.6.0
@@ -911,18 +908,6 @@ importers:
       '@prisma/client-runtime-utils':
         specifier: ^7.5.0
         version: 7.5.0
-      '@tanstack/react-query':
-        specifier: ^5.90.21
-        version: 5.90.21(react@19.2.4)
-      '@types/bcryptjs':
-        specifier: ^3.0.0
-        version: 3.0.0
-      '@uiw/react-json-view':
-        specifier: 2.0.0-alpha.41
-        version: 2.0.0-alpha.41(@babel/runtime@7.28.6)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
-      '@xyflow/react':
-        specifier: ^12.10.1
-        version: 12.10.1(@types/react@19.2.14)(immer@11.1.4)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       ai:
         specifier: ^6.0.168
         version: 6.0.168(zod@4.3.6)
@@ -935,51 +920,18 @@ importers:
       bullmq:
         specifier: ^5.58.3
         version: 5.70.4
-      dagre:
-        specifier: ^0.8.5
-        version: 0.8.5
-      date-fns:
-        specifier: ^4.1.0
-        version: 4.1.0
-      execa:
-        specifier: ^9.6.1
-        version: 9.6.1
       hono:
         specifier: ^4.12.8
         version: 4.12.8
       jose:
         specifier: ^6.2.2
         version: 6.2.2
-      lucide-react:
-        specifier: ^0.577.0
-        version: 0.577.0(react@19.2.4)
-      monaco-editor:
-        specifier: ^0.55.1
-        version: 0.55.1
       pg:
         specifier: ^8.16.3
         version: 8.20.0
-      pretty-ms:
-        specifier: ^9.3.0
-        version: 9.3.0
       prisma:
         specifier: ^7.0.0
         version: 7.5.0(@types/react@19.2.14)(better-sqlite3@12.6.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.3)
-      rc-tree:
-        specifier: ^5.13.1
-        version: 5.13.1(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
-      react:
-        specifier: ^19.2.4
-        version: 19.2.4
-      react-dom:
-        specifier: ^19.2.4
-        version: 19.2.4(react@19.2.4)
-      react-router-dom:
-        specifier: ^7.13.1
-        version: 7.13.1(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
-      react-use-websocket:
-        specifier: ^4.13.0
-        version: 4.13.0
       reflect-metadata:
         specifier: ^0.2.2
         version: 0.2.2
@@ -995,13 +947,19 @@ importers:
       ws:
         specifier: ^8.19.0
         version: 8.19.0
-      zxcvbn:
-        specifier: ^4.4.2
-        version: 4.4.2
     devDependencies:
+      '@codemation/core-nodes-gmail':
+        specifier: workspace:*
+        version: link:../core-nodes-gmail
+      '@monaco-editor/react':
+        specifier: ^4.7.0
+        version: 4.7.0(monaco-editor@0.55.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       '@playwright/test':
         specifier: ^1.58.2
         version: 1.58.2
+      '@tanstack/react-query':
+        specifier: ^5.90.21
+        version: 5.90.21(react@19.2.4)
       '@tanstack/react-router':
         specifier: ^1.167.3
         version: 1.167.3(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -1011,6 +969,9 @@ importers:
       '@testing-library/react':
         specifier: ^16.3.2
         version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      '@types/bcryptjs':
+        specifier: ^3.0.0
+        version: 3.0.0
       '@types/dagre':
         specifier: ^0.7.54
         version: 0.7.54
@@ -1035,9 +996,21 @@ importers:
       '@types/zxcvbn':
         specifier: ^4.4.5
         version: 4.4.5
+      '@uiw/react-json-view':
+        specifier: 2.0.0-alpha.41
+        version: 2.0.0-alpha.41(@babel/runtime@7.28.6)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       '@vitest/coverage-v8':
         specifier: ^4.0.18
         version: 4.0.18(vitest@4.0.18(@opentelemetry/api@1.9.0)(@types/node@25.3.5)(jiti@2.6.1)(jsdom@28.1.0(@noble/hashes@2.0.1))(lightningcss@1.32.0)(msw@2.12.14(@types/node@25.3.5)(typescript@5.9.3))(tsx@4.21.0)(yaml@2.8.2))
+      '@xyflow/react':
+        specifier: ^12.10.1
+        version: 12.10.1(@types/react@19.2.14)(immer@11.1.4)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      dagre:
+        specifier: ^0.8.5
+        version: 0.8.5
+      date-fns:
+        specifier: ^4.1.0
+        version: 4.1.0
       dotenv:
         specifier: ^17.3.1
         version: 17.3.1
@@ -1047,12 +1020,36 @@ importers:
       jsdom:
         specifier: ^28.1.0
         version: 28.1.0(@noble/hashes@2.0.1)
+      lucide-react:
+        specifier: ^0.577.0
+        version: 0.577.0(react@19.2.4)
+      monaco-editor:
+        specifier: ^0.55.1
+        version: 0.55.1
       monocart-coverage-reports:
         specifier: ^2.12.9
         version: 2.12.9
       monocart-reporter:
         specifier: ^2.10.0
         version: 2.10.0
+      pretty-ms:
+        specifier: ^9.3.0
+        version: 9.3.0
+      rc-tree:
+        specifier: ^5.13.1
+        version: 5.13.1(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      react:
+        specifier: ^19.2.4
+        version: 19.2.4
+      react-dom:
+        specifier: ^19.2.4
+        version: 19.2.4(react@19.2.4)
+      react-router-dom:
+        specifier: ^7.13.1
+        version: 7.13.1(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      react-use-websocket:
+        specifier: ^4.13.0
+        version: 4.13.0
       testcontainers:
         specifier: ^10.28.0
         version: 10.28.0
@@ -1068,6 +1065,9 @@ importers:
       zod:
         specifier: 4.3.6
         version: 4.3.6
+      zxcvbn:
+        specifier: ^4.4.2
+        version: 4.4.2
 
   packages/managed-auth:
     dependencies:
