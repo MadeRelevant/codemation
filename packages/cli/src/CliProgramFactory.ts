@@ -40,7 +40,6 @@ import { PluginDevConfigFactory } from "./dev/PluginDevConfigFactory";
 import { DevLockFactory } from "./dev/Factory";
 import { ConsumerEnvDotenvFilePredicate } from "./dev/ConsumerEnvDotenvFilePredicate";
 import { DevTrackedProcessTreeKiller } from "./dev/DevTrackedProcessTreeKiller";
-import { DevPortOrphanReaper } from "./dev/DevPortOrphanReaper";
 import { DevSourceWatcherFactory } from "./dev/Runner";
 import { WorkspacePluginDevProcessCoordinator } from "./dev/WorkspacePluginDevProcessCoordinator";
 import { WorkspacePluginPackageResolver } from "./dev/WorkspacePluginPackageResolver";
@@ -133,7 +132,6 @@ export class CliProgramFactory {
       new DevCliBannerRenderer(),
       new ConsumerEnvDotenvFilePredicate(),
       devTrackedProcessTreeKiller,
-      new DevPortOrphanReaper(),
       new WorkspacePluginPackageResolver(),
       new WorkspacePluginDevProcessCoordinator(devTrackedProcessTreeKiller, processRunner),
       nextHostConsumerServerCommandFactory,
