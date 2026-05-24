@@ -1,5 +1,10 @@
 import { AppConfigLoader, CodemationConsumerConfigLoader, CodemationPluginDiscovery } from "@codemation/host/server";
-import { AppContainerFactory } from "@codemation/host";
+import {
+  AppContainerFactory,
+  HeadlessApiRuntime,
+  HeadlessHttpServerFactory,
+  WorkflowWebsocketServerFactory,
+} from "@codemation/host";
 import { ExecaProcessRunner } from "@codemation/host/server";
 import { logLevelPolicyFactory, ServerLoggerFactory } from "@codemation/host/next/server";
 
@@ -174,6 +179,13 @@ export class CliProgramFactory {
         new ListenPortResolver(),
         nextHostConsumerServerCommandFactory,
         processRunner,
+        appConfigLoader,
+        new HeadlessApiRuntime(
+          new AppContainerFactory(),
+          new WorkflowWebsocketServerFactory(),
+          new HeadlessHttpServerFactory(),
+          loggerFactory.create("codemation.headless"),
+        ),
       ),
       new ServeWorkerCommand(pathResolver, appConfigLoader, new AppContainerFactory()),
       new SkillsSyncCommand(consumerAgentSkillsSyncService),

@@ -23,7 +23,7 @@ const allowedConstructorNames = new Set([
 const compositionRootFilePattern =
   /(?:Factory|Builder|Bootstrap|Discovery|Runner|Server|Mapper|Reader|Writer|Finder|Registry|Host|Protocol|Session|Program|Supervisor|Planner|Resolver|Environment|Worker|Scheduler|Connection|Application|Hub|Reporter|Loader|Validator|CliBin|LocalUserCreator|DevLock)\.tsx?$/;
 const isCompositionRootFile = (filename) =>
-  compositionRootFilePattern.test(filename) || /\/src\/bin\/[^/]+\.tsx?$/.test(filename);
+  compositionRootFilePattern.test(filename) || /[/\\]src[/\\]bin[/\\][^/\\]+\.tsx?$/.test(filename);
 
 /**
  * Allow `static create…` helpers on classes named `*Factory` without treating the whole file as a composition root.
@@ -630,6 +630,8 @@ export default [
       "packages/host/src/infrastructure/logging/LogLevelPolicy.ts",
       "packages/host/src/infrastructure/logging/PerformanceLogPolicy.ts",
       "packages/host/src/infrastructure/persistence/PrismaMigrationDeployer.ts",
+      // src/bin/** files are environment-boundary entry points — reading process.env is their purpose.
+      "packages/host/src/bin/**",
     ],
     rules: {
       "no-restricted-properties": [

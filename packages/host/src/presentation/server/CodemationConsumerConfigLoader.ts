@@ -38,6 +38,7 @@ export class CodemationConsumerConfigLoader {
   private readonly performanceDiagnosticsLogger = new ServerLoggerFactory(
     logLevelPolicyFactory,
   ).createPerformanceDiagnostics("codemation-config-loader.timing");
+  private readonly bootLogger = new ServerLoggerFactory(logLevelPolicyFactory).create("codemation.boot");
   /**
    * In-flight + completed load promises keyed by `${consumerRoot}|${configPathOverride}`. The
    * boot path constructs MULTIPLE CodemationConsumerConfigLoader instances (one inside the CLI's
@@ -109,6 +110,9 @@ export class CodemationConsumerConfigLoader {
       throw new Error(`Config file does not export a Codemation config object: ${bootstrapSource}`);
     }
     const config = this.configNormalizer.normalize(rawConfig);
+    if (rawConfig.codemationVersion) {
+      this.bootLogger.info(`codemationVersion: ${rawConfig.codemationVersion}`);
+    }
     const workflowSources = await BootTimer.measureAsync("config.resolveWorkflowSources", () =>
       this.resolveWorkflowSources(args.consumerRoot, config),
     );
@@ -190,8 +194,9 @@ export class CodemationConsumerConfigLoader {
           workflowDiscoveryDirectories,
           absoluteWorkflowModulePath: workflowSource,
         }),
-        moduleExports: await BootTimer.measureAsync(`workflow.${path.basename(workflowSource).replace(/\.tsx?$/, "")}`, () =>
-          this.importModule(workflowSource, importSession),
+        moduleExports: await BootTimer.measureAsync(
+          `workflow.${path.basename(workflowSource).replace(/\.tsx?$/, "")}`,
+          () => this.importModule(workflowSource, importSession),
         ),
       })),
     );
