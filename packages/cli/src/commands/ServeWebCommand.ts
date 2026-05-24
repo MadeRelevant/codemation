@@ -1,4 +1,5 @@
-import { CodemationConsumerConfigLoader, type ProcessRunner } from "@codemation/host/server";
+import { AppConfigLoader, CodemationConsumerConfigLoader, type ProcessRunner } from "@codemation/host/server";
+import { type HeadlessApiRuntime } from "@codemation/host";
 import { createRequire } from "node:module";
 import path from "node:path";
 import process from "node:process";
@@ -25,9 +26,15 @@ export class ServeWebCommand {
     private readonly listenPortResolver: ListenPortResolver,
     private readonly nextHostConsumerServerCommandFactory: NextHostConsumerServerCommandFactory,
     private readonly processRunner: ProcessRunner,
+    private readonly appConfigLoader: AppConfigLoader,
+    private readonly headlessApiRuntime: HeadlessApiRuntime,
   ) {}
 
-  async execute(consumerRoot: string, buildOptions: ConsumerBuildOptions): Promise<void> {
+  async execute(
+    consumerRoot: string,
+    buildOptions: ConsumerBuildOptions,
+    opts?: Readonly<{ headless?: boolean }>,
+  ): Promise<void> {
     void buildOptions;
     const paths = await this.pathResolver.resolve(consumerRoot);
     await this.consumerAgentSkillsSyncService.sync(paths.consumerRoot, {
@@ -35,6 +42,17 @@ export class ServeWebCommand {
       repoRoot: paths.repoRoot,
     });
     this.tsRuntime.configure(paths.repoRoot);
+
+    if (opts?.headless === true) {
+      const loadResult = await this.appConfigLoader.load({
+        consumerRoot: paths.consumerRoot,
+        repoRoot: paths.repoRoot,
+        env: process.env,
+      });
+      await this.headlessApiRuntime.start(loadResult.appConfig);
+      return;
+    }
+
     const nextHostRoot = path.dirname(this.require.resolve("@codemation/next-host/package.json"));
     const nextHostCommand = await this.nextHostConsumerServerCommandFactory.create({ nextHostRoot });
     const consumerEnv = this.envLoader.load(paths.consumerRoot);

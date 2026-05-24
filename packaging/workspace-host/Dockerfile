@@ -29,9 +29,10 @@ COPY . .
 # @ast-grep/cli has a native binary postinstall that fails on alpine; it's tooling-only.
 # --ignore-scripts skips ALL postinstall scripts; we re-run only prisma generate explicitly.
 ENV HUSKY=0
-# Install only the packages needed at runtime (host + its transitive deps).
+# Install only the packages needed at runtime (cli + host + their transitive deps).
 RUN --mount=type=cache,id=pnpm-fw,target=/pnpm/store \
     pnpm install --frozen-lockfile --ignore-scripts \
+      --filter @codemation/cli... \
       --filter @codemation/host... \
       --filter @codemation/core... \
       --filter @codemation/core-nodes... \
@@ -41,6 +42,7 @@ RUN --mount=type=cache,id=pnpm-fw,target=/pnpm/store \
 RUN pnpm --filter @codemation/host prisma:generate
 # Build is kept as a typecheck / dist gate; the runtime uses --conditions=development (src).
 RUN pnpm exec turbo run build \
+      --filter @codemation/cli... \
       --filter @codemation/host... \
       --filter @codemation/core... \
       --filter @codemation/core-nodes... \
@@ -61,7 +63,7 @@ COPY --from=builder --chown=codemation:codemation /build /codemation
 RUN mkdir -p /workspace && chown -R codemation:codemation /workspace
 USER codemation
 # Run from the host package dir so tsx resolves local node_modules.
-WORKDIR /codemation/packages/host
+WORKDIR /codemation/packages/cli
 EXPOSE 4001
 ENTRYPOINT ["/sbin/tini", "--"]
-CMD ["node", "--import", "tsx/esm", "--conditions=development", "src/bin/server.ts"]
+CMD ["node", "--import", "tsx/esm", "--conditions=development", "src/bin.ts", "serve", "web", "--headless"]

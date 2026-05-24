@@ -145,9 +145,21 @@ export class CliProgram {
         "ECMAScript language version for emitted workflow JavaScript when building consumer output (default: es2022).",
         "es2022",
       )
-      .action(async (opts: Readonly<{ consumerRoot?: string; noSourceMaps?: boolean; target?: string }>) => {
-        await this.serveWebCommand.execute(resolveConsumerRoot(opts.consumerRoot), this.buildOptionsParser.parse(opts));
-      });
+      .option(
+        "--headless",
+        "Skip the Next.js UI process; run only the API + WebSocket servers. Intended for workspace pods where the UI is served externally.",
+      )
+      .action(
+        async (
+          opts: Readonly<{ consumerRoot?: string; noSourceMaps?: boolean; target?: string; headless?: boolean }>,
+        ) => {
+          await this.serveWebCommand.execute(
+            resolveConsumerRoot(opts.consumerRoot),
+            this.buildOptionsParser.parse(opts),
+            { headless: opts.headless },
+          );
+        },
+      );
 
     serve
       .command("worker")
