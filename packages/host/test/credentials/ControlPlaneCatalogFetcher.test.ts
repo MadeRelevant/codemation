@@ -456,7 +456,7 @@ describe("ControlPlaneCatalogFetcher — mcpServers control-plane fetch", () => 
     const mcpCall = pairedFetch.get.mock.calls.find(([url]) => (url as string).includes("mcp-servers"));
     expect(mcpCall).toBeDefined();
     expect(mcpCall![0]).toContain(customUrl);
-    expect(mcpCall![0]).toContain("/api/catalog/mcp-servers");
+    expect(mcpCall![0]).toContain("/internal/catalog/mcp-servers");
     expect(fetcher.mcpServers).toEqual(fakeMcpServers);
   });
 

@@ -32,9 +32,9 @@ type EndpointState = {
  * credential-type overrides, MCP server registrations, and OAuth app availability.
  *
  * Endpoints (HMAC-gated via PairedFetch):
- *   GET /api/catalog/oauth-apps
- *   GET /api/catalog/mcp-servers
- *   GET /api/catalog/credential-types
+ *   GET /internal/catalog/oauth-apps
+ *   GET /internal/catalog/mcp-servers
+ *   GET /internal/catalog/credential-types
  *
  * Failure semantics: a failure on one endpoint does NOT prevent updating the
  * others. Each endpoint's consecutive-failure counter and staleness escalation
@@ -164,9 +164,9 @@ export class ControlPlaneCatalogFetcher {
     const base = this.pairingConfig.controlPlaneUrl;
 
     const [oauthResult, mcpResult, credTypesResult] = await Promise.allSettled([
-      this.pairedFetch.get(`${base}/api/catalog/oauth-apps`),
-      this.pairedFetch.get(`${base}/api/catalog/mcp-servers`),
-      this.pairedFetch.get(`${base}/api/catalog/credential-types`),
+      this.pairedFetch.get(`${base}/internal/catalog/oauth-apps`),
+      this.pairedFetch.get(`${base}/internal/catalog/mcp-servers`),
+      this.pairedFetch.get(`${base}/internal/catalog/credential-types`),
     ]);
 
     await this.handleEndpointResult(
