@@ -45,3 +45,26 @@ test("AppContainerFactory resolves the Hono API app for local auth dev config", 
 
   assert.ok(container.resolve(CodemationHonoApiApp));
 });
+
+test("AppContainerFactory boots without error in non-managed mode when WORKSPACE_PAIRING_SECRET is invalid", async () => {
+  // Regression: an invalid (non-32-byte) WORKSPACE_PAIRING_SECRET must not crash non-managed-mode boot.
+  const fixture = new AppContainerFactoryFixture();
+  const appConfig = fixture.createAppConfig();
+  const appConfigWithBadSecret: AppConfig = {
+    ...appConfig,
+    env: {
+      ...appConfig.env,
+      WORKSPACE_ID: "ws-test",
+      WORKSPACE_PAIRING_SECRET: "tooshort", // invalid — not a 32-byte base64 value
+      CONTROL_PLANE_URL: "https://cp.example.com",
+    },
+  };
+
+  // Should not throw — pairing is silently disabled with a warning.
+  const container = await new AppContainerFactory().create({
+    appConfig: appConfigWithBadSecret,
+    sharedWorkflowWebsocketServer: null,
+  });
+
+  assert.ok(container.resolve(CodemationHonoApiApp));
+});

@@ -393,7 +393,9 @@ export class AppContainerFactory {
     // Register the no-op publisher as a fallback so OtelExecutionTelemetryFactory can always
     // resolve the token. registerOperationalInfrastructure overrides this with the WS relay.
     container.registerInstance(ApplicationTokens.TelemetrySpanPublisher, NoOpTelemetrySpanPublisher);
-    BootTimer.measure("appContainer.registerCoreInfrastructure", () => this.registerCoreInfrastructure(container, inputs));
+    BootTimer.measure("appContainer.registerCoreInfrastructure", () =>
+      this.registerCoreInfrastructure(container, inputs),
+    );
     BootTimer.measure("appContainer.registerRepositoriesAndBuses", () => this.registerRepositoriesAndBuses(container));
     BootTimer.measure("appContainer.registerApplicationServicesAndRoutes", () =>
       this.registerApplicationServicesAndRoutes(container, inputs.appConfig),
@@ -481,7 +483,7 @@ export class AppContainerFactory {
     });
   }
 
-private mergeConfigMcpServers(container: Container, appConfig: AppConfig): void {
+  private mergeConfigMcpServers(container: Container, appConfig: AppConfig): void {
     const catalog = container.resolve(McpServerCatalog);
     catalog.merge("config", appConfig.mcpServers ?? []);
   }
@@ -988,7 +990,23 @@ private mergeConfigMcpServers(container: Container, appConfig: AppConfig): void 
   }
 
   private registerPairingInfrastructure(container: Container, appConfig: AppConfig): void {
-    const pairingConfig = new PairingConfigFactory().create(appConfig.env);
+    const isManagedMode = appConfig.auth?.kind === "managed";
+    let pairingConfig;
+    try {
+      pairingConfig = new PairingConfigFactory().create(appConfig.env);
+    } catch (err) {
+      if (isManagedMode) {
+        // In managed mode the secret is required — let the error surface.
+        throw err;
+      }
+      // In non-managed mode an invalid-but-present WORKSPACE_PAIRING_SECRET is a misconfiguration
+      // warning, not a fatal error. Log and continue without pairing.
+      const logger = container.resolve(ServerLoggerFactory).create("codemation.pairing");
+      logger.warn(
+        `WORKSPACE_PAIRING_SECRET is set but invalid — pairing disabled. ${err instanceof Error ? err.message : String(err)}`,
+      );
+      return;
+    }
     if (!pairingConfig) {
       // Pairing is optional in non-production environments (local dev without CP integration).
       // Emit a startup warning so operators know the workspace-mcp HMAC channel is inactive.
