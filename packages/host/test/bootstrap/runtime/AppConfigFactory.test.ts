@@ -15,20 +15,16 @@ function normalizedBase(overrides: Partial<NormalizedCodemationConfig> = {}): No
 describe("AppConfigFactory", () => {
   const factory = new AppConfigFactory();
 
-  it("throws when postgresql is selected but database URL is not a postgres URL", () => {
+  it("throws when CODEMATION_DATABASE_URL uses an unsupported scheme", () => {
     expect(() =>
       factory.create({
         repoRoot: "/repo",
         consumerRoot: "/consumer",
-        env: {},
-        config: normalizedBase({
-          runtime: {
-            database: { kind: "postgresql", url: "mysql://localhost/db" },
-          },
-        }),
+        env: { CODEMATION_DATABASE_URL: "mysql://localhost/db" } as NodeJS.ProcessEnv,
+        config: normalizedBase(),
         workflowSources: [],
       }),
-    ).toThrow(/postgresql:\/\/ or postgres:\/\//);
+    ).toThrow(/Unsupported CODEMATION_DATABASE_URL scheme/);
   });
 
   it("maps CODEMATION_DATABASE_KIND over configured database kind", () => {

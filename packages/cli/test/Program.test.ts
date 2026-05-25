@@ -41,7 +41,7 @@ test("CliProgram forwards --watch-framework to the dev command", async () => {
   await program.run(["dev", "--watch-framework", "--consumer-root", path.resolve("/tmp/my-automation")]);
 
   assert.deepEqual(devCommand.calls, [
-    { consumerRoot: path.resolve("/tmp/my-automation"), watchFramework: true, apiOnly: false },
+    { consumerRoot: path.resolve("/tmp/my-automation"), watchFramework: true, apiOnly: false, traceBoot: false },
   ]);
 });
 
@@ -67,7 +67,7 @@ test("CliProgram defaults dev to the packaged UI path", async () => {
   await program.run(["dev", "--consumer-root", path.resolve("/tmp/my-automation")]);
 
   assert.deepEqual(devCommand.calls, [
-    { consumerRoot: path.resolve("/tmp/my-automation"), watchFramework: false, apiOnly: false },
+    { consumerRoot: path.resolve("/tmp/my-automation"), watchFramework: false, apiOnly: false, traceBoot: false },
   ]);
 });
 
@@ -93,7 +93,7 @@ test("CliProgram forwards --api-only to the dev command", async () => {
   await program.run(["dev", "--api-only", "--consumer-root", path.resolve("/tmp/my-automation")]);
 
   assert.deepEqual(devCommand.calls, [
-    { consumerRoot: path.resolve("/tmp/my-automation"), watchFramework: false, apiOnly: true },
+    { consumerRoot: path.resolve("/tmp/my-automation"), watchFramework: false, apiOnly: true, traceBoot: false },
   ]);
 });
 

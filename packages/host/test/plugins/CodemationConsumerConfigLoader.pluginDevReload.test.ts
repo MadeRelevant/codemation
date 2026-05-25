@@ -1,7 +1,7 @@
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { CodemationConsumerConfigLoader } from "../../src/presentation/server/CodemationConsumerConfigLoader";
 
@@ -103,12 +103,17 @@ describe("CodemationConsumerConfigLoader plugin dev reload", () => {
   const originalDevServerToken = process.env.CODEMATION_DEV_SERVER_TOKEN;
   const fixture = new PluginDevConfigReloadFixture();
 
+  beforeEach(() => {
+    CodemationConsumerConfigLoader.invalidateAll();
+  });
+
   afterEach(async () => {
     if (originalDevServerToken === undefined) {
       delete process.env.CODEMATION_DEV_SERVER_TOKEN;
     } else {
       process.env.CODEMATION_DEV_SERVER_TOKEN = originalDevServerToken;
     }
+    CodemationConsumerConfigLoader.invalidateAll();
     await fixture.dispose();
   });
 
@@ -121,6 +126,7 @@ describe("CodemationConsumerConfigLoader plugin dev reload", () => {
     expect(await fixture.loadWorkflowName()).toBe("Initial workflow");
 
     await fixture.writeWorkflow("Updated workflow");
+    CodemationConsumerConfigLoader.invalidateAll();
 
     expect(await fixture.loadWorkflowName()).toBe("Updated workflow");
   });

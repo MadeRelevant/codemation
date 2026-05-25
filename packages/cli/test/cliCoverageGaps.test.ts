@@ -137,10 +137,7 @@ test("ConsumerOutputBuilderFactory creates a ConsumerOutputBuilder instance", ()
 import { NextHostEdgeSeedLoader } from "../src/dev/NextHostEdgeSeedLoader";
 
 describe("NextHostEdgeSeedLoader.resolveDevelopmentServerToken", () => {
-  const loader = new NextHostEdgeSeedLoader(
-    { load: async () => ({ config: {}, bootstrapSource: null, workflowSources: [] }) } as never,
-    { mergeConsumerRootIntoProcessEnvironment: () => ({}) } as never,
-  );
+  const loader = new NextHostEdgeSeedLoader({ mergeConsumerRootIntoProcessEnvironment: () => ({}) } as never);
 
   it("returns the raw token when provided and non-empty", () => {
     const token = "my-dev-token";
@@ -551,25 +548,17 @@ export default {
 // ---------------------------------------------------------------------------
 
 test("NextHostEdgeSeedLoader.resolveDevelopmentAuthSecret returns configured secret when AUTH_SECRET is set", () => {
-  const loader = new NextHostEdgeSeedLoader(
-    { load: async () => ({ config: {}, bootstrapSource: null, workflowSources: [] }) } as never,
-    { mergeConsumerRootIntoProcessEnvironment: () => ({ AUTH_SECRET: "my-real-secret" }) } as never,
-  );
+  const loader = new NextHostEdgeSeedLoader({
+    mergeConsumerRootIntoProcessEnvironment: () => ({ AUTH_SECRET: "my-real-secret" }),
+  } as never);
   assert.equal(loader.resolveDevelopmentAuthSecret({ AUTH_SECRET: "my-real-secret" }), "my-real-secret");
 });
 
 test("NextHostEdgeSeedLoader.loadForConsumer returns seed with authEnabled and authSecret", async () => {
-  const configLoader = {
-    load: async () => ({
-      config: { auth: { allowUnauthenticatedInDevelopment: false } },
-      bootstrapSource: null,
-      workflowSources: [],
-    }),
-  };
   const consumerEnvLoader = {
     mergeConsumerRootIntoProcessEnvironment: () => ({}),
   };
-  const loader = new NextHostEdgeSeedLoader(configLoader as never, consumerEnvLoader as never);
+  const loader = new NextHostEdgeSeedLoader(consumerEnvLoader as never);
   const seed = await loader.loadForConsumer("/fake/consumer");
   assert.equal(seed.uiAuthEnabled, true);
   assert.equal(seed.authSecret, NextHostEdgeSeedLoader.defaultDevelopmentAuthSecret);
@@ -580,9 +569,7 @@ test("NextHostEdgeSeedLoader.loadForConsumer returns seed with authEnabled and a
 // ---------------------------------------------------------------------------
 
 import { fileURLToPath } from "node:url";
-import { CodemationConsumerConfigLoader } from "@codemation/host/server";
 import type { Logger } from "@codemation/host/next/server";
-import { ConsumerCliTsconfigPreparation } from "../src/consumer/ConsumerCliTsconfigPreparation";
 import { ConsumerDatabaseConnectionResolver } from "../src/database/ConsumerDatabaseConnectionResolver";
 import { DatabaseMigrationsApplyService } from "../src/database/DatabaseMigrationsApplyService";
 import { CliDatabaseUrlDescriptor } from "../src/user/CliDatabaseUrlDescriptor";
@@ -617,18 +604,16 @@ test("DatabaseMigrationsApplyService.applyForConsumer is a no-op when no databas
     const service = new DatabaseMigrationsApplyService(
       silentLogger,
       new UserAdminConsumerDotenvLoader(),
-      new ConsumerCliTsconfigPreparation(),
-      new CodemationConsumerConfigLoader(),
       new ConsumerDatabaseConnectionResolver(),
       new CliDatabaseUrlDescriptor(),
       path.join(repoRoot, "packages", "host"),
       deployer,
     );
 
-    // applyForConsumer with no database — should be a no-op (line 35 calls applyInternal with requirePersistence=false → line 66 returns early)
+    // applyForConsumer with no CODEMATION_DATABASE_URL — defaults to SQLite, deployer is still called
     await service.applyForConsumer(tempDir!);
 
-    assert.equal(deployerCalled, false, "deployer must not be called when no database is configured");
+    assert.equal(deployerCalled, true, "deployer must be called with default SQLite config");
   } finally {
     if (savedDatabaseUrl === undefined) {
       delete process.env.DATABASE_URL;

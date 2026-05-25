@@ -13,7 +13,7 @@ loadDotenv({
 });
 
 const useRedisRuntime = Boolean(process.env.REDIS_URL);
-const databaseUrl = process.env.DATABASE_URL?.trim();
+const _databaseUrl = process.env.DATABASE_URL?.trim();
 
 type AzureFoundryPublicConfig = Readonly<{ endpoint?: string }>;
 type AzureFoundryMaterial = Readonly<{ apiKey?: string }>;

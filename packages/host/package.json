@@ -153,6 +153,7 @@
     "date-fns": "^4.1.0",
     "dotenv": "^17.3.1",
     "eslint": "^10.0.3",
+    "execa": "^9.6.1",
     "jsdom": "^28.1.0",
     "lucide-react": "^0.577.0",
     "monaco-editor": "^0.55.1",
