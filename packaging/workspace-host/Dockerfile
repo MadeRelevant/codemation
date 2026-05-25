@@ -6,8 +6,8 @@
 #     -t ghcr.io/maderelevant/codemation-workspace-host:1.0.0 .
 #
 # Stages:
-#   builder — install dependencies + build framework packages
-#   runtime — lean alpine image, workspace tree intact, tsx at runtime via --conditions=development
+#   builder — production-only install; no build step needed (runtime uses --conditions=development)
+#   runtime — lean alpine image, workspace tree intact, tsx reads src/ at runtime
 #
 # Runtime: worker code is mounted at /workspace by the init-container (hydrated from S3).
 # The host reads CODEMATION_CONFIG_PATH (defaults to /workspace/codemation.config.ts).
@@ -25,40 +25,26 @@ ENV PNPM_HOME=/pnpm \
 RUN corepack enable && corepack prepare pnpm@${PNPM_VERSION} --activate
 WORKDIR /build
 COPY . .
-# Disable husky (prepare script) and skip tooling-only postinstall scripts.
-# @ast-grep/cli has a native binary postinstall that fails on alpine; it's tooling-only.
-# --ignore-scripts skips ALL postinstall scripts; we re-run only prisma generate explicitly.
+# apps/.workspaces is gitignored but listed in pnpm-workspace.yaml; pnpm workspace scan needs it.
+RUN mkdir -p apps/.workspaces
+# HUSKY=0 prevents the root prepare script from running during install.
 ENV HUSKY=0
-# Full install (including devDeps) so turbo + tsdown are available for the build step.
-RUN --mount=type=cache,id=pnpm-fw,target=/pnpm/store \
-    pnpm install --frozen-lockfile --ignore-scripts \
-      --filter @codemation/cli... \
-      --filter @codemation/host... \
-      --filter @codemation/core... \
-      --filter @codemation/core-nodes... \
-      --filter @codemation/core-nodes-gmail... \
-      --filter @codemation/managed-auth...
-# Prisma client generation (must run after install, skipped by --ignore-scripts above).
-RUN pnpm --filter @codemation/host prisma:generate
-# Build is kept as a typecheck / dist gate; the runtime uses --conditions=development (src).
-RUN pnpm exec turbo run build \
-      --filter @codemation/cli... \
-      --filter @codemation/host... \
-      --filter @codemation/core... \
-      --filter @codemation/core-nodes... \
-      --filter @codemation/core-nodes-gmail... \
-      --filter @codemation/managed-auth...
-# Prune to production-only deps after build. Replaces node_modules in-place, removing
-# devDependencies (next-host/monaco-editor/next.js/lucide-react etc.) from the tree that
-# gets copied into the runtime image. CLI + host and their transitive runtime deps remain.
+# Production-only install: --prod excludes devDependencies of all filtered packages,
+# so next.js, monaco-editor, turbo, tsdown, lucide-react, @codemation/next-host etc.
+# are never fetched. --ignore-scripts skips @ast-grep/cli native binary postinstall
+# (alpine/musl incompatible) and husky; prisma:generate is re-run explicitly below.
 RUN --mount=type=cache,id=pnpm-fw,target=/pnpm/store \
     pnpm install --frozen-lockfile --ignore-scripts --prod \
-      --filter @codemation/cli... \
-      --filter @codemation/host... \
-      --filter @codemation/core... \
-      --filter @codemation/core-nodes... \
-      --filter @codemation/core-nodes-gmail... \
-      --filter @codemation/managed-auth...
+      --filter @codemation/cli \
+      --filter @codemation/host \
+      --filter @codemation/core \
+      --filter @codemation/core-nodes \
+      --filter @codemation/core-nodes-gmail \
+      --filter @codemation/managed-auth \
+      --filter @codemation/agent-skills \
+      --filter @codemation/eventbus-redis
+# Prisma client generation (skipped by --ignore-scripts above, must run explicitly).
+RUN pnpm --filter @codemation/host prisma:generate
 
 FROM node:${NODE_VERSION}-alpine AS runtime
 # tini for proper signal forwarding; aws-cli for S3 operations (init-container pattern).
@@ -73,7 +59,7 @@ COPY --from=builder --chown=codemation:codemation /build /codemation
 # Workspace user code is mounted here by the init-container at pod start.
 RUN mkdir -p /workspace && chown -R codemation:codemation /workspace
 USER codemation
-# Run from the host package dir so tsx resolves local node_modules.
+# Run from the cli package dir so tsx resolves local node_modules.
 WORKDIR /codemation/packages/cli
 EXPOSE 4001
 ENTRYPOINT ["/sbin/tini", "--"]

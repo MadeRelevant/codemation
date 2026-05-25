@@ -920,6 +920,12 @@ importers:
       bullmq:
         specifier: ^5.58.3
         version: 5.70.4
+      dotenv:
+        specifier: ^17.3.1
+        version: 17.3.1
+      execa:
+        specifier: ^9.6.1
+        version: 9.6.1
       hono:
         specifier: ^4.12.8
         version: 4.12.8
@@ -1011,9 +1017,6 @@ importers:
       date-fns:
         specifier: ^4.1.0
         version: 4.1.0
-      dotenv:
-        specifier: ^17.3.1
-        version: 17.3.1
       eslint:
         specifier: ^10.0.3
         version: 10.0.3(jiti@2.6.1)

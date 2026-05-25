@@ -126,6 +126,8 @@
     "reflect-metadata": "^0.2.2",
     "sanitize-filename": "^1.6.4",
     "serialize-javascript": "^7.0.4",
+    "dotenv": "^17.3.1",
+    "execa": "^9.6.1",
     "tsx": "^4.21.0",
     "ws": "^8.19.0"
   },
@@ -151,7 +153,6 @@
     "@xyflow/react": "^12.10.1",
     "dagre": "^0.8.5",
     "date-fns": "^4.1.0",
-    "dotenv": "^17.3.1",
     "eslint": "^10.0.3",
     "jsdom": "^28.1.0",
     "lucide-react": "^0.577.0",
