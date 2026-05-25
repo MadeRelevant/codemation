@@ -766,6 +766,15 @@ export default [
     },
   },
   {
+    files: ["packages/host/src/bootstrap/perf/BootTimer.ts"],
+    rules: {
+      // BootTimer is a zero-overhead static utility designed to be called everywhere by name;
+      // injecting it would require threading it through every boot-phase caller.
+      "codemation/no-static-methods": "off",
+      "no-restricted-syntax": "off",
+    },
+  },
+  {
     files: ["packages/host/src/presentation/http/ApiPaths.ts"],
     rules: {
       "codemation/no-static-methods": "off",

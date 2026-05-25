@@ -1,5 +1,57 @@
 # @codemation/host
 
+## 0.8.0
+
+### Minor Changes
+
+- [#150](https://github.com/MadeRelevant/codemation/pull/150) [`8ac207a`](https://github.com/MadeRelevant/codemation/commit/8ac207ab263542e46fad0b9e1ea584fbb71a747c) Thanks [@cblokland90](https://github.com/cblokland90)! - Add workspace-host Docker image packaging and managed template peerDeps fix.
+  - Move @codemation/\* from dependencies to peerDependencies in the managed template (avoids n8n-style dual-instance singleton trap at runtime; framework packages resolve from the base image)
+  - Add codemationVersion: "1.0.0" field to managed template codemation.config.ts and DefineCodemationAppOptions (reserved compatibility-date slot, no enforcement yet)
+  - Add packages/host/src/bin/server.ts standalone entry point for workspace pod runtime
+  - Add packaging/workspace-host/Dockerfile for the codemation-workspace-host:1.0.0 base image
+
+### Patch Changes
+
+- [#153](https://github.com/MadeRelevant/codemation/pull/153) [`a70e182`](https://github.com/MadeRelevant/codemation/commit/a70e182a852026e4f6d8f317fe9862417dc23ce6) Thanks [@cblokland90](https://github.com/cblokland90)! - Move UI-only packages (monaco-editor, react, @xyflow/react, dagre, lucide-react, rc-tree, etc.) from `dependencies` to `devDependencies` in @codemation/host. No runtime source in `packages/host/src` imports these packages — they were vestigial from before the UI was extracted to @codemation/next-host. Moving them ensures pnpm filtered installs (e.g. `--filter @codemation/host...`) no longer pull in ~1.5 GB of UI dependencies, which is required for the workspace-host container image to stay small.
+
+- [#156](https://github.com/MadeRelevant/codemation/pull/156) [`5315e23`](https://github.com/MadeRelevant/codemation/commit/5315e2361492560601ac2c97491aa58c49346fd4) Thanks [@cblokland90](https://github.com/cblokland90)! - fix(host): only throw on invalid WORKSPACE_PAIRING_SECRET in managed mode
+
+  Previously, setting WORKSPACE_PAIRING_SECRET to an invalid value (not a 32-byte base64 string) would crash the host at boot time even when running in non-managed mode (the default). Framework consumers who accidentally set this env var or left a misconfigured value would see an opaque boot error unrelated to their actual configuration.
+
+  After this fix, the invalid-secret error is only propagated in `auth.kind: "managed"` mode. In all other modes, the error is caught, a warning is logged, and the host boots normally without pairing infrastructure wired up. Managed-mode consumers continue to see the full error at startup.
+
+- [#152](https://github.com/MadeRelevant/codemation/pull/152) [`ac860a5`](https://github.com/MadeRelevant/codemation/commit/ac860a5af1df3e5766581e644fef8cc0d1b24eba) Thanks [@cblokland90](https://github.com/cblokland90)! - Fix ControlPlaneCatalogFetcher calling wrong URL path (sprint-mvp/01).
+
+  The fetcher was calling `/api/catalog/*` (session-gated in the CP) instead of
+  `/internal/catalog/*` (HMAC-gated). The CP's `/api/*` router returned 401 for
+  every HMAC-signed request because it requires a Better Auth session cookie, not a
+  workspace pairing signature.
+
+  This caused every provisioned workspace to log steady `HTTP 401 Unauthorized`
+  errors from `ControlPlaneCatalogFetcher`, blocking OAuth credential-type and MCP
+  server catalog fetches.
+
+- [#157](https://github.com/MadeRelevant/codemation/pull/157) [`3025b86`](https://github.com/MadeRelevant/codemation/commit/3025b8685b0d7ad60c506b5a0f21967e681a25ea) Thanks [@cblokland90](https://github.com/cblokland90)! - Shrink workspace-host Docker image by decoupling CLI from next-host at runtime.
+
+  `@codemation/cli`: demote `@codemation/next-host` from `dependencies` to `devDependencies`. The CLI's
+  non-headless serve path resolves the next-host package at runtime via `require.resolve()`; the
+  headless path (used by workspace-host pods) never touches it. Consumers that install `@codemation/cli`
+  from the registry and need the UI shell must add `@codemation/next-host` as a direct dependency.
+
+  `@codemation/core-nodes`: demote `lucide-react` from `dependencies` to `devDependencies`. The package
+  only references lucide icon names as strings (e.g. `"lucide:bot"`); it never imports the react library
+  at runtime. This removes ~46 MB from runtime installs of `@codemation/core-nodes`.
+
+  `@codemation/host`: promote `execa` and `dotenv` from `devDependencies` to `dependencies`. Both are
+  required at Dockerfile build time by `scripts/generate-prisma-clients.mjs` (imports `execaSync` from
+  `execa`) and `prisma.config.ts` (imports `dotenv/config`). These files run during `prisma:generate`
+  which executes in the production builder stage with `--prod` install (no devDeps available).
+
+- Updated dependencies [[`e0933eb`](https://github.com/MadeRelevant/codemation/commit/e0933ebc51806a9593f94758860c591b8346a7a5), [`3025b86`](https://github.com/MadeRelevant/codemation/commit/3025b8685b0d7ad60c506b5a0f21967e681a25ea)]:
+  - @codemation/core@0.11.1
+  - @codemation/core-nodes@0.8.1
+  - @codemation/eventbus-redis@0.0.39
+
 ## 0.7.0
 
 ### Minor Changes

@@ -479,9 +479,6 @@ importers:
       '@codemation/host':
         specifier: workspace:*
         version: link:../host
-      '@codemation/next-host':
-        specifier: workspace:*
-        version: link:../next-host
       '@hono/node-server':
         specifier: ^1.19.9
         version: 1.19.9(hono@4.12.8)
@@ -528,6 +525,9 @@ importers:
       '@codemation/eslint-config':
         specifier: workspace:*
         version: link:../../tooling/eslint-config
+      '@codemation/next-host':
+        specifier: workspace:*
+        version: link:../next-host
       '@types/http-proxy':
         specifier: ^1.17.15
         version: 1.17.17
@@ -598,9 +598,6 @@ importers:
       croner:
         specifier: ^10.0.1
         version: 10.0.1
-      lucide-react:
-        specifier: ^0.577.0
-        version: 0.577.0(react@19.2.4)
     devDependencies:
       '@types/node':
         specifier: ^25.3.5
@@ -608,6 +605,9 @@ importers:
       eslint:
         specifier: ^10.0.3
         version: 10.0.3(jiti@2.6.1)
+      lucide-react:
+        specifier: ^0.577.0
+        version: 0.577.0(react@19.2.4)
       reflect-metadata:
         specifier: ^0.2.2
         version: 0.2.2
@@ -920,6 +920,12 @@ importers:
       bullmq:
         specifier: ^5.58.3
         version: 5.70.4
+      dotenv:
+        specifier: ^17.3.1
+        version: 17.3.1
+      execa:
+        specifier: ^9.6.1
+        version: 9.6.1
       hono:
         specifier: ^4.12.8
         version: 4.12.8
@@ -1011,12 +1017,12 @@ importers:
       date-fns:
         specifier: ^4.1.0
         version: 4.1.0
-      dotenv:
-        specifier: ^17.3.1
-        version: 17.3.1
       eslint:
         specifier: ^10.0.3
         version: 10.0.3(jiti@2.6.1)
+      execa:
+        specifier: ^9.6.1
+        version: 9.6.1
       jsdom:
         specifier: ^28.1.0
         version: 28.1.0(@noble/hashes@2.0.1)

@@ -1,5 +1,9 @@
 import { BootTimer } from "@codemation/host";
-import { CodemationConsumerConfigLoader, type CodemationPluginDiscovery, type ProcessRunner } from "@codemation/host/server";
+import {
+  CodemationConsumerConfigLoader,
+  type CodemationPluginDiscovery,
+  type ProcessRunner,
+} from "@codemation/host/server";
 import type { Logger } from "@codemation/host/next/server";
 import type { ChildProcess } from "node:child_process";
 import { createRequire } from "node:module";
@@ -63,6 +67,7 @@ export class DevCommand {
     private readonly devNextChildProcessOutputFilter: DevNextChildProcessOutputFilter,
     private readonly consumerSourceErrorParser: ConsumerSourceErrorParser,
     private readonly processRunner: ProcessRunner,
+    private readonly consumerConfigLoader: CodemationConsumerConfigLoader,
   ) {}
 
   async execute(
@@ -100,7 +105,7 @@ export class DevCommand {
     // inside CodemationConsumerConfigLoader stores the Promise, so when bootInitialRuntime
     // eventually calls load(), it awaits the same Promise that started here.
     void BootTimer.measureAsync("cli.configPrewarm", () =>
-      new CodemationConsumerConfigLoader()
+      this.consumerConfigLoader
         .load({ consumerRoot: paths.consumerRoot, configPathOverride: args.configPathOverride })
         .then(
           () => undefined,

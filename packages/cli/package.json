@@ -1,6 +1,6 @@
 {
   "name": "@codemation/cli",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "publishConfig": {
     "access": "public"
   },
@@ -38,7 +38,6 @@
   "dependencies": {
     "@codemation/agent-skills": "workspace:*",
     "@codemation/host": "workspace:*",
-    "@codemation/next-host": "workspace:*",
     "@hono/node-server": "^1.19.9",
     "bcryptjs": "^3.0.3",
     "boxen": "^8.0.1",
@@ -56,6 +55,7 @@
   },
   "devDependencies": {
     "@codemation/eslint-config": "workspace:*",
+    "@codemation/next-host": "workspace:*",
     "@types/http-proxy": "^1.17.15",
     "@types/node": "^25.3.5",
     "@types/ws": "^8.18.1",

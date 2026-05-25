@@ -33,33 +33,45 @@ export default workflow("example.node-collection-crud")
     ),
   )
   // LIST — pages through the collection, emits one item per row.
-  .then(collectionListNode.create({ collectionName: "contacts", limit: 10 }, "List all contacts", "list-contacts"))
-  // GET — fetches a single row by its id field (set a known id for a real run).
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- collection nodes don't type-check their input; chain types don't compose when each step has a different output type
   .then(
-    collectionGetNode.create({ collectionName: "contacts", id: "placeholder-id" }, "Get contact by id", "get-contact"),
+    collectionListNode.create({ collectionName: "contacts", limit: 10 }, "List all contacts", "list-contacts") as any,
+  )
+  // GET — fetches a single row by its id field (set a known id for a real run).
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- same as above
+  .then(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- same as above
+    collectionGetNode.create(
+      { collectionName: "contacts", id: "placeholder-id" },
+      "Get contact by id",
+      "get-contact",
+    ) as any,
   )
   // FIND ONE — finds the first row matching a filter object.
   .then(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- same as above
     collectionFindOneNode.create(
       { collectionName: "contacts", where: { email: "alice@example.com" } },
       "Find contact by email",
       "find-contact",
-    ),
+    ) as any,
   )
   // UPDATE — patches a row by id; returns the updated row.
   .then(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- same as above
     collectionUpdateNode.create(
       { collectionName: "contacts", id: "placeholder-id", patch: { name: "Alice N." } },
       "Update contact name",
       "update-contact",
-    ),
+    ) as any,
   )
   // DELETE — removes a row by id; returns { deleted: boolean, id: string }.
   .then(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- same as above
     collectionDeleteNode.create(
       { collectionName: "contacts", id: "placeholder-id" },
       "Delete contact",
       "delete-contact",
-    ),
+    ) as any,
   )
   .build();
