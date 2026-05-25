@@ -90,6 +90,28 @@ jobs:
       - name: Run ${{ matrix.name }}
         run: pnpm --filter create-codemation run ${{ matrix.command }}
 
+  workspace-host-docker-build:
+    if: ${{ github.event_name != 'pull_request' || (github.head_ref != '' && !startsWith(github.head_ref, 'release/') && !startsWith(github.head_ref, 'changeset-release/')) }}
+    name: Build workspace-host Docker image
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build workspace-host image (no push)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: packaging/workspace-host/Dockerfile
+          push: false
+          tags: workspace-host:pr
+          cache-from: type=gha,scope=workspace-host-pr
+          cache-to: type=gha,mode=max,scope=workspace-host-pr
+
   # --- Path-filter gate: compute force_full once and share via outputs ---
   # force_full=true when pushing to main/master or when tooling/workflow/lock files change.
   # When force_full=true, all coverage jobs run regardless of which packages changed.
@@ -741,6 +763,7 @@ jobs:
     needs:
       - static
       - template-release-smoke
+      - workspace-host-docker-build
       - path-filter
       - coverage-unit
       - coverage-integration
@@ -756,6 +779,7 @@ jobs:
           IS_VERSION_PR: ${{ startsWith(github.head_ref, 'release/') || startsWith(github.head_ref, 'changeset-release/') }}
           R_STATIC: ${{ needs.static.result }}
           R_TEMPLATE: ${{ needs.template-release-smoke.result }}
+          R_DOCKER: ${{ needs.workspace-host-docker-build.result }}
           R_PATH_FILTER: ${{ needs.path-filter.result }}
           R_COV_UNIT: ${{ needs.coverage-unit.result }}
           R_COV_INT: ${{ needs.coverage-integration.result }}
@@ -773,6 +797,7 @@ jobs:
           required_success=(
             "${R_STATIC}"
             "${R_TEMPLATE}"
+            "${R_DOCKER}"
             "${R_PATH_FILTER}"
             "${R_COV_UNIT}"
             "${R_COV_REPORT}"
