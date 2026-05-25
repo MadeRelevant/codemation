@@ -29,7 +29,7 @@ COPY . .
 # @ast-grep/cli has a native binary postinstall that fails on alpine; it's tooling-only.
 # --ignore-scripts skips ALL postinstall scripts; we re-run only prisma generate explicitly.
 ENV HUSKY=0
-# Install only the packages needed at runtime (cli + host + their transitive deps).
+# Full install (including devDeps) so turbo + tsdown are available for the build step.
 RUN --mount=type=cache,id=pnpm-fw,target=/pnpm/store \
     pnpm install --frozen-lockfile --ignore-scripts \
       --filter @codemation/cli... \
@@ -42,6 +42,17 @@ RUN --mount=type=cache,id=pnpm-fw,target=/pnpm/store \
 RUN pnpm --filter @codemation/host prisma:generate
 # Build is kept as a typecheck / dist gate; the runtime uses --conditions=development (src).
 RUN pnpm exec turbo run build \
+      --filter @codemation/cli... \
+      --filter @codemation/host... \
+      --filter @codemation/core... \
+      --filter @codemation/core-nodes... \
+      --filter @codemation/core-nodes-gmail... \
+      --filter @codemation/managed-auth...
+# Prune to production-only deps after build. Replaces node_modules in-place, removing
+# devDependencies (next-host/monaco-editor/next.js/lucide-react etc.) from the tree that
+# gets copied into the runtime image. CLI + host and their transitive runtime deps remain.
+RUN --mount=type=cache,id=pnpm-fw,target=/pnpm/store \
+    pnpm install --frozen-lockfile --ignore-scripts --prod \
       --filter @codemation/cli... \
       --filter @codemation/host... \
       --filter @codemation/core... \
