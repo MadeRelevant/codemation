@@ -1,6 +1,6 @@
 {
   "name": "@codemation/core-nodes-ocr",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Azure AI Content Understanding (OCR) plugin for Codemation — prebuilt document, invoice, and image analyzers.",
   "publishConfig": {
     "access": "public"
