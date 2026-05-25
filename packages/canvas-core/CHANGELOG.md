@@ -1,5 +1,17 @@
 # @codemation/canvas-core
 
+## 0.1.2
+
+### Patch Changes
+
+- [#149](https://github.com/MadeRelevant/codemation/pull/149) [`150e4f0`](https://github.com/MadeRelevant/codemation/commit/150e4f0252efe79141dec86f922af25b51197aa1) Thanks [@cblokland90](https://github.com/cblokland90)! - Execution-inspector tree rows for MCP tool invocations now show the actual tool name (e.g. `search_threads`, `send_email`) as the primary label instead of repeating the MCP server's display name for every child row. Pulled from the `subjectName` field on `ConnectionInvocationRecord` (already populated by `AgentMcpIntegrationImpl.wrapToolExecutes`), so no other layer changes are required.
+
+  LLM connection nodes and node-backed agent tools are unaffected — they leave `subjectName` unset and the row inherits the base connection node name as before.
+
+- Updated dependencies [[`e0933eb`](https://github.com/MadeRelevant/codemation/commit/e0933ebc51806a9593f94758860c591b8346a7a5), [`a70e182`](https://github.com/MadeRelevant/codemation/commit/a70e182a852026e4f6d8f317fe9862417dc23ce6), [`5315e23`](https://github.com/MadeRelevant/codemation/commit/5315e2361492560601ac2c97491aa58c49346fd4), [`ac860a5`](https://github.com/MadeRelevant/codemation/commit/ac860a5af1df3e5766581e644fef8cc0d1b24eba), [`8ac207a`](https://github.com/MadeRelevant/codemation/commit/8ac207ab263542e46fad0b9e1ea584fbb71a747c), [`3025b86`](https://github.com/MadeRelevant/codemation/commit/3025b8685b0d7ad60c506b5a0f21967e681a25ea)]:
+  - @codemation/core@0.11.1
+  - @codemation/host@0.8.0
+
 ## 0.1.0
 
 ### Minor Changes
