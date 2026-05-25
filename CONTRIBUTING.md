@@ -48,6 +48,32 @@ pnpm run check
 
 See [`AGENTS.md`](AGENTS.md) for architecture, testing standards, and review expectations.
 
+## Docker image gating
+
+The framework ships a `packaging/workspace-host/Dockerfile` that builds the runtime image
+deployed into managed workspace pods. That Dockerfile is currently **not present on `main`**
+and therefore **not gated on PRs**.
+
+### Why it was removed
+
+PR #153 dropped the Dockerfile because the `CMD` relied on a `--headless` flag
+(`codemation serve web --headless`) that had not yet landed in `packages/cli`.
+Without that flag the image boots into interactive mode and the container stalls.
+
+### Impact
+
+Framework changes that affect the workspace-host runtime (CLI entrypoints, host DI
+wiring, node package exports) escape PR-time review and are only caught post-publish
+when the control-plane's workspace pods roll to the new image version.
+
+### Restoring the gate
+
+Once `packages/cli` ships the `--headless` flag (i.e. `ServeWebCommand` accepts
+`--headless` and exits the interactive prompt path), restore the Dockerfile from the
+`pr-153-rebuild` worktree and add a `docker-build` job to `.github/workflows/ci.yml`
+following the same `docker/build-push-action@v6` / `push: false` / `type=gha` cache
+pattern used in `MadeRelevant/codemation-control-plane`'s `pr.yml` `docker-build` job.
+
 ## Auth model
 
 Codemation now treats `@codemation/host` as the single auth/session authority.
