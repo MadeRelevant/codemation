@@ -141,6 +141,7 @@ export class CliProgramFactory {
       new DevNextChildProcessOutputFilter(new DevNextStartupBannerLineFilter()),
       new ConsumerSourceErrorParser(),
       processRunner,
+      new CodemationConsumerConfigLoader(),
     );
     const collectionsBootstrap = new CollectionsCliBootstrap(
       appConfigLoader,

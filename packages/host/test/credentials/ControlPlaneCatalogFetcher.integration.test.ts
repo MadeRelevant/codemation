@@ -121,6 +121,7 @@ class StubControlPlane {
     if (v !== "1") return false;
     if (claimedWs !== workspaceId) return false;
 
+    // eslint-disable-next-line no-restricted-properties -- HMAC replay-window check requires real wall time
     const nowSec = Math.floor(Date.now() / 1000);
     if (Math.abs(nowSec - Number(ts)) > 300) return false;
 

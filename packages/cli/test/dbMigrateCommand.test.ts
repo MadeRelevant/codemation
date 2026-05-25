@@ -5,11 +5,9 @@ import { fileURLToPath } from "node:url";
 import type { AppPersistenceConfig } from "@codemation/host/persistence";
 import { expect, test } from "vitest";
 
-import { CodemationConsumerConfigLoader } from "@codemation/host/server";
 import type { Logger } from "@codemation/host/next/server";
 
 import { DbMigrateCommand } from "../src/commands/DbMigrateCommand";
-import { ConsumerCliTsconfigPreparation } from "../src/consumer/ConsumerCliTsconfigPreparation";
 import { ConsumerDatabaseConnectionResolver } from "../src/database/ConsumerDatabaseConnectionResolver";
 import { DatabaseMigrationsApplyService } from "../src/database/DatabaseMigrationsApplyService";
 import { CliDatabaseUrlDescriptor } from "../src/user/CliDatabaseUrlDescriptor";
@@ -32,36 +30,20 @@ class RecordingMigrationDeployer {
   }
 }
 
-test("runs migrations using runtime.database.url from consumer config (after .env load) and passes persistence to the deployer", async () => {
-  const savedTsconfig = process.env.CODEMATION_TSCONFIG_PATH;
-  const savedDatabaseUrl = process.env.DATABASE_URL;
+test("runs migrations using CODEMATION_DATABASE_URL from .env and passes persistence to the deployer", async () => {
+  const savedDatabaseUrl = process.env.CODEMATION_DATABASE_URL;
   const savedPrismaConfigPath = process.env.CODEMATION_PRISMA_CONFIG_PATH;
   let tempRoot: string | null = null;
   try {
-    process.env.CODEMATION_TSCONFIG_PATH = path.join(repoRoot, "tsconfig.codemation-tsx.json");
     if (savedDatabaseUrl !== undefined) {
-      delete process.env.DATABASE_URL;
+      delete process.env.CODEMATION_DATABASE_URL;
     }
 
     tempRoot = await mkdtemp(path.join(os.tmpdir(), "codemation-cli-db-migrate-"));
     await mkdir(tempRoot, { recursive: true });
     await writeFile(
       path.join(tempRoot, ".env"),
-      "DATABASE_URL=postgresql://localhost:5432/cli_migrate_fixture\n",
-      "utf8",
-    );
-    await writeFile(
-      path.join(tempRoot, "codemation.config.js"),
-      `module.exports = {
-  workflows: [],
-  runtime: {
-    database: {
-      kind: "postgresql",
-      url: process.env.DATABASE_URL,
-    },
-  },
-};
-`,
+      "CODEMATION_DATABASE_URL=postgresql://localhost:5432/cli_migrate_fixture\n",
       "utf8",
     );
 
@@ -71,8 +53,6 @@ test("runs migrations using runtime.database.url from consumer config (after .en
       new DatabaseMigrationsApplyService(
         silentLogger,
         new UserAdminConsumerDotenvLoader(),
-        new ConsumerCliTsconfigPreparation(),
-        new CodemationConsumerConfigLoader(),
         new ConsumerDatabaseConnectionResolver(),
         new CliDatabaseUrlDescriptor(),
         hostRoot,
@@ -94,14 +74,9 @@ test("runs migrations using runtime.database.url from consumer config (after .en
       await rm(tempRoot, { force: true, recursive: true }).catch(() => null);
     }
     if (savedDatabaseUrl === undefined) {
-      delete process.env.DATABASE_URL;
+      delete process.env.CODEMATION_DATABASE_URL;
     } else {
-      process.env.DATABASE_URL = savedDatabaseUrl;
-    }
-    if (savedTsconfig === undefined) {
-      delete process.env.CODEMATION_TSCONFIG_PATH;
-    } else {
-      process.env.CODEMATION_TSCONFIG_PATH = savedTsconfig;
+      process.env.CODEMATION_DATABASE_URL = savedDatabaseUrl;
     }
     if (savedPrismaConfigPath === undefined) {
       delete process.env.CODEMATION_PRISMA_CONFIG_PATH;
@@ -111,28 +86,23 @@ test("runs migrations using runtime.database.url from consumer config (after .en
   }
 });
 
-test("throws when no database persistence can be resolved", async () => {
-  const savedTsconfig = process.env.CODEMATION_TSCONFIG_PATH;
-  const savedDatabaseUrl = process.env.DATABASE_URL;
+test("defaults to SQLite when no CODEMATION_DATABASE_URL is configured", async () => {
+  const savedDatabaseUrl = process.env.CODEMATION_DATABASE_URL;
   const savedPrismaConfigPath = process.env.CODEMATION_PRISMA_CONFIG_PATH;
   let tempRoot: string | null = null;
   try {
-    process.env.CODEMATION_TSCONFIG_PATH = path.join(repoRoot, "tsconfig.codemation-tsx.json");
     if (savedDatabaseUrl !== undefined) {
-      delete process.env.DATABASE_URL;
+      delete process.env.CODEMATION_DATABASE_URL;
     }
 
     tempRoot = await mkdtemp(path.join(os.tmpdir(), "codemation-cli-db-migrate-empty-"));
     await mkdir(tempRoot, { recursive: true });
-    await writeFile(path.join(tempRoot, "codemation.config.js"), "module.exports = { workflows: [] };\n", "utf8");
 
     const runner = new RecordingMigrationDeployer();
     const command = new DbMigrateCommand(
       new DatabaseMigrationsApplyService(
         silentLogger,
         new UserAdminConsumerDotenvLoader(),
-        new ConsumerCliTsconfigPreparation(),
-        new CodemationConsumerConfigLoader(),
         new ConsumerDatabaseConnectionResolver(),
         new CliDatabaseUrlDescriptor(),
         path.join(repoRoot, "packages", "host"),
@@ -140,21 +110,21 @@ test("throws when no database persistence can be resolved", async () => {
       ),
     );
 
-    await expect(command.execute({ consumerRoot: tempRoot })).rejects.toThrow(/Database persistence is not configured/);
-    expect(runner.last).toBeNull();
+    await command.execute({ consumerRoot: tempRoot });
+
+    expect(runner.last).not.toBeNull();
+    expect(runner.last?.persistence).toEqual({
+      kind: "sqlite",
+      databaseFilePath: path.join(tempRoot, ".codemation", "codemation.sqlite"),
+    });
   } finally {
     if (tempRoot) {
       await rm(tempRoot, { force: true, recursive: true }).catch(() => null);
     }
     if (savedDatabaseUrl === undefined) {
-      delete process.env.DATABASE_URL;
+      delete process.env.CODEMATION_DATABASE_URL;
     } else {
-      process.env.DATABASE_URL = savedDatabaseUrl;
-    }
-    if (savedTsconfig === undefined) {
-      delete process.env.CODEMATION_TSCONFIG_PATH;
-    } else {
-      process.env.CODEMATION_TSCONFIG_PATH = savedTsconfig;
+      process.env.CODEMATION_DATABASE_URL = savedDatabaseUrl;
     }
     if (savedPrismaConfigPath === undefined) {
       delete process.env.CODEMATION_PRISMA_CONFIG_PATH;

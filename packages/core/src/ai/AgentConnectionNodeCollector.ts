@@ -91,7 +91,7 @@ export const AgentConnectionNodeCollector: AgentConnectionNodeCollectorApi = new
           connectionName: "tools",
           role: "tool",
           name: decl.displayName,
-          typeName: serverId,
+          typeName: "MCP server",
           icon: "lucide:plug",
           credentialSource: {
             getCredentialRequirements: () => [
