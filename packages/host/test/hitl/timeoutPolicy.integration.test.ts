@@ -119,7 +119,8 @@ class TimeoutPolicyContext {
     const engine = createStubEngine(resumeCalls);
     const scheduler = makeSchedulerStub();
     const appConfig = makeAppConfig();
-    return new HitlTimeoutWorker(store, engine as never, scheduler, appConfig as never);
+    const noOpResumeTelemetry = { forTask: async () => undefined } as never;
+    return new HitlTimeoutWorker(store, engine as never, scheduler, appConfig as never, noOpResumeTelemetry);
   }
 }
 

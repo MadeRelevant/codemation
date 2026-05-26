@@ -2,13 +2,14 @@ import type { Job } from "bullmq";
 import { Worker } from "bullmq";
 import { inject, injectable } from "@codemation/core";
 import type { HumanTaskStore } from "@codemation/core";
-import { HumanTaskStoreToken } from "@codemation/core";
+import { CodemationTelemetryAttributeNames, HumanTaskStoreToken } from "@codemation/core";
 import { Engine } from "@codemation/core/bootstrap";
 import { ApplicationTokens } from "../applicationTokens";
 import type { AppConfig } from "../presentation/config/AppConfig";
 import { RedisConnectionOptionsFactory } from "../infrastructure/scheduler/bullmq/RedisConnectionOptionsFactory";
 import type { HitlTimeoutJobPayload } from "./HitlTimeoutJobScheduler";
 import { HitlTimeoutJobScheduler } from "./HitlTimeoutJobScheduler";
+import { ResumeTelemetryContextForRun } from "../application/telemetry/ResumeTelemetryContextForRun";
 
 /**
  * BullMQ worker that processes `hitl.timeout` jobs.
@@ -34,6 +35,7 @@ export class HitlTimeoutWorker {
     @inject(Engine) private readonly engine: Engine,
     @inject(HitlTimeoutJobScheduler) private readonly scheduler: HitlTimeoutJobScheduler,
     @inject(ApplicationTokens.AppConfig) appConfig: AppConfig,
+    @inject(ResumeTelemetryContextForRun) private readonly resumeTelemetry: ResumeTelemetryContextForRun,
   ) {
     if (!taskStore) {
       throw new Error("HitlTimeoutWorker: HumanTaskStore is not registered.");
@@ -69,6 +71,17 @@ export class HitlTimeoutWorker {
 
     if (task.onTimeout === "auto-accept") {
       await this.taskStore.markAutoAccepted(taskId);
+
+      // Emit hitl.task.timed_out on the run's trace (story 11 D3).
+      const telemetry = await this.resumeTelemetry.forTask(taskId);
+      await telemetry?.addSpanEvent({
+        name: "hitl.task.timed_out",
+        attributes: {
+          [CodemationTelemetryAttributeNames.hitlTaskId]: taskId,
+          policy: "auto-accept",
+        },
+      });
+
       await this.engine.resumeRun({
         runId: task.runId,
         taskId: task.id,
@@ -86,6 +99,17 @@ export class HitlTimeoutWorker {
       });
     } else {
       await this.taskStore.markTimedOut(taskId);
+
+      // Emit hitl.task.timed_out on the run's trace (story 11 D3).
+      const telemetry = await this.resumeTelemetry.forTask(taskId);
+      await telemetry?.addSpanEvent({
+        name: "hitl.task.timed_out",
+        attributes: {
+          [CodemationTelemetryAttributeNames.hitlTaskId]: taskId,
+          policy: "halt",
+        },
+      });
+
       await this.engine.resumeRun({
         runId: task.runId,
         taskId: task.id,

@@ -314,6 +314,7 @@ import { HumanTaskStoreToken } from "@codemation/core";
 import { HitlResumeTokenSignerToken, HitlTimeoutJobSchedulerToken } from "@codemation/core";
 import { InboxChannelResolverToken } from "@codemation/core";
 import { InboxChannelResolver } from "../hitl/InboxChannelResolver";
+import { ResumeTelemetryContextForRun } from "../application/telemetry/ResumeTelemetryContextForRun";
 
 type AppContainerInputs = Readonly<{
   appConfig: AppConfig;
@@ -871,6 +872,7 @@ export class AppContainerFactory {
       ),
     });
     container.registerSingleton(OtelExecutionTelemetryFactory, OtelExecutionTelemetryFactory);
+    container.registerSingleton(ResumeTelemetryContextForRun, ResumeTelemetryContextForRun);
     container.registerSingleton(InMemoryRunTraceContextRepository, InMemoryRunTraceContextRepository);
     container.registerSingleton(InMemoryTelemetrySpanStore, InMemoryTelemetrySpanStore);
     container.registerSingleton(InMemoryTelemetryArtifactStore, InMemoryTelemetryArtifactStore);
