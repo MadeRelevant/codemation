@@ -344,6 +344,10 @@ model CredentialInstance {
   setupStatus      String @map("setup_status")
   createdAt        String @map("created_at")
   updatedAt        String @map("updated_at")
+  // Material provider seam — see docs/design/credentials-oauth-unification.md.
+  // Pointer to where the bytes live (workspace DB vs control plane).
+  materialSource   String @default("local") @map("material_source")
+  materialRef      String @default("") @map("material_ref")
 }
 
 model CredentialSecretMaterial {

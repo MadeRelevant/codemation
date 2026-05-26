@@ -32,6 +32,7 @@ describe("OpenAiApiKeyCredentialTypeFactory", () => {
       setupStatus: "ready",
       createdAt: "",
       updatedAt: "",
+      material: { source: "local", ref: "i1" },
     };
     const args: CredentialSessionFactoryArgs<OpenAiApiKeyPublicConfig, OpenAiApiKeyMaterial> = {
       instance: minimalInstance,

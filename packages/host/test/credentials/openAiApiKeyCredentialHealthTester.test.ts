@@ -16,6 +16,7 @@ describe("OpenAiApiKeyCredentialHealthTester", () => {
     setupStatus: "ready",
     createdAt: "",
     updatedAt: "",
+    material: { source: "local", ref: "cred.inst.openai.test" },
   };
 
   it("returns failing when api key is empty", async () => {

@@ -108,15 +108,7 @@ describe("publishable package exports — no raw TS source in production conditi
     expect(packages.length).toBeGreaterThan(0);
   });
 
-  // @codemation/next-host is publishConfig.access=public but is actually a Next.js
-  // app (build script: `next build`), not a tsdown library. Its `.` export points at
-  // ./src/index.ts because there is no built dist. Tracked as backlog item: split
-  // next-host into a publishable library entry (tsdown) vs. the Next.js shell, or
-  // mark it private. Skipping here so the invariant test still guards real libraries.
-  const SKIP_PACKAGES = new Set(["@codemation/next-host"]);
-
   for (const { name, pkg } of packages) {
-    if (SKIP_PACKAGES.has(name)) continue;
     const exports = pkg.exports;
     if (!exports) continue; // No exports field — nothing to check.
 

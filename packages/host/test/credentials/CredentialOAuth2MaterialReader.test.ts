@@ -35,6 +35,7 @@ function makeInstance(): CredentialInstanceRecord {
     setupStatus: "ready",
     createdAt: "2026-05-23T10:00:00.000Z",
     updatedAt: "2026-05-23T10:00:00.000Z",
+    material: { source: "local", ref: "inst-1" },
   } satisfies CredentialInstanceRecord;
 }
 

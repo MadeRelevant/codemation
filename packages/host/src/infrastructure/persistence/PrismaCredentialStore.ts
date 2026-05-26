@@ -46,6 +46,8 @@ export class PrismaCredentialStore implements CredentialStore {
           setupStatus: args.instance.setupStatus,
           createdAt: args.instance.createdAt,
           updatedAt: args.instance.updatedAt,
+          materialSource: args.instance.material.source,
+          materialRef: args.instance.material.ref,
         },
         update: {
           typeId: args.instance.typeId,
@@ -56,6 +58,8 @@ export class PrismaCredentialStore implements CredentialStore {
           tagsJson: JSON.stringify(args.instance.tags),
           setupStatus: args.instance.setupStatus,
           updatedAt: args.instance.updatedAt,
+          materialSource: args.instance.material.source,
+          materialRef: args.instance.material.ref,
         },
       });
       if (args.secretMaterial) {
@@ -323,6 +327,8 @@ export class PrismaCredentialStore implements CredentialStore {
       setupStatus: string;
       createdAt: string;
       updatedAt: string;
+      materialSource: string;
+      materialRef: string;
     }>,
   ): CredentialInstanceRecord {
     return {
@@ -336,6 +342,10 @@ export class PrismaCredentialStore implements CredentialStore {
       setupStatus: row.setupStatus as CredentialInstanceRecord["setupStatus"],
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
+      material: {
+        source: row.materialSource as CredentialInstanceRecord["material"]["source"],
+        ref: row.materialRef === "" ? row.instanceId : row.materialRef,
+      },
     };
   }
 
