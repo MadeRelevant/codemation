@@ -1,7 +1,8 @@
-import Ajv from "ajv";
+import Ajv from "ajv/dist/2020";
 import { injectable } from "@codemation/core";
 import type { JsonValue } from "@codemation/core";
 
+// Zod v4's z.toJSONSchema() emits draft 2020-12, so we must use Ajv's 2020 build.
 const ajv = new Ajv({ strict: false });
 
 /**

@@ -208,7 +208,15 @@ export class NodeExecutor {
       try {
         raw = await Promise.resolve(node.execute(args));
       } catch (e) {
-        if (e instanceof SuspensionRequest) {
+        // Use both instanceof AND name check: under tsx/dev with mixed source/dist resolution,
+        // SuspensionRequest may load as two distinct class objects and instanceof fails. The
+        // name brand survives the duality because both copies set name="SuspensionRequest".
+        const isSuspension =
+          e instanceof SuspensionRequest ||
+          (e instanceof Error &&
+            e.name === "SuspensionRequest" &&
+            typeof (e as { request?: unknown }).request === "object");
+        if (isSuspension) {
           if (!this.suspensionHandler || !this.loadRunState) {
             // Suspension not supported in this executor configuration — propagate as a regular error.
             throw new Error(
@@ -232,7 +240,7 @@ export class NodeExecutor {
             nodeId: request.nodeId,
             activationId: request.activationId,
             itemIndex: i,
-            suspensionRequest: e,
+            suspensionRequest: e as SuspensionRequest,
             state,
             telemetry: iterationCtx.telemetry,
           });

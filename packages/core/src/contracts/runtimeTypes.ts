@@ -100,7 +100,7 @@ export interface ResumeContext {
 export class SuspensionRequest<
   TDecision = unknown,
   TDelivery extends import("./workflowTypes").JsonValue = import("./workflowTypes").JsonValue,
-> {
+> extends Error {
   constructor(
     readonly request: Readonly<{
       decisionSchema: ZodType<TDecision>;
@@ -110,7 +110,12 @@ export class SuspensionRequest<
       metadata?: Readonly<Record<string, import("./workflowTypes").JsonValue>>;
       deliver: (handle: HumanTaskHandle) => Promise<TDelivery>;
     }>,
-  ) {}
+  ) {
+    // Extending Error so wrappers like InProcessRetryRunner preserve identity
+    // (`instanceof SuspensionRequest`) instead of coercing via String(thrown).
+    super(`SuspensionRequest(${request.subject?.title ?? "untitled"})`);
+    this.name = "SuspensionRequest";
+  }
 }
 
 import type {
