@@ -281,6 +281,7 @@ import { InternalHmacAuthMiddleware } from "../pairing/InternalHmacAuthMiddlewar
 import { InternalPingRegistrar } from "../pairing/InternalPingRegistrar";
 import { LocalOAuthFlowExecutor } from "../credentials/LocalOAuthFlowExecutor";
 import { LocalCredentialMaterialProvider } from "../credentials/LocalCredentialMaterialProvider";
+import { CachingCredentialMaterialProvider } from "../credentials/CachingCredentialMaterialProvider";
 import { CredentialOAuth2MaterialReader } from "../credentials/CredentialOAuth2MaterialReader";
 import { ManagedOAuthFlowExecutor } from "../credentials/ManagedOAuthFlowExecutor";
 import { BrokerClient } from "../credentials/BrokerClient";
@@ -745,6 +746,11 @@ export class AppContainerFactory {
     // unconditionally. Story 02 wires the dispatcher that picks between this and
     // the control-plane provider in managed mode.
     container.registerSingleton(LocalCredentialMaterialProvider, LocalCredentialMaterialProvider);
+    // Story 03 (credentials-vault sprint): in-memory TTL cache decorator.
+    // Consumers resolve `CachingCredentialMaterialProvider`; cache misses
+    // delegate to `LocalCredentialMaterialProvider` (story 02 will swap the
+    // inner for a source-dispatching provider in managed mode).
+    container.registerSingleton(CachingCredentialMaterialProvider, CachingCredentialMaterialProvider);
     container.registerSingleton(CodemationFrontendAuthSnapshotFactory, CodemationFrontendAuthSnapshotFactory);
     container.registerSingleton(FrontendAppConfigFactory, FrontendAppConfigFactory);
     container.registerSingleton(PublicFrontendBootstrapFactory, PublicFrontendBootstrapFactory);
