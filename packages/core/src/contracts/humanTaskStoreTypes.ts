@@ -34,6 +34,8 @@ export interface HumanTaskStore {
   findById(taskId: string): Promise<HumanTaskRecord | undefined>;
   findByResumeTokenHash(tokenHash: string): Promise<HumanTaskRecord | undefined>;
   findPendingForWorkspace(workspaceId: string): Promise<ReadonlyArray<HumanTaskRecord>>;
+  /** Returns all pending tasks regardless of workspace. Used by the local dev inbox (non-managed mode). */
+  findAllPending(): Promise<ReadonlyArray<HumanTaskRecord>>;
   markDecided(args: { taskId: string; decision: JsonValue; decidedBy: HumanTaskActor; decidedAt: Date }): Promise<void>;
   markTimedOut(taskId: string): Promise<void>;
   markAutoAccepted(taskId: string): Promise<void>;

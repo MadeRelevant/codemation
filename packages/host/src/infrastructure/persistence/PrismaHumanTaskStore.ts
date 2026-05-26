@@ -53,6 +53,14 @@ export class PrismaHumanTaskStore implements HumanTaskStore {
     return rows.map((row) => this.toRecord(row));
   }
 
+  async findAllPending(): Promise<ReadonlyArray<HumanTaskRecord>> {
+    const rows = await this.prisma.humanTask.findMany({
+      where: { status: "pending" },
+      orderBy: { expiresAt: "asc" },
+    });
+    return rows.map((row) => this.toRecord(row));
+  }
+
   async markDecided(args: {
     taskId: string;
     decision: JsonValue;

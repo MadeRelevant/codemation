@@ -55,6 +55,8 @@ export default defineConfig({
         "src/features/workflows/canvas-adapter/NextHostNavigationAdapter.tsx",
         // Server-only composition root — no browser runtime.
         "src/features/workflows/server/WorkflowServerComposition.ts",
+        // Dev inbox server composition — requires full DI container + Prisma at runtime.
+        "src/server/devInboxComposition.ts",
         // Type declarations only.
         "src/providers/CodemationSession.types.ts",
         // Shell components that call usePathname / useWorkflowsQuery transitively —
@@ -108,6 +110,10 @@ export default defineConfig({
       {
         find: "@codemation/host/mapping",
         replacement: path.resolve(dirname, "../host/src/mapping.ts"),
+      },
+      {
+        find: "@codemation/host/pairing",
+        replacement: path.resolve(dirname, "../host/src/pairing.ts"),
       },
       {
         find: "@codemation/core/contracts",
