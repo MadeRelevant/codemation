@@ -13,6 +13,7 @@ import {
   NodeOutputNormalizer,
   RunnableOutputBehaviorResolver,
 } from "../../execution";
+import { NodeSuspensionHandler } from "../../execution/NodeSuspensionHandler";
 import {
   EngineFactory,
   EngineWorkflowRunnerServiceFactory,
@@ -119,12 +120,16 @@ export class EngineRuntimeRegistrar {
         const retryRunner = dependencyContainer
           .resolve(InProcessRetryRunnerFactory)
           .create(dependencyContainer.resolve(DefaultAsyncSleeper));
+        const workflowExecutionRepository = dependencyContainer.resolve(CoreTokens.WorkflowExecutionRepository);
+        const suspensionHandler = new NodeSuspensionHandler(workflowExecutionRepository);
         return dependencyContainer
           .resolve(NodeExecutorFactory)
           .create(
             dependencyContainer.resolve(CoreTokens.WorkflowNodeInstanceFactory),
             retryRunner,
             dependencyContainer.resolve(RunnableOutputBehaviorResolver),
+            suspensionHandler,
+            (runId) => workflowExecutionRepository.load(runId),
           );
       }),
     });

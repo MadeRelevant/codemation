@@ -1,4 +1,14 @@
 export { SystemClock, type Clock } from "./contracts/Clock";
+export {
+  SuspensionRequest,
+  type HumanTaskHandle,
+  type HumanTaskSubject,
+  type HumanTaskActor,
+  type HumanTaskId,
+  type Duration,
+  type ResumeContext,
+} from "./contracts/runtimeTypes";
+export type { PersistedSuspensionEntry, PendingResumeEntry } from "./contracts/runTypes";
 export * from "./authoring";
 export * from "./ai/AiHost";
 export { AgentConnectionNodeCollector } from "./ai/AgentConnectionNodeCollector";

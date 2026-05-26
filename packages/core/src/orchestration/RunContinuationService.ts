@@ -9,8 +9,10 @@ import type {
   NodeInputsByPort,
   NodeOutputs,
   PendingNodeExecution,
+  PendingResumeEntry,
   PersistedRunSchedulingState,
   PersistedRunState,
+  ResumeContext,
   RunDataFactory,
   RunId,
   RunQueueEntry,
@@ -535,6 +537,116 @@ export class RunContinuationService {
 
   async waitForWebhookResponse(runId: RunId): Promise<WebhookRunResult> {
     return await this.waiters.waitForWebhookResponse(runId);
+  }
+
+  /**
+   * Re-activate a previously suspended run item with a human decision.
+   *
+   * Called by the HITL resume endpoint (story 02). This method:
+   * 1. Loads `PersistedRunState` and locates the suspension entry by `taskId`.
+   * 2. Removes the entry from the `suspension` array; if empty, run stays `"suspended"` until
+   *    enqueue flips it to `"pending"`.
+   * 3. Writes `pendingResume` onto the state so `NodeExecutionRequestHandlerService` can
+   *    splice `resumeContext` into the node's execution context.
+   * 4. Reconstructs the original input from `outputsByNode` of the upstream node and
+   *    enqueues a new activation via `activationEnqueueService`.
+   *
+   * @throws if the run is not found, not suspended, or the `taskId` is unknown.
+   */
+  async resumeRun(args: { runId: RunId; taskId: string; resumeContext: ResumeContext }): Promise<RunResult> {
+    const state = await this.workflowExecutionRepository.load(args.runId);
+    if (!state) throw new Error(`Unknown runId: ${args.runId}`);
+    if (state.status !== "suspended") {
+      throw new Error(`Run ${args.runId} is not suspended (status: ${state.status})`);
+    }
+
+    const suspensionEntry = (state.suspension ?? []).find((s) => s.taskId === args.taskId);
+    if (!suspensionEntry) {
+      throw new Error(`No suspension entry with taskId "${args.taskId}" found on run ${args.runId}`);
+    }
+
+    const wf = this.resolvePersistedWorkflow(state);
+    if (!wf) throw new Error(`Unknown workflowId: ${state.workflowId}`);
+
+    const { topology, planner } = this.planningFactory.create(wf);
+    const def = topology.defsById.get(suspensionEntry.nodeId);
+    if (!def || def.kind !== "node") {
+      throw new Error(`Node ${suspensionEntry.nodeId} is not a runnable node`);
+    }
+
+    // Reconstruct input: find the parent node that fed this node and use its main output.
+    // The single-item input corresponds to `itemIndex` in the original activation batch.
+    const data = this.runDataFactory.create(state.outputsByNode);
+    const limits = this.resolveEngineLimitsFromState(state);
+    const base = this.runExecutionContextFactory.create({
+      runId: state.runId,
+      workflowId: state.workflowId,
+      nodeId: suspensionEntry.nodeId,
+      parent: state.parent,
+      policySnapshot: state.policySnapshot,
+      subworkflowDepth: state.executionOptions?.subworkflowDepth ?? 0,
+      engineMaxNodeActivations: limits.engineMaxNodeActivations,
+      engineMaxSubworkflowDepth: limits.engineMaxSubworkflowDepth,
+      data,
+      nodeState: this.nodeStatePublisherFactory.create(state.runId, state.workflowId, state.parent),
+      testContext: state.executionOptions?.testContext,
+    });
+
+    // Find the original input items for this node from upstream outputs.
+    // Use the workflow edges to resolve the parent node. If no parent found, fall back to empty.
+    const parentEdges = wf.edges.filter((e) => e.to.nodeId === suspensionEntry.nodeId);
+    const parentNodeId = parentEdges[0]?.from.nodeId;
+    const parentOutputPort = parentEdges[0]?.from.output ?? "main";
+    const allParentItems = parentNodeId ? (data.getOutputItems(parentNodeId, parentOutputPort) ?? []) : [];
+    // Per D2: each suspended item gets its own resume; pass the single item at itemIndex.
+    const resumeInput =
+      allParentItems.length > suspensionEntry.itemIndex ? [allParentItems[suspensionEntry.itemIndex]!] : allParentItems;
+
+    const newActivationId = this.activationIdFactory.makeActivationId();
+    const pendingResume: PendingResumeEntry = {
+      activationId: newActivationId,
+      nodeId: suspensionEntry.nodeId,
+      resumeContext: args.resumeContext,
+    };
+
+    const remainingSuspensions = (state.suspension ?? []).filter((s) => s.taskId !== args.taskId);
+
+    const batchId = `resume_${newActivationId}`;
+    const request = this.nodeActivationRequestComposer.createSingleFromDefinitionWithActivation({
+      activationId: newActivationId,
+      runId: state.runId,
+      workflowId: state.workflowId,
+      parent: state.parent,
+      executionOptions: state.executionOptions,
+      base,
+      data,
+      definition: { id: suspensionEntry.nodeId, config: def.config },
+      batchId,
+      input: resumeInput,
+    });
+
+    const { result, queuedSnapshot } = await this.activationEnqueueService.enqueueActivationWithSnapshot({
+      runId: state.runId,
+      workflowId: state.workflowId,
+      startedAt: state.startedAt,
+      parent: state.parent,
+      executionOptions: state.executionOptions,
+      control: state.control,
+      workflowSnapshot: state.workflowSnapshot,
+      mutableState: state.mutableState,
+      policySnapshot: state.policySnapshot,
+      pendingQueue: [],
+      request,
+      previousNodeSnapshotsByNodeId: state.nodeSnapshotsByNodeId ?? {},
+      planner,
+      engineCounters: state.engineCounters,
+      connectionInvocations: state.connectionInvocations ?? [],
+      suspension: remainingSuspensions.length > 0 ? remainingSuspensions : undefined,
+      pendingResume,
+    });
+
+    await this.nodeEventPublisher.publish("nodeQueued", queuedSnapshot);
+    return result;
   }
 
   private async resumeFromWebhookControl(args: {

@@ -11,6 +11,7 @@ import type {
   NodeOutputs,
   ParentExecutionRef,
   PersistedWorkflowTokenRegistryLike,
+  ResumeContext,
   RunExecutionOptions,
   RunId,
   RunResult,
@@ -79,6 +80,7 @@ interface EngineRunContinuationService {
   }): Promise<RunResult>;
   waitForCompletion(runId: RunId): Promise<Extract<RunResult, { status: "completed" | "failed" }>>;
   waitForWebhookResponse(runId: RunId): Promise<WebhookRunResult>;
+  resumeRun(args: { runId: RunId; taskId: string; resumeContext: ResumeContext }): Promise<RunResult>;
 }
 
 interface EngineNodeExecutionRequestHandler {
@@ -232,6 +234,14 @@ export class Engine implements NodeActivationContinuation, NodeExecutionRequestH
 
   async waitForWebhookResponse(runId: RunId): Promise<WebhookRunResult> {
     return await this.deps.runContinuationService.waitForWebhookResponse(runId);
+  }
+
+  /**
+   * Re-activate a suspended run item with a human decision (HITL story 01).
+   * Story 02 owns the HTTP endpoint that calls this; this method exposes the engine primitive.
+   */
+  async resumeRun(args: { runId: RunId; taskId: string; resumeContext: ResumeContext }): Promise<RunResult> {
+    return await this.deps.runContinuationService.resumeRun(args);
   }
 
   async handleNodeExecutionRequest(request: NodeExecutionRequest): Promise<void> {
