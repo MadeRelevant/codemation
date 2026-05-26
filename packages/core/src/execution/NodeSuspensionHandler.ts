@@ -52,6 +52,9 @@ export class NodeSuspensionHandler {
       expiresAt,
       // TODO(story-02): replace with real signed resume URL
       resumeUrl: "",
+      ...(args.suspensionRequest.request.metadata !== undefined
+        ? { metadata: args.suspensionRequest.request.metadata }
+        : {}),
     };
 
     // D5: deliver throws → propagate upward; caller routes to resumeFromNodeError → "failed"

@@ -32,11 +32,16 @@ export type ResolvedTool = Readonly<{
  * span and the planned tool-call's `invocationId`. Node-backed sub-agent tools use these hooks
  * via {@link ChildExecutionScopeFactory} to re-root their runtime ctx under the tool-call boundary
  * (fresh activationId, telemetry parented at the tool-call span, `parentInvocationId` set).
+ *
+ * `humanApproval` is present only when the tool was created via `defineHumanApprovalNode`
+ * (story 04 marker) — detected during `resolveTools` in `AIAgentNode`.
  */
 export type ItemScopedToolBinding = Readonly<{
   config: ToolConfig;
   inputSchema: ZodSchemaAny;
   execute(input: unknown, hooks?: ItemScopedToolCallHooks): Promise<unknown>;
+  /** Present when this binding is backed by a HITL-approval node (story 10). */
+  humanApproval?: Readonly<{ onRejected: "halt" | "return" }>;
 }>;
 
 export type ItemScopedToolCallHooks = Readonly<{
