@@ -312,9 +312,12 @@ import { HitlDecideHonoApiRouteRegistrar } from "../presentation/http/hono/regis
 import { HitlResumeHonoApiRouteRegistrar } from "../presentation/http/hono/registrars/HitlResumeHonoApiRouteRegistrar";
 import { HumanTaskStoreToken } from "@codemation/core";
 import { HitlResumeTokenSignerToken, HitlTimeoutJobSchedulerToken } from "@codemation/core";
-import { InboxChannelResolverToken, LocalInboxChannelToken } from "@codemation/core";
+import { ControlPlaneInboxChannelToken, InboxChannelResolverToken, LocalInboxChannelToken } from "@codemation/core";
 import { InboxChannelResolver } from "../hitl/InboxChannelResolver";
 import { LocalInboxChannel } from "../hitl/LocalInboxChannel";
+import { ControlPlaneInboxChannel } from "../hitl/ControlPlaneInboxChannel";
+import { HitlCallbackHandler } from "../application/hitl/HitlCallbackHandler";
+import { HitlInternalCallbackHonoApiRouteRegistrar } from "../presentation/http/hono/registrars/HitlInternalCallbackHonoApiRouteRegistrar";
 import { ResumeTelemetryContextForRun } from "../application/telemetry/ResumeTelemetryContextForRun";
 
 type AppContainerInputs = Readonly<{
@@ -1084,7 +1087,16 @@ export class AppContainerFactory {
     container.registerSingleton(ApplicationTokens.InternalHonoApiRouteRegistrar, InternalWorkflowDetailRegistrar);
     container.registerSingleton(ApplicationTokens.InternalHonoApiRouteRegistrar, InternalWorkflowActivationRegistrar);
     container.registerSingleton(ApplicationTokens.InternalHonoApiRouteRegistrar, InternalWorkflowTestRunRegistrar);
-    // HITL stories 07 + 11 register their own DI bindings on top of this when their merges land.
+    // HITL story 07: CP inbox channel + inbound decision callback (managed mode only)
+    container.registerSingleton(ControlPlaneInboxChannel, ControlPlaneInboxChannel);
+    container.register(ControlPlaneInboxChannelToken, {
+      useFactory: instanceCachingFactory((dc) => dc.resolve(ControlPlaneInboxChannel)),
+    });
+    container.registerSingleton(HitlCallbackHandler, HitlCallbackHandler);
+    container.registerSingleton(
+      ApplicationTokens.InternalHonoApiRouteRegistrar,
+      HitlInternalCallbackHonoApiRouteRegistrar,
+    );
   }
 
   private registerOperationalInfrastructure(container: Container): void {
