@@ -8,7 +8,6 @@ import type {
 
 import { ApplicationTokens } from "../applicationTokens";
 import type { Logger, LoggerFactory } from "../application/logging/Logger";
-import { LocalCredentialMaterialProvider } from "./LocalCredentialMaterialProvider";
 
 type CacheEntry = Readonly<{
   material: MaterialBundle;
@@ -37,7 +36,7 @@ export class CachingCredentialMaterialProvider implements CredentialMaterialProv
   private readonly logger: Logger;
 
   constructor(
-    @inject(LocalCredentialMaterialProvider) private readonly inner: CredentialMaterialProvider,
+    @inject(ApplicationTokens.CredentialMaterialInnerProvider) private readonly inner: CredentialMaterialProvider,
     @inject(ApplicationTokens.LoggerFactory) loggerFactory: LoggerFactory,
   ) {
     this.logger = loggerFactory.create("codemation.credentials.material-cache");
