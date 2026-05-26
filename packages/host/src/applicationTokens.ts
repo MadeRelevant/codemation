@@ -1,4 +1,4 @@
-import type { Clock, OAuthFlowExecutor, TypeToken } from "@codemation/core";
+import type { Clock, CredentialMaterialProvider, OAuthFlowExecutor, TypeToken } from "@codemation/core";
 import type { SessionVerifier } from "./application/auth/SessionVerifier";
 import type { Command } from "./application/bus/Command";
 import type { CommandBus } from "./application/bus/CommandBus";
@@ -106,4 +106,14 @@ export const ApplicationTokens = {
   WorkflowAuditEmitter: Symbol.for("codemation.application.WorkflowAuditEmitter") as TypeToken<IWorkflowAuditEmitter>,
   ProcessRunner: Symbol.for("codemation.application.ProcessRunner") as TypeToken<ProcessRunner>,
   OAuthFlowExecutor: Symbol.for("codemation.application.OAuthFlowExecutor") as TypeToken<OAuthFlowExecutor>,
+  /**
+   * The provider that `CachingCredentialMaterialProvider` wraps. Bound to
+   * `LocalCredentialMaterialProvider` in standalone mode and to
+   * `CompositeCredentialMaterialProvider` in managed mode (which dispatches
+   * by `ref.source`). See `packages/host/src/credentials/` and
+   * `planning/sprints/credentials-vault/02-controlplane-material-provider.md`.
+   */
+  CredentialMaterialInnerProvider: Symbol.for(
+    "codemation.application.CredentialMaterialInnerProvider",
+  ) as TypeToken<CredentialMaterialProvider>,
 } as const;

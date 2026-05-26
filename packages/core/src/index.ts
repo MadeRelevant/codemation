@@ -51,3 +51,5 @@ export type {
   CallerContext,
 } from "./credentials/CredentialMaterialProvider.types";
 export { IllegalMaterialSourceError } from "./credentials/CredentialMaterialProvider.types";
+export { ManagedCredentialMaterialWriteError } from "./credentials/ManagedCredentialMaterialWriteError";
+export { ManagedMaterialFetchError } from "./credentials/ManagedMaterialFetchError";
