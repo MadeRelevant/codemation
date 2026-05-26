@@ -1,0 +1,114 @@
+import type { Job } from "bullmq";
+import { Worker } from "bullmq";
+import { inject, injectable } from "@codemation/core";
+import type { HumanTaskStore } from "@codemation/core";
+import { HumanTaskStoreToken } from "@codemation/core";
+import { Engine } from "@codemation/core/bootstrap";
+import { ApplicationTokens } from "../applicationTokens";
+import type { AppConfig } from "../presentation/config/AppConfig";
+import { RedisConnectionOptionsFactory } from "../infrastructure/scheduler/bullmq/RedisConnectionOptionsFactory";
+import type { HitlTimeoutJobPayload } from "./HitlTimeoutJobScheduler";
+import { HitlTimeoutJobScheduler } from "./HitlTimeoutJobScheduler";
+
+/**
+ * BullMQ worker that processes `hitl.timeout` jobs.
+ *
+ * - If `task.onTimeout === "auto-accept"`: marks the task `auto_accepted` and resumes the run
+ *   with `decision: { kind: "auto_accepted" }`.
+ * - If `task.onTimeout === "halt"`: marks the task `timed_out` and resumes the run
+ *   with `decision: { kind: "timed_out" }`.
+ *
+ * The engine's resume handler distinguishes halt vs. continue based on the decision kind
+ * (story 03 handles the halt-the-run path).
+ *
+ * `processTimeoutForTask` is public to allow direct testing without BullMQ.
+ */
+@injectable()
+export class HitlTimeoutWorker {
+  private readonly taskStore: HumanTaskStore;
+  private worker: Worker | null = null;
+  private readonly connectionOptions: Readonly<Record<string, unknown>>;
+
+  constructor(
+    @inject(HumanTaskStoreToken) taskStore: HumanTaskStore | undefined,
+    @inject(Engine) private readonly engine: Engine,
+    @inject(HitlTimeoutJobScheduler) private readonly scheduler: HitlTimeoutJobScheduler,
+    @inject(ApplicationTokens.AppConfig) appConfig: AppConfig,
+  ) {
+    if (!taskStore) {
+      throw new Error("HitlTimeoutWorker: HumanTaskStore is not registered.");
+    }
+    this.taskStore = taskStore;
+    const redisUrl = appConfig.env.REDIS_URL ?? appConfig.env.CODEMATION_REDIS_URL ?? "redis://127.0.0.1:6379";
+    this.connectionOptions = RedisConnectionOptionsFactory.fromConfig({ url: redisUrl });
+  }
+
+  start(): void {
+    this.worker = new Worker(
+      this.scheduler.getQueueName(),
+      async (job: Job) => {
+        await this.processJob(job);
+      },
+      { connection: this.connectionOptions as never },
+    );
+  }
+
+  async stop(): Promise<void> {
+    if (this.worker) {
+      await this.worker.close();
+      this.worker = null;
+    }
+  }
+
+  async processTimeoutForTask(taskId: string): Promise<void> {
+    const task = await this.taskStore.findById(taskId);
+    if (!task) return;
+    if (task.status !== "pending") return;
+
+    const now = new Date();
+
+    if (task.onTimeout === "auto-accept") {
+      await this.taskStore.markAutoAccepted(taskId);
+      await this.engine.resumeRun({
+        runId: task.runId,
+        taskId: task.id,
+        resumeContext: {
+          decision: { kind: "auto_accepted", at: now },
+          delivery: task.deliveryRef ?? null,
+          task: {
+            taskId: task.id,
+            runId: task.runId,
+            nodeId: task.nodeId,
+            expiresAt: task.expiresAt,
+            resumeUrl: "",
+          },
+        },
+      });
+    } else {
+      await this.taskStore.markTimedOut(taskId);
+      await this.engine.resumeRun({
+        runId: task.runId,
+        taskId: task.id,
+        resumeContext: {
+          decision: { kind: "timed_out", at: now },
+          delivery: task.deliveryRef ?? null,
+          task: {
+            taskId: task.id,
+            runId: task.runId,
+            nodeId: task.nodeId,
+            expiresAt: task.expiresAt,
+            resumeUrl: "",
+          },
+        },
+      });
+    }
+  }
+
+  private async processJob(job: Job): Promise<void> {
+    const data = job.data as HitlTimeoutJobPayload;
+    if (!data || data.kind !== "hitl.timeout") {
+      throw new Error(`Unexpected job payload for hitl.timeout queue: ${JSON.stringify(data)}`);
+    }
+    await this.processTimeoutForTask(data.taskId);
+  }
+}

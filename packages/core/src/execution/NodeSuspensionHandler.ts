@@ -1,5 +1,8 @@
 import { createHash } from "node:crypto";
+import { z } from "zod";
 
+import type { HitlResumeTokenSignerSeam, HitlTimeoutJobSchedulerSeam } from "../contracts/hitlSeamTypes";
+import type { HumanTaskRecord, HumanTaskStore } from "../contracts/humanTaskStoreTypes";
 import type {
   HumanTaskHandle,
   NodeActivationId,
@@ -19,17 +22,28 @@ export { RunSuspendedError };
  *
  * Responsibilities:
  * 1. Generate a `taskId` (UUID v4).
- * 2. Build a `HumanTaskHandle` for the `deliver` callback.
- * 3. Call `deliver` and await the delivery payload.
- * 4. Append a `PersistedSuspensionEntry` to the run state and flip status to `"suspended"`.
- * 5. Persist via `WorkflowExecutionRepository.save`.
- * 6. Throw `RunSuspendedError` so the caller can exit cleanly.
+ * 2. Persist a `HumanTask` row via `HumanTaskStore.create` (story 02).
+ * 3. Sign a resume URL via `HitlResumeTokenSigner.sign` (story 02).
+ * 4. Enqueue a delayed BullMQ timeout job via `HitlTimeoutJobScheduler.enqueue` (story 02).
+ * 5. Build a `HumanTaskHandle` and call `deliver`.
+ * 6. Append a `PersistedSuspensionEntry` to the run state and flip status to `"suspended"`.
+ * 7. Persist via `WorkflowExecutionRepository.save`.
+ * 8. Throw `RunSuspendedError` so the caller can exit cleanly.
  *
  * If `deliver` throws, the error propagates up to `NodeExecutionRequestHandlerService`
- * which routes it through `resumeFromNodeError` → run status becomes `"failed"` (D5).
+ * which routes it through `resumeFromNodeError` → run status becomes `"failed"`.
+ *
+ * Story 02: `humanTaskStore`, `tokenSigner`, and `timeoutScheduler` are optional —
+ * when not registered (e.g. in unit tests), the handler still suspends the run but
+ * skips persistence, token signing, and job scheduling.
  */
 export class NodeSuspensionHandler {
-  constructor(private readonly workflowExecutionRepository: WorkflowExecutionRepository) {}
+  constructor(
+    private readonly workflowExecutionRepository: WorkflowExecutionRepository,
+    private readonly humanTaskStore?: HumanTaskStore,
+    private readonly tokenSigner?: HitlResumeTokenSignerSeam,
+    private readonly timeoutScheduler?: HitlTimeoutJobSchedulerSeam,
+  ) {}
 
   async handle(args: {
     runId: RunId;
@@ -40,24 +54,62 @@ export class NodeSuspensionHandler {
     state: PersistedRunState;
   }): Promise<never> {
     const taskId = `htask_${globalThis.crypto.randomUUID()}`;
-    const { timeout, onTimeout, deliver, decisionSchema } = args.suspensionRequest.request;
+    const { timeout, onTimeout, deliver, decisionSchema, subject, metadata } = args.suspensionRequest.request;
 
     const timeoutMs = this.parseDurationMs(timeout);
     const expiresAt = new Date(Date.now() + timeoutMs);
+
+    const decisionSchemaHash = this.hashSchema(decisionSchema);
+    const decisionSchemaJson = this.schemaToJson(decisionSchema);
+
+    // Build resume token (when signer is available)
+    let resumeUrl = "";
+    let resumeTokenHash = "";
+    if (this.tokenSigner) {
+      const token = this.tokenSigner.sign({ taskId, expiresAt, schemaHash: decisionSchemaHash });
+      resumeUrl = token; // callers (deliver) receive the raw token; inbox layers wrap into a URL
+      resumeTokenHash = this.tokenSigner.hashToken(token);
+    }
 
     const handle: HumanTaskHandle = {
       taskId,
       runId: args.runId,
       nodeId: args.nodeId,
       expiresAt,
-      // TODO(story-02): replace with real signed resume URL
-      resumeUrl: "",
+      resumeUrl,
     };
 
     // D5: deliver throws → propagate upward; caller routes to resumeFromNodeError → "failed"
     const deliveryRef = await deliver(handle);
 
-    const decisionSchemaHash = this.hashSchema(decisionSchema);
+    // Persist HumanTask row (story 02)
+    if (this.humanTaskStore) {
+      const record: HumanTaskRecord = {
+        id: taskId,
+        runId: args.runId,
+        workflowId: args.state.workflowId,
+        nodeId: args.nodeId,
+        activationId: args.activationId,
+        itemIndex: args.itemIndex,
+        status: "pending",
+        channel: "local",
+        subject,
+        metadata: (metadata as Record<string, import("../contracts/workflowTypes").JsonValue>) ?? {},
+        decisionSchemaJson,
+        decisionSchemaHash,
+        onTimeout,
+        deliveryRef,
+        resumeTokenHash: resumeTokenHash || "no-token",
+        expiresAt,
+        createdAt: new Date(),
+      };
+      await this.humanTaskStore.create(record);
+    }
+
+    // Enqueue timeout job (story 02)
+    if (this.timeoutScheduler) {
+      await this.timeoutScheduler.enqueueTimeoutJob({ taskId, expiresAt });
+    }
 
     const entry: PersistedSuspensionEntry = {
       taskId,
@@ -113,11 +165,18 @@ export class NodeSuspensionHandler {
     throw new Error(`NodeSuspensionHandler: unrecognised duration format: "${duration}"`);
   }
 
-  private hashSchema(schema: { toJSON?: () => unknown } | unknown): string {
-    const json =
-      typeof (schema as { toJSON?: unknown }).toJSON === "function"
-        ? JSON.stringify((schema as { toJSON: () => unknown }).toJSON())
-        : JSON.stringify(schema);
+  private hashSchema(schema: unknown): string {
+    const json = this.schemaToJson(schema);
     return createHash("sha256").update(json).digest("hex");
+  }
+
+  private schemaToJson(schema: unknown): string {
+    if (schema instanceof z.ZodType) {
+      return JSON.stringify(z.toJSONSchema(schema));
+    }
+    if (typeof (schema as { toJSON?: unknown }).toJSON === "function") {
+      return JSON.stringify((schema as { toJSON: () => unknown }).toJSON());
+    }
+    return JSON.stringify(schema);
   }
 }
