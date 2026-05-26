@@ -287,6 +287,7 @@ import { CompositeCredentialMaterialProvider } from "../credentials/CompositeCre
 import { CredentialOAuth2MaterialReader } from "../credentials/CredentialOAuth2MaterialReader";
 import { ManagedOAuthFlowExecutor } from "../credentials/ManagedOAuthFlowExecutor";
 import { BrokerClient } from "../credentials/BrokerClient";
+import { InternalCredentialsBindingRegistrar } from "../credentials/InternalCredentialsBindingRegistrar";
 import { InternalCredentialsPushRegistrar } from "../credentials/InternalCredentialsPushRegistrar";
 import { InternalCredentialsListRegistrar } from "../credentials/InternalCredentialsListRegistrar";
 import { InternalWorkflowsListRegistrar } from "../workflows/InternalWorkflowsListRegistrar";
@@ -1056,6 +1057,7 @@ export class AppContainerFactory {
     container.registerSingleton(BrokerClient, BrokerClient);
     container.registerSingleton(ApplicationTokens.InternalHonoApiRouteRegistrar, InternalPingRegistrar);
     container.registerSingleton(ApplicationTokens.InternalHonoApiRouteRegistrar, InternalCredentialsPushRegistrar);
+    container.registerSingleton(ApplicationTokens.InternalHonoApiRouteRegistrar, InternalCredentialsBindingRegistrar);
     container.registerSingleton(ApplicationTokens.InternalHonoApiRouteRegistrar, InternalCredentialsListRegistrar);
     container.registerSingleton(ApplicationTokens.InternalHonoApiRouteRegistrar, InternalWorkflowsListRegistrar);
     container.registerSingleton(ApplicationTokens.InternalHonoApiRouteRegistrar, InternalWorkflowDetailRegistrar);
