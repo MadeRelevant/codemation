@@ -173,6 +173,23 @@ export class PrismaWorkflowRunRepository implements WorkflowRunRepository, Workf
       control: this.parseJson(row.controlJson),
       workflowSnapshot: this.parseJson(row.workflowSnapshotJson),
       mutableState: this.parseJson(row.mutableStateJson),
+      // HITL state (suspension array, pendingResume context, halt reason) is stashed inside
+      // mutableStateJson alongside `nodesById` so we don't need a new DB column. Hoist them
+      // back to top-level PersistedRunState fields on load.
+      ...(() => {
+        const m = this.parseJson<{
+          _hitlSuspension?: PersistedRunState["suspension"];
+          _hitlPendingResume?: PersistedRunState["pendingResume"];
+          _hitlReason?: PersistedRunState["reason"];
+        }>(row.mutableStateJson);
+        return m
+          ? {
+              suspension: m._hitlSuspension,
+              pendingResume: m._hitlPendingResume,
+              reason: m._hitlReason,
+            }
+          : {};
+      })(),
       policySnapshot: this.parseJson(row.policySnapshotJson),
       engineCounters: this.parseJson(row.engineCountersJson),
       status: row.status as PersistedRunState["status"],
@@ -415,7 +432,7 @@ export class PrismaWorkflowRunRepository implements WorkflowRunRepository, Workf
           workflowSnapshotId,
           policySnapshotJson: state.policySnapshot ? JSON.stringify(state.policySnapshot) : null,
           engineCountersJson: state.engineCounters ? JSON.stringify(state.engineCounters) : null,
-          mutableStateJson: state.mutableState ? JSON.stringify(state.mutableState) : null,
+          mutableStateJson: this.buildMutableStateJson(state),
           outputsByNodeJson: JSON.stringify(this.buildPersistedOutputsByNode(state)),
         },
       });
@@ -594,6 +611,27 @@ export class PrismaWorkflowRunRepository implements WorkflowRunRepository, Workf
       parentInvocationId: row.parentInvocationId ?? undefined,
       ...(row.childRunId !== null && row.childRunId !== undefined ? { childRunId: row.childRunId } : {}),
     };
+  }
+
+  /**
+   * Stash HITL state (suspension array, pendingResume context, halt reason) inside the same
+   * JSON blob that holds `nodesById`. This avoids a Prisma schema migration while still
+   * round-tripping the new HITL fields through SQLite/Postgres. Keys are prefixed with `_hitl`
+   * so they don't collide with any future `MutableRunState` field names.
+   */
+  private buildMutableStateJson(state: PersistedRunState): string | null {
+    const base = state.mutableState ?? null;
+    const hasHitl =
+      (state.suspension && state.suspension.length > 0) ||
+      state.pendingResume !== undefined ||
+      state.reason !== undefined;
+    if (!base && !hasHitl) return null;
+    return JSON.stringify({
+      ...(base ?? { nodesById: {} }),
+      ...(state.suspension && state.suspension.length > 0 ? { _hitlSuspension: state.suspension } : {}),
+      ...(state.pendingResume !== undefined ? { _hitlPendingResume: state.pendingResume } : {}),
+      ...(state.reason !== undefined ? { _hitlReason: state.reason } : {}),
+    });
   }
 
   private buildWorkItems(state: PersistedRunState, nowIso: string): Prisma.RunWorkItemCreateManyInput[] {
