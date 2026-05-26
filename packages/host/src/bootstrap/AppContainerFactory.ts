@@ -302,6 +302,16 @@ import { ManagedWebsocketAuthenticator } from "../presentation/websocket/Managed
 import { JwksCache, ManagedJwtVerifier } from "@codemation/managed-auth";
 import { CodemationTsyringeTypeInfoRegistrar } from "../presentation/server/CodemationTsyringeTypeInfoRegistrar";
 import { ControlPlaneCatalogFetcher } from "../credentials/ControlPlaneCatalogFetcher";
+import { PrismaHumanTaskStore } from "../infrastructure/persistence/PrismaHumanTaskStore";
+import { HitlResumeTokenSigner } from "../hitl/HitlResumeTokenSigner";
+import { HitlTimeoutJobScheduler } from "../hitl/HitlTimeoutJobScheduler";
+import { HitlTimeoutWorker } from "../hitl/HitlTimeoutWorker";
+import { DecideHumanTaskCommandHandler } from "../application/hitl/DecideHumanTaskCommandHandler";
+import { DecisionSchemaValidator } from "../application/hitl/DecisionSchemaValidator";
+import { HitlDecideHonoApiRouteRegistrar } from "../presentation/http/hono/registrars/HitlDecideHonoApiRouteRegistrar";
+import { HitlResumeHonoApiRouteRegistrar } from "../presentation/http/hono/registrars/HitlResumeHonoApiRouteRegistrar";
+import { HumanTaskStoreToken } from "@codemation/core";
+import { HitlResumeTokenSignerToken, HitlTimeoutJobSchedulerToken } from "@codemation/core";
 
 type AppContainerInputs = Readonly<{
   appConfig: AppConfig;
@@ -381,6 +391,8 @@ export class AppContainerFactory {
     WhitelabelHonoApiRouteRegistrar,
     WorkflowHonoApiRouteRegistrar,
     CollectionHonoApiRouteRegistrar,
+    HitlDecideHonoApiRouteRegistrar,
+    HitlResumeHonoApiRouteRegistrar,
   ] as const;
 
   constructor(
@@ -879,6 +891,21 @@ export class AppContainerFactory {
     container.registerSingleton(PrismaWorkflowActivationRepository, PrismaWorkflowActivationRepository);
     container.registerSingleton(InMemoryWorkflowActivationRepository, InMemoryWorkflowActivationRepository);
     container.registerSingleton(PrismaCredentialStore, PrismaCredentialStore);
+    // HITL story 02: token signer + timeout scheduler (persistence wired in registerRuntimeInfrastructure)
+    container.registerSingleton(PrismaHumanTaskStore, PrismaHumanTaskStore);
+    // Default: no HITL store; overridden to PrismaHumanTaskStore in the Prisma path below
+    container.register(HumanTaskStoreToken, { useFactory: () => undefined });
+    container.registerSingleton(HitlResumeTokenSigner, HitlResumeTokenSigner);
+    container.register(HitlResumeTokenSignerToken, {
+      useFactory: instanceCachingFactory((dc) => dc.resolve(HitlResumeTokenSigner)),
+    });
+    container.registerSingleton(HitlTimeoutJobScheduler, HitlTimeoutJobScheduler);
+    container.register(HitlTimeoutJobSchedulerToken, {
+      useFactory: instanceCachingFactory((dc) => dc.resolve(HitlTimeoutJobScheduler)),
+    });
+    container.registerSingleton(HitlTimeoutWorker, HitlTimeoutWorker);
+    container.registerSingleton(DecisionSchemaValidator, DecisionSchemaValidator);
+    container.registerSingleton(DecideHumanTaskCommandHandler, DecideHumanTaskCommandHandler);
     container.register(ApplicationTokens.WorkflowDefinitionRepository, {
       useFactory: instanceCachingFactory(
         (dependencyContainer) =>
@@ -1164,6 +1191,8 @@ export class AppContainerFactory {
       container.resolve(PrismaWorkflowActivationRepository),
     );
     container.registerInstance(ApplicationTokens.CredentialStore, container.resolve(PrismaCredentialStore));
+    // HITL story 02: wire PrismaHumanTaskStore now that PrismaDatabaseClientToken is available
+    container.registerInstance(HumanTaskStoreToken, container.resolve(PrismaHumanTaskStore));
     container.registerInstance(ApplicationTokens.RunTraceContextRepository, runTraceContextRepository);
     container.registerInstance(ApplicationTokens.TelemetrySpanStore, telemetrySpanStore);
     container.registerInstance(ApplicationTokens.TelemetryArtifactStore, telemetryArtifactStore);
