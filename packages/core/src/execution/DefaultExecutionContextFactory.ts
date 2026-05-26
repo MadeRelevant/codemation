@@ -6,6 +6,7 @@ import type {
   ExecutionContextFactory,
   ExecutionTelemetryFactory,
   NodeExecutionStatePublisher,
+  NodeResolver,
   ParentExecutionRef,
   RunDataSnapshot,
   RunId,
@@ -13,6 +14,7 @@ import type {
   WorkflowId,
 } from "../types";
 import { NoOpCostTrackingTelemetryFactory, NoOpExecutionTelemetryFactory } from "../types";
+import type { TypeToken } from "../di";
 
 import {
   DefaultExecutionBinaryService,
@@ -29,6 +31,7 @@ export class DefaultExecutionContextFactory implements ExecutionContextFactory {
     private readonly costTrackingFactory: CostTrackingTelemetryFactory = new NoOpCostTrackingTelemetryFactory(),
     private readonly currentDate: () => Date = () => new Date(),
     private readonly collections?: CollectionsContext,
+    private readonly nodeResolver?: NodeResolver,
   ) {}
 
   create(args: {
@@ -72,6 +75,14 @@ export class DefaultExecutionContextFactory implements ExecutionContextFactory {
       getCredential: args.getCredential,
       testContext: args.testContext,
       collections: this.collections,
+      resolve: <T>(token: TypeToken<T>): T => {
+        if (!this.nodeResolver) {
+          throw new Error(
+            "ExecutionContext.resolve() is not available: no NodeResolver was provided to DefaultExecutionContextFactory.",
+          );
+        }
+        return this.nodeResolver.resolve(token);
+      },
     };
   }
 }

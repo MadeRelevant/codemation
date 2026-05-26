@@ -277,6 +277,14 @@ export interface ExecutionContext {
    * Collections registered in the codemation config, keyed by collection name.
    */
   readonly collections?: CollectionsContext;
+  /**
+   * Resolve a DI token from the host container.
+   * Allows nodes to reach host-side services (e.g. `InboxChannelResolverToken`)
+   * without importing host code. Wired by `DefaultExecutionContextFactory`; throws
+   * a clear error when no resolver is configured (e.g. in unit tests that don't
+   * set up the full container).
+   */
+  resolve<T>(token: TypeToken<T>): T;
 }
 
 export interface ExecutionContextFactory {

@@ -2,6 +2,7 @@ export * from "./AgentBindError";
 export * from "./agentMcpTypes";
 export * from "./hitlSeamTypes";
 export * from "./humanTaskStoreTypes";
+export * from "./inboxChannelTypes";
 export * from "./NoOpAgentMcpIntegration";
 export * from "./baseTypes";
 export * from "./assertionTypes";
