@@ -43,6 +43,12 @@ export interface HumanTaskHandle {
   readonly expiresAt: Date;
   /** TODO(story-02): real signed URL; placeholder empty string for story 01. */
   readonly resumeUrl: string;
+  /**
+   * Arbitrary JSON metadata copied from `SuspensionRequest.request.metadata` at suspension time.
+   * Used by the agent runtime (story 10) to round-trip the `agentCheckpoint` back to the
+   * resumed node via `ctx.resumeContext.task.metadata`.
+   */
+  readonly metadata?: Readonly<Record<string, import("./workflowTypes").JsonValue>>;
 }
 
 /** Human-readable description surface shown to the reviewer. */

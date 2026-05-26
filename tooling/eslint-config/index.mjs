@@ -15,6 +15,7 @@ const allowedConstructorNames = new Set([
   "RegExp",
   "Response",
   "Set",
+  "SuspensionRequest",
   "URL",
   "WeakMap",
   "WeakSet",

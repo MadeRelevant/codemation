@@ -67,7 +67,7 @@ export interface DefinedHumanApprovalNode<
    *
    * Standalone DSL usage ignores this field.
    */
-  readonly humanApprovalToolBehavior: "return" | "halt";
+  readonly humanApprovalToolBehavior: { onRejected: "return" | "halt" };
 }
 
 // ---------------------------------------------------------------------------
@@ -247,7 +247,7 @@ export function defineHumanApprovalNode<
   });
 
   return Object.assign(inner, {
-    humanApprovalToolBehavior: "return" as const,
+    humanApprovalToolBehavior: { onRejected: "return" as const },
   }) as unknown as DefinedHumanApprovalNode<TKey, TConfig, TInputJson, TBindings>;
 }
 

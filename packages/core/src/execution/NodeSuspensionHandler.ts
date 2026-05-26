@@ -77,6 +77,7 @@ export class NodeSuspensionHandler {
       nodeId: args.nodeId,
       expiresAt,
       resumeUrl,
+      ...(metadata !== undefined ? { metadata } : {}),
     };
 
     // D5: deliver throws → propagate upward; caller routes to resumeFromNodeError → "failed"

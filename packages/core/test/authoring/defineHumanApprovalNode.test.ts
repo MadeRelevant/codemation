@@ -456,7 +456,7 @@ describe("defineHumanApprovalNode", () => {
 
     it("attaches humanApprovalToolBehavior marker", () => {
       const node = makeNode();
-      expect(node.humanApprovalToolBehavior).toBe("return");
+      expect(node.humanApprovalToolBehavior).toEqual({ onRejected: "return" });
     });
   });
 });
