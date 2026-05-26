@@ -23,4 +23,10 @@ export class CodemationTelemetryAttributeNames {
   static readonly nodeExecutionStatus = "codemation.node.execution_status";
   /** Populated on run-halted spans; discriminates the halt reason (e.g. `"hitl-rejected"`). */
   static readonly runHaltReason = "codemation.run.halt_reason";
+  /** Human task ID on `hitl.task.*` span events. */
+  static readonly hitlTaskId = "codemation.hitl.task_id";
+  /** HITL channel name (e.g. `"inbox"`, `"control-plane-inbox"`) on `hitl.task.*` span events. */
+  static readonly hitlChannel = "codemation.hitl.channel";
+  /** Decision outcome (e.g. `"approved"`, `"rejected"`) on `hitl.task.decided` span events. */
+  static readonly hitlDecisionStatus = "codemation.hitl.decision_status";
 }

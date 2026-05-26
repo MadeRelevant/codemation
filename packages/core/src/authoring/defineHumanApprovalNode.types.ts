@@ -71,6 +71,25 @@ export interface DefinedHumanApprovalNode<
 }
 
 // ---------------------------------------------------------------------------
+// isHumanApprovalNode predicate
+// ---------------------------------------------------------------------------
+
+/**
+ * Returns `true` when `node` was created by {@link defineHumanApprovalNode}.
+ * Uses the `humanApprovalToolBehavior` typed field as the discriminant.
+ */
+export function isHumanApprovalNode(
+  node: unknown,
+): node is DefinedHumanApprovalNode<string, Record<string, unknown>, Record<string, unknown>, undefined> {
+  return (
+    typeof node === "object" &&
+    node !== null &&
+    "humanApprovalToolBehavior" in node &&
+    typeof (node as { humanApprovalToolBehavior: unknown }).humanApprovalToolBehavior === "object"
+  );
+}
+
+// ---------------------------------------------------------------------------
 // defineHumanApprovalNode
 // ---------------------------------------------------------------------------
 

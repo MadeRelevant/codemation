@@ -16,7 +16,7 @@ export type {
   HumanApprovalDecisionResult,
   HumanApprovalOutputJson,
 } from "./defineHumanApprovalNode.types";
-export { defineHumanApprovalNode } from "./defineHumanApprovalNode.types";
+export { defineHumanApprovalNode, isHumanApprovalNode } from "./defineHumanApprovalNode.types";
 export type { DefineCredentialOptions } from "./defineCredential.types";
 export { defineCredential } from "./defineCredential.types";
 export { callableTool } from "./callableTool.types";

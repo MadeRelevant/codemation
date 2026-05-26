@@ -13,6 +13,8 @@ import type {
   SuspensionRequest,
   WorkflowExecutionRepository,
 } from "../types";
+import type { TelemetryScope } from "../contracts/telemetryTypes";
+import { CodemationTelemetryAttributeNames } from "../contracts/CodemationTelemetryAttributeNames";
 
 import { RunSuspendedError } from "./RunSuspendedError";
 export { RunSuspendedError };
@@ -52,6 +54,8 @@ export class NodeSuspensionHandler {
     itemIndex: number;
     suspensionRequest: SuspensionRequest;
     state: PersistedRunState;
+    /** Telemetry scope of the node's per-item span. Used to emit `hitl.task.*` span events. */
+    telemetry?: TelemetryScope;
   }): Promise<never> {
     const taskId = `htask_${globalThis.crypto.randomUUID()}`;
     const { timeout, onTimeout, deliver, decisionSchema, subject, metadata } = args.suspensionRequest.request;
@@ -80,8 +84,35 @@ export class NodeSuspensionHandler {
       ...(metadata !== undefined ? { metadata } : {}),
     };
 
-    // D5: deliver throws → propagate upward; caller routes to resumeFromNodeError → "failed"
-    const deliveryRef = await deliver(handle);
+    // Emit hitl.task.created before calling deliver (story 11 D3).
+    const channel = (metadata as Record<string, unknown> | undefined)?.["channel"];
+    await args.telemetry?.addSpanEvent?.({
+      name: "hitl.task.created",
+      attributes: {
+        [CodemationTelemetryAttributeNames.hitlTaskId]: taskId,
+        [CodemationTelemetryAttributeNames.hitlChannel]: typeof channel === "string" ? channel : "unknown",
+        [CodemationTelemetryAttributeNames.runId]: args.runId,
+        [CodemationTelemetryAttributeNames.nodeId]: args.nodeId,
+        expiresAt: expiresAt.toISOString(),
+      },
+    });
+
+    // D5: deliver throws → emit hitl.task.delivery_failed, then propagate upward;
+    // caller routes to resumeFromNodeError → "failed"
+    let deliveryRef: Awaited<ReturnType<typeof deliver>>;
+    try {
+      deliveryRef = await deliver(handle);
+    } catch (deliverError) {
+      await args.telemetry?.addSpanEvent?.({
+        name: "hitl.task.delivery_failed",
+        attributes: {
+          [CodemationTelemetryAttributeNames.hitlTaskId]: taskId,
+          [CodemationTelemetryAttributeNames.hitlChannel]: typeof channel === "string" ? channel : "unknown",
+          error: deliverError instanceof Error ? deliverError.message : String(deliverError),
+        },
+      });
+      throw deliverError;
+    }
 
     // Persist HumanTask row (story 02)
     if (this.humanTaskStore) {

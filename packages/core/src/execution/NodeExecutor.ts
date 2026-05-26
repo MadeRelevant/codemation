@@ -234,6 +234,7 @@ export class NodeExecutor {
             itemIndex: i,
             suspensionRequest: e,
             state,
+            telemetry: iterationCtx.telemetry,
           });
           hasSuspension = true; // unreachable — handler always throws, but satisfies TS control-flow
           continue;

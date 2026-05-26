@@ -1,11 +1,12 @@
 import { inject, injectable } from "@codemation/core";
 import type { HumanTaskActor, HumanTaskStore, JsonValue } from "@codemation/core";
-import { HumanTaskStoreToken } from "@codemation/core";
+import { CodemationTelemetryAttributeNames, HumanTaskStoreToken } from "@codemation/core";
 import { Engine } from "@codemation/core/bootstrap";
 import { ApplicationRequestError } from "../ApplicationRequestError";
 import { HitlResumeTokenSigner } from "../../hitl/HitlResumeTokenSigner";
 import { HitlTimeoutJobScheduler } from "../../hitl/HitlTimeoutJobScheduler";
 import { DecisionSchemaValidator } from "./DecisionSchemaValidator";
+import { ResumeTelemetryContextForRun } from "../telemetry/ResumeTelemetryContextForRun";
 
 export interface DecideHumanTaskArgs {
   taskId: string;
@@ -28,6 +29,7 @@ export class DecideHumanTaskCommandHandler {
     @inject(HitlResumeTokenSigner) private readonly tokenSigner: HitlResumeTokenSigner,
     @inject(HitlTimeoutJobScheduler) private readonly timeoutScheduler: HitlTimeoutJobScheduler,
     @inject(DecisionSchemaValidator) private readonly schemaValidator: DecisionSchemaValidator,
+    @inject(ResumeTelemetryContextForRun) private readonly resumeTelemetry: ResumeTelemetryContextForRun,
   ) {
     this.taskStore = taskStore;
   }
@@ -67,6 +69,26 @@ export class DecideHumanTaskCommandHandler {
 
     // Cancel the timeout job to prevent double-resolution
     await this.timeoutScheduler.cancelTimeoutJob(args.taskId);
+
+    // Emit hitl.task.decided on the run's trace (story 11 D3).
+    const telemetry = await this.resumeTelemetry.forTask(args.taskId);
+    const latencyMs = decidedAt.getTime() - task.createdAt.getTime();
+    const decisionPayload = args.decision as Record<string, unknown> | null;
+    const decisionStatus =
+      typeof decisionPayload?.["approved"] === "boolean"
+        ? decisionPayload["approved"]
+          ? "approved"
+          : "rejected"
+        : "decided";
+    await telemetry?.addSpanEvent({
+      name: "hitl.task.decided",
+      attributes: {
+        [CodemationTelemetryAttributeNames.hitlTaskId]: args.taskId,
+        [CodemationTelemetryAttributeNames.hitlDecisionStatus]: decisionStatus,
+        actor: args.decidedBy.actorId,
+        latencyMs,
+      },
+    });
 
     // Resume the suspended run
     const resumeResult = await this.engine.resumeRun({
