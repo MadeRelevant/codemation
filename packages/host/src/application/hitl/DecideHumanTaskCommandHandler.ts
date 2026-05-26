@@ -92,7 +92,7 @@ export class DecideHumanTaskCommandHandler {
 
     return {
       status: "decided",
-      runStatus: resumeResult.status === "failed" ? "halted" : "running",
+      runStatus: resumeResult.status === "failed" || resumeResult.status === "halted" ? "halted" : "running",
     };
   }
 

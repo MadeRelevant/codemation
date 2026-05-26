@@ -128,7 +128,18 @@ export interface RunQueueEntry {
   }>;
 }
 
-export type NodeExecutionStatus = "pending" | "queued" | "running" | "completed" | "failed" | "skipped";
+export type NodeExecutionStatus =
+  | "pending"
+  | "queued"
+  | "running"
+  | "completed"
+  | "failed"
+  | "skipped"
+  | "hitl-approved"
+  | "hitl-rejected"
+  | "hitl-timeout"
+  | "hitl-auto-accepted"
+  | "hitl-cancelled";
 
 export interface NodeExecutionError {
   message: string;
@@ -245,7 +256,10 @@ export interface ExecutionFrontierPlan {
   preservedPinnedNodeIds: ReadonlyArray<NodeId>;
 }
 
-export type RunStatus = "running" | "pending" | "completed" | "failed" | "suspended";
+export type RunStatus = "running" | "pending" | "completed" | "failed" | "suspended" | "halted";
+
+/** Reason a run transitioned to {@link RunStatus} `"halted"`. */
+export type RunHaltReason = "hitl-rejected" | "hitl-timeout" | "hitl-cancelled";
 
 export interface RunSummary {
   runId: RunId;
@@ -332,6 +346,8 @@ export interface PersistedRunState {
   /** Successful node completions so far (for activation budget). */
   engineCounters?: EngineRunCounters;
   status: RunStatus;
+  /** Populated when `status === "halted"` to discriminate why the run was halted. */
+  reason?: RunHaltReason;
   pending?: PendingNodeExecution;
   queue: RunQueueEntry[];
   outputsByNode: Record<NodeId, NodeOutputs>;
@@ -390,7 +406,8 @@ export interface WorkflowExecutionPruneRepository {
 export type RunResult =
   | { runId: RunId; workflowId: WorkflowId; startedAt: string; status: "completed"; outputs: Items }
   | { runId: RunId; workflowId: WorkflowId; startedAt: string; status: "pending"; pending: PendingNodeExecution }
-  | { runId: RunId; workflowId: WorkflowId; startedAt: string; status: "failed"; error: { message: string } };
+  | { runId: RunId; workflowId: WorkflowId; startedAt: string; status: "failed"; error: { message: string } }
+  | { runId: RunId; workflowId: WorkflowId; startedAt: string; status: "halted"; reason: RunHaltReason };
 
 export type WebhookRunResult = Readonly<{
   runId: RunId;

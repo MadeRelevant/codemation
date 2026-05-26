@@ -8,7 +8,7 @@ export {
   type Duration,
   type ResumeContext,
 } from "./contracts/runtimeTypes";
-export type { PersistedSuspensionEntry, PendingResumeEntry } from "./contracts/runTypes";
+export type { PersistedSuspensionEntry, PendingResumeEntry, RunHaltReason } from "./contracts/runTypes";
 export type { HumanTaskRecord, HumanTaskStatus, HumanTaskStore } from "./contracts/humanTaskStoreTypes";
 export { HumanTaskStoreToken } from "./contracts/humanTaskStoreTypes";
 export type { HitlResumeTokenSignerSeam, HitlTimeoutJobSchedulerSeam } from "./contracts/hitlSeamTypes";

@@ -78,7 +78,7 @@ interface EngineRunContinuationService {
     nodeId: NodeId;
     error: Error;
   }): Promise<RunResult>;
-  waitForCompletion(runId: RunId): Promise<Extract<RunResult, { status: "completed" | "failed" }>>;
+  waitForCompletion(runId: RunId): Promise<Extract<RunResult, { status: "completed" | "failed" | "halted" }>>;
   waitForWebhookResponse(runId: RunId): Promise<WebhookRunResult>;
   resumeRun(args: { runId: RunId; taskId: string; resumeContext: ResumeContext }): Promise<RunResult>;
 }
@@ -228,7 +228,7 @@ export class Engine implements NodeActivationContinuation, NodeExecutionRequestH
     return await this.deps.runContinuationService.resumeFromStepError(args);
   }
 
-  async waitForCompletion(runId: RunId): Promise<Extract<RunResult, { status: "completed" | "failed" }>> {
+  async waitForCompletion(runId: RunId): Promise<Extract<RunResult, { status: "completed" | "failed" | "halted" }>> {
     return await this.deps.runContinuationService.waitForCompletion(runId);
   }
 
