@@ -280,6 +280,7 @@ import { IncomingHmacVerifier } from "../pairing/IncomingHmacVerifier";
 import { InternalHmacAuthMiddleware } from "../pairing/InternalHmacAuthMiddleware";
 import { InternalPingRegistrar } from "../pairing/InternalPingRegistrar";
 import { LocalOAuthFlowExecutor } from "../credentials/LocalOAuthFlowExecutor";
+import { LocalCredentialMaterialProvider } from "../credentials/LocalCredentialMaterialProvider";
 import { CredentialOAuth2MaterialReader } from "../credentials/CredentialOAuth2MaterialReader";
 import { ManagedOAuthFlowExecutor } from "../credentials/ManagedOAuthFlowExecutor";
 import { BrokerClient } from "../credentials/BrokerClient";
@@ -740,6 +741,10 @@ export class AppContainerFactory {
       container.registerSingleton(LocalOAuthFlowExecutor, LocalOAuthFlowExecutor);
     }
     container.registerSingleton(CredentialOAuth2MaterialReader, CredentialOAuth2MaterialReader);
+    // Story 01 (credentials-vault sprint): register the local material provider
+    // unconditionally. Story 02 wires the dispatcher that picks between this and
+    // the control-plane provider in managed mode.
+    container.registerSingleton(LocalCredentialMaterialProvider, LocalCredentialMaterialProvider);
     container.registerSingleton(CodemationFrontendAuthSnapshotFactory, CodemationFrontendAuthSnapshotFactory);
     container.registerSingleton(FrontendAppConfigFactory, FrontendAppConfigFactory);
     container.registerSingleton(PublicFrontendBootstrapFactory, PublicFrontendBootstrapFactory);

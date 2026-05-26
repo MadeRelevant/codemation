@@ -162,6 +162,16 @@ export type CredentialInstanceRecord<TPublicConfig extends CredentialJsonRecord 
   setupStatus: CredentialSetupStatus;
   createdAt: string;
   updatedAt: string;
+  /**
+   * Pointer to where the credential material bytes live. For OSS / standalone
+   * rows this is `{source: "local", ref: instanceId}` and the bytes co-locate
+   * with the row in the workspace DB. For managed-mode rows this is
+   * `{source: "control-plane", ref: <cp_id>}` and the bytes live at CP.
+   *
+   * The seam is read through `CredentialMaterialProvider`. See
+   * `docs/design/credentials-oauth-unification.md` ("Material provider seam").
+   */
+  material: Readonly<{ source: "local" | "control-plane"; ref: string }>;
 }>;
 
 /**

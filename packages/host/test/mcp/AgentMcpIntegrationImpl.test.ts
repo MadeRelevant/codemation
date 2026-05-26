@@ -1,9 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type {
-  ConnectionInvocationAppendArgs,
-  McpServerDeclaration,
-  TelemetrySpanEventRecord,
-} from "@codemation/core";
+import type { ConnectionInvocationAppendArgs, McpServerDeclaration, TelemetrySpanEventRecord } from "@codemation/core";
 import { AgentBindError, ConnectionNodeIdFactory } from "@codemation/core";
 import { AgentMcpIntegrationImpl } from "../../src/mcp/AgentMcpIntegrationImpl";
 import { McpServerCatalog } from "../../src/mcp/McpServerCatalog";
@@ -43,6 +39,7 @@ function makeCredentialStore(
         setupStatus: "ready" as const,
         createdAt: "2024-01-01T00:00:00Z",
         updatedAt: "2024-01-01T00:00:00Z",
+        material: { source: "local" as const, ref: inst.instanceId ?? "default-id" },
       } satisfies CredentialInstanceRecord,
     ]),
   );
@@ -89,8 +86,7 @@ function makeCredentialStore(
     saveOAuth2Material: async () => {},
     deleteOAuth2Material: async () => {},
     upsertBinding: async () => {},
-    getBinding: async (key) =>
-      bindingsByKey.get(`${key.workflowId}\0${key.nodeId}\0${key.slotKey}`),
+    getBinding: async (key) => bindingsByKey.get(`${key.workflowId}\0${key.nodeId}\0${key.slotKey}`),
     listBindingsByWorkflowId: async () => [],
     saveTestResult: async () => {},
     getLatestTestResult: async () => undefined,
@@ -192,9 +188,7 @@ describe("AgentMcpIntegrationImpl", () => {
       });
 
       expect(result.has("gmail")).toBe(true);
-      expect(getBindingCalls).toEqual([
-        { workflowId: WORKFLOW_ID, nodeId: GMAIL_MCP_NODE_ID, slotKey: "credential" },
-      ]);
+      expect(getBindingCalls).toEqual([{ workflowId: WORKFLOW_ID, nodeId: GMAIL_MCP_NODE_ID, slotKey: "credential" }]);
     });
 
     it("throws AgentBindError when no binding exists for the MCP connection node", async () => {

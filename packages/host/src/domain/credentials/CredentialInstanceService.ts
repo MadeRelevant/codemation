@@ -114,8 +114,9 @@ export class CredentialInstanceService {
     const timestamp = new Date().toISOString();
     const strippedPublic = this.stripEnvManagedFieldValues(publicFields, request.publicConfig ?? {});
     const strippedSecretForRef = this.stripEnvManagedFieldValues(secretFields, request.secretConfig ?? {});
+    const instanceId = randomUUID();
     const instance: CredentialInstanceRecord = {
-      instanceId: randomUUID(),
+      instanceId,
       typeId: request.typeId,
       displayName: request.displayName.trim(),
       sourceKind: request.sourceKind,
@@ -125,6 +126,10 @@ export class CredentialInstanceService {
       setupStatus: credentialType.definition.auth?.kind === "oauth2" ? "draft" : "ready",
       createdAt: timestamp,
       updatedAt: timestamp,
+      // Story 01 (credentials-vault sprint): new instances are local-mode by
+      // default. Story 02 (CP material provider) will set source="control-plane"
+      // when managed mode is detected.
+      material: { source: "local", ref: instanceId },
     };
     await this.credentialStore.saveInstance({
       instance,

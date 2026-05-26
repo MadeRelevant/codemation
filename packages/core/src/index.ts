@@ -44,3 +44,10 @@ export type {
   OAuthMaterial,
   OAuthFlowExecutor,
 } from "./credentials/OAuthFlowExecutor.types";
+export type {
+  CredentialMaterialProvider,
+  CredentialMaterialRef,
+  MaterialBundle,
+  CallerContext,
+} from "./credentials/CredentialMaterialProvider.types";
+export { IllegalMaterialSourceError } from "./credentials/CredentialMaterialProvider.types";

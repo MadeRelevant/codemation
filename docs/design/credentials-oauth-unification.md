@@ -199,3 +199,175 @@ Slot-level scope refinement (a `GmailTrigger` declaring `requestedScopes: ["gmai
 | 5     | Cleanup of v0 broker machinery                                                               | 5.1, 5.2, 5.3      |
 | 6     | Activation-time scope validation                                                             | 6.1                |
 | 7     | Control-plane integration test on Windows                                                    | 7.1, 7.2, 7.3      |
+
+## Material provider seam (added 2026-05-26, refined 2026-05-26)
+
+> **Status**: 🟡 in flight under `planning/sprints/credentials-vault/`.
+> Supersedes the earlier "CredentialStore as adapter" framing
+> (`planning/sprints/current/`), which got the abstraction wrong.
+>
+> **Scope**: this section is **about persistence of material bytes**, not
+> about the OAuth dance. It does not change anything in the four-concept
+> model above. It refines concept 3 (`CredentialInstance` storage) by
+> introducing a new `CredentialMaterialProvider` seam so refresh tokens can
+> stay control-plane-side in managed mode, **without touching the existing
+> `CredentialStore`**.
+
+### Why
+
+The original design treats the host's `CredentialStore` as a single
+implementation. The earlier vault draft proposed swapping the entire
+`CredentialStore` in managed mode. That was wrong: in managed mode, only the
+**material** (access/refresh tokens) needs to live at CP. Everything else —
+`CredentialInstance` rows, slot bindings, the type catalog — stays in the
+workspace's existing `PrismaCredentialStore`, unchanged.
+
+We close the refresh-token-exfiltration gap with a smaller seam: a new
+`CredentialMaterialProvider` interface that sits behind the credential
+resolver, and one new field on `CredentialInstance` rows.
+
+### The new abstraction
+
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│ CredentialMaterialProvider (interface, @codemation/core)             │
+│   getMaterial(                                                       │
+│     ref: { source: "local" | "control-plane"; id: string },          │
+│     context: CallerContext                                           │
+│   ): Promise<MaterialBundle>;                                        │
+│   setMaterial(ref, material): Promise<void>;  // throws in CP impl   │
+└──────────────────────────────────────────────────────────────────────┘
+       ▲                                          ▲
+       │ implements                               │ implements
+       │                                          │
+┌──────┴───────────────────────────────┐  ┌───────┴──────────────────────────────────────┐
+│ LocalCredentialMaterialProvider (FW) │  │ ControlPlaneCredentialMaterialProvider (FW)  │
+│ - reads `material` column from the   │  │ - HMAC GET /internal/credentials/:ref/material│
+│   existing PrismaCredentialStore row │  │   with serialized CallerContext              │
+│ - writes allowed                     │  │ - setMaterial throws                         │
+│                                      │  │     ManagedCredentialMaterialWriteError      │
+└──────────────────────────────────────┘  └──────────────────────────────────────────────┘
+```
+
+`CredentialInstance` gains **one** new field:
+
+```
+material: { source: "local" | "control-plane"; ref: string }
+```
+
+- For local rows: `material` column on the row holds the bytes; the new
+  pointer's `ref` is the instance id. The existing `PrismaCredentialStore`
+  is unchanged.
+- For CP-source rows: the workspace stores **only** the pointer. The bytes
+  live in CP. The provider fetches them at use time.
+
+DI selects between the two providers at boot using the same managed-mode
+detection that selects `LocalOAuthFlowExecutor` vs `ManagedOAuthFlowExecutor`.
+A small `CompositeMaterialProvider` dispatches by `ref.source` so both modes
+can in principle coexist (e.g., a managed-mode workspace can still serve a
+hypothetical local-source credential — though in practice managed mode
+creates only CP-source rows).
+
+### Caller context — required for every CP read
+
+Every CP material fetch must carry caller context so CP can record what is
+using each credential. This is the audit + UX trail that replaces the
+workspace-side credentials page.
+
+```
+type CallerContext = {
+  workspaceId: string;
+  caller:
+    | { kind: "workflow-node"; workflowId: string; nodeId: string }
+    | { kind: "concierge"; chatId: string }
+    | { kind: "research-agent"; chatId: string }
+    | { kind: "manual"; userId: string };
+  reason?: string;
+};
+```
+
+CP records this on an append-only audit row per fetch and renders it on the
+"Connected apps" page as "used by N nodes across M workflows" with
+drill-down to (workflow, node, last-used) pairs.
+
+### Read path in managed mode
+
+```
+Node executes → credential resolver → CompositeMaterialProvider
+                                              │
+                                              ▼ (ref.source = "control-plane")
+                                       CachingCredentialMaterialProvider (decorator)
+                                              │ cache hit? return.
+                                              │ cache miss / expired:
+                                              ▼
+                                       ControlPlaneCredentialMaterialProvider
+                                              │
+                                       HMAC GET /internal/credentials/:ref/material
+                                       body: { callerContext }
+                                              │
+                                              ▼
+                                       Control plane:
+                                         expired? refresh upstream first.
+                                         append audit row w/ callerContext.
+                                         return { accessToken, expiresAt, scopes,
+                                                  providerAccountId, typeId }
+                                         (refresh token NEVER in response)
+                                              │
+                                              ▼
+                                       Cache stores in in-memory map keyed by
+                                       (source, ref) with TTL =
+                                       min(expiresIn − 60s, 5 min hard cap).
+```
+
+### Throw-on-write — narrowly scoped
+
+`setMaterial` on `ControlPlaneCredentialMaterialProvider` throws
+`ManagedCredentialMaterialWriteError`. The error is exported from
+`@codemation/core` so call sites can `instanceof`-check it.
+
+Crucially, this **does not** throw on local instance-metadata writes — the
+existing `CredentialInstance` create/update path in `PrismaCredentialStore`
+still works in managed mode. That's what lets the concierge bind a node to
+a CP-source credential by upserting a row with
+`material: { source: "control-plane", ref: <cp_id> }` from inside the
+workspace. The pointer goes in, the bytes don't.
+
+The OAuth dance writes material at CP (not via the workspace) — the workspace
+reads it back through `/internal/credentials/:ref/material` on next use.
+
+### In-memory cache
+
+In-process only, never serialized to disk. Keyed by `(ref.source, ref.id)`.
+TTL = `min(returnedExpiresInMs − 60_000, 5 * 60_000)` (hard cap 5 min).
+Hits do not contact CP — by design, audit rows are per-fetch, not
+per-execution-millisecond. `setMaterial` (local path) invalidates the entry
+on success.
+
+### Connected apps UX (managed mode only)
+
+D7: the workspace has **no credentials page** in managed mode. The CP
+"Connected apps" page is the canonical view:
+
+- Per user, cross-workspace. Grouped/filtered by workspace.
+- A credential is workspace-scoped (`userId + workspaceId`). v1 ACL:
+  workspace membership = usability. No per-member ACL.
+- Multiple accounts of the same type are explicitly allowed; the label is
+  the `providerAccountId` (email for Google, `team_id` for Slack, …)
+  recorded at OAuth callback time.
+- Each row renders usage: "used by N nodes across M workflows in 'Workspace
+  Foo'" + last-used-at, computed from the audit table.
+- Concierge binding flow: `list_credentials_for_type` → 0/1/2+ results
+  branches to `present_connect_button` / silent bind / `ask_choice`.
+  Bindings store the explicit `materialRef`; re-binding requires user
+  action.
+
+### What this does NOT change
+
+- Concepts 1, 2, 4 from the original four-concept model are untouched.
+- The shape of `CredentialInstanceRecord` is unchanged **except** for the
+  added `material: {source, ref}` field.
+- The OAuth flow executor split (`Local` vs `Managed`) is unchanged.
+- The existing `PrismaCredentialStore` is unchanged — no rename, no
+  interface swap. The provider sits beside it, not on top of it.
+- Standalone mode is unaffected. The workspace credentials UI stays for OSS
+  users.
