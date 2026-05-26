@@ -308,12 +308,17 @@ import { HitlTimeoutJobScheduler } from "../hitl/HitlTimeoutJobScheduler";
 import { HitlTimeoutWorker } from "../hitl/HitlTimeoutWorker";
 import { DecideHumanTaskCommandHandler } from "../application/hitl/DecideHumanTaskCommandHandler";
 import { DecisionSchemaValidator } from "../application/hitl/DecisionSchemaValidator";
+import { ResumeTelemetryContextForRun } from "../application/telemetry/ResumeTelemetryContextForRun";
 import { HitlDecideHonoApiRouteRegistrar } from "../presentation/http/hono/registrars/HitlDecideHonoApiRouteRegistrar";
 import { HitlResumeHonoApiRouteRegistrar } from "../presentation/http/hono/registrars/HitlResumeHonoApiRouteRegistrar";
 import { HumanTaskStoreToken } from "@codemation/core";
 import { HitlResumeTokenSignerToken, HitlTimeoutJobSchedulerToken } from "@codemation/core";
-import { InboxChannelResolverToken } from "@codemation/core";
+import { ControlPlaneInboxChannelToken, InboxChannelResolverToken, LocalInboxChannelToken } from "@codemation/core";
 import { InboxChannelResolver } from "../hitl/InboxChannelResolver";
+import { ControlPlaneInboxChannel } from "../hitl/ControlPlaneInboxChannel";
+import { HitlCallbackHandler } from "../application/hitl/HitlCallbackHandler";
+import { HitlInternalCallbackHonoApiRouteRegistrar } from "../presentation/http/hono/registrars/HitlInternalCallbackHonoApiRouteRegistrar";
+import { LocalInboxChannel } from "../hitl/LocalInboxChannel";
 
 type AppContainerInputs = Readonly<{
   appConfig: AppConfig;
@@ -907,11 +912,18 @@ export class AppContainerFactory {
     });
     container.registerSingleton(HitlTimeoutWorker, HitlTimeoutWorker);
     container.registerSingleton(DecisionSchemaValidator, DecisionSchemaValidator);
+    container.registerSingleton(ResumeTelemetryContextForRun, ResumeTelemetryContextForRun);
     container.registerSingleton(DecideHumanTaskCommandHandler, DecideHumanTaskCommandHandler);
     // HITL story 05: inbox channel resolver (concrete channels registered in stories 06 + 07)
     container.registerSingleton(InboxChannelResolver, InboxChannelResolver);
     container.register(InboxChannelResolverToken, {
       useFactory: instanceCachingFactory((dc) => dc.resolve(InboxChannelResolver)),
+    });
+    // HITL story 06: local inbox channel — registered unconditionally; the resolver picks it
+    // whenever managed-mode CP channel is not present.
+    container.registerSingleton(LocalInboxChannel, LocalInboxChannel);
+    container.register(LocalInboxChannelToken, {
+      useFactory: instanceCachingFactory((dc) => dc.resolve(LocalInboxChannel)),
     });
     container.register(ApplicationTokens.WorkflowDefinitionRepository, {
       useFactory: instanceCachingFactory(
@@ -1075,6 +1087,16 @@ export class AppContainerFactory {
     container.registerSingleton(ApplicationTokens.InternalHonoApiRouteRegistrar, InternalWorkflowDetailRegistrar);
     container.registerSingleton(ApplicationTokens.InternalHonoApiRouteRegistrar, InternalWorkflowActivationRegistrar);
     container.registerSingleton(ApplicationTokens.InternalHonoApiRouteRegistrar, InternalWorkflowTestRunRegistrar);
+    // HITL story 07: CP inbox channel + inbound callback receiver (managed mode only)
+    container.registerSingleton(ControlPlaneInboxChannel, ControlPlaneInboxChannel);
+    container.register(ControlPlaneInboxChannelToken, {
+      useFactory: instanceCachingFactory((dc) => dc.resolve(ControlPlaneInboxChannel)),
+    });
+    container.registerSingleton(HitlCallbackHandler, HitlCallbackHandler);
+    container.registerSingleton(
+      ApplicationTokens.InternalHonoApiRouteRegistrar,
+      HitlInternalCallbackHonoApiRouteRegistrar,
+    );
   }
 
   private registerOperationalInfrastructure(container: Container): void {
