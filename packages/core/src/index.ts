@@ -13,6 +13,19 @@ export type { HumanTaskRecord, HumanTaskStatus, HumanTaskStore } from "./contrac
 export { HumanTaskStoreToken } from "./contracts/humanTaskStoreTypes";
 export type { HitlResumeTokenSignerSeam, HitlTimeoutJobSchedulerSeam } from "./contracts/hitlSeamTypes";
 export { HitlResumeTokenSignerToken, HitlTimeoutJobSchedulerToken } from "./contracts/hitlSeamTypes";
+export type {
+  InboxChannel,
+  InboxChannelResolverSeam,
+  InboxDeliverArgs,
+  InboxDelivery,
+  InboxOnDecisionArgs,
+  InboxOnTimeoutArgs,
+} from "./contracts/inboxChannelTypes";
+export {
+  InboxChannelResolverToken,
+  LocalInboxChannelToken,
+  ControlPlaneInboxChannelToken,
+} from "./contracts/inboxChannelTypes";
 export * from "./authoring";
 export * from "./ai/AiHost";
 export { AgentConnectionNodeCollector } from "./ai/AgentConnectionNodeCollector";

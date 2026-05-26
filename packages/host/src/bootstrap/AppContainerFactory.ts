@@ -312,6 +312,8 @@ import { HitlDecideHonoApiRouteRegistrar } from "../presentation/http/hono/regis
 import { HitlResumeHonoApiRouteRegistrar } from "../presentation/http/hono/registrars/HitlResumeHonoApiRouteRegistrar";
 import { HumanTaskStoreToken } from "@codemation/core";
 import { HitlResumeTokenSignerToken, HitlTimeoutJobSchedulerToken } from "@codemation/core";
+import { InboxChannelResolverToken } from "@codemation/core";
+import { InboxChannelResolver } from "../hitl/InboxChannelResolver";
 
 type AppContainerInputs = Readonly<{
   appConfig: AppConfig;
@@ -906,6 +908,11 @@ export class AppContainerFactory {
     container.registerSingleton(HitlTimeoutWorker, HitlTimeoutWorker);
     container.registerSingleton(DecisionSchemaValidator, DecisionSchemaValidator);
     container.registerSingleton(DecideHumanTaskCommandHandler, DecideHumanTaskCommandHandler);
+    // HITL story 05: inbox channel resolver (concrete channels registered in stories 06 + 07)
+    container.registerSingleton(InboxChannelResolver, InboxChannelResolver);
+    container.register(InboxChannelResolverToken, {
+      useFactory: instanceCachingFactory((dc) => dc.resolve(InboxChannelResolver)),
+    });
     container.register(ApplicationTokens.WorkflowDefinitionRepository, {
       useFactory: instanceCachingFactory(
         (dependencyContainer) =>
@@ -1154,6 +1161,9 @@ export class AppContainerFactory {
           binaryStorage,
           new LazyExecutionTelemetryFactory(() => container.resolve(OtelExecutionTelemetryFactory)),
           new CatalogBackedCostTrackingTelemetryFactory(new StaticCostCatalog(FrameworkCostCatalogEntries)),
+          undefined,
+          undefined,
+          container,
         ),
       );
       this.registerRuntimeNodeActivationScheduler(container);
@@ -1205,6 +1215,9 @@ export class AppContainerFactory {
         binaryStorage,
         new LazyExecutionTelemetryFactory(() => container.resolve(OtelExecutionTelemetryFactory)),
         new CatalogBackedCostTrackingTelemetryFactory(new StaticCostCatalog(FrameworkCostCatalogEntries)),
+        undefined,
+        undefined,
+        container,
       ),
     );
     if (appConfig.scheduler.kind === "bullmq") {
