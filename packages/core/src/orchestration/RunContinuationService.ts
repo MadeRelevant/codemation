@@ -5,6 +5,7 @@ import type {
   NodeActivationRequest,
   NodeExecutionContext,
   NodeExecutionSnapshot,
+  NodeExecutionStatus,
   NodeId,
   NodeInputsByPort,
   NodeOutputs,
@@ -14,6 +15,7 @@ import type {
   PersistedRunState,
   ResumeContext,
   RunDataFactory,
+  RunHaltReason,
   RunId,
   RunQueueEntry,
   RunResult,
@@ -148,6 +150,12 @@ export class RunContinuationService {
 
     data.setOutputs(args.nodeId, args.outputs);
     const completedAt = new Date().toISOString();
+
+    // Resolve HITL status from the node's decision output (story 03).
+    // Only fires when the output carries `item.json.decision.status` written by a
+    // defineHumanApprovalNode-based node. Non-HITL nodes never have this field.
+    const hitlResolution = this.resolveHitlStatus(args.outputs);
+
     const completedSnapshot = this.semantics.createFinishedSnapshot({
       workflow: wf,
       previous: state.nodeSnapshotsByNodeId?.[args.nodeId],
@@ -159,7 +167,42 @@ export class RunContinuationService {
       finishedAt: completedAt,
       inputsByPort: pendingExecution.inputsByPort,
       outputs: args.outputs,
+      hitlStatus: hitlResolution?.nodeStatus,
     });
+
+    // Halt the run for HITL rejection / timeout outcomes (D3).
+    if (hitlResolution?.halt) {
+      const haltedState = this.persistedRunStateTerminalBuilder.mergeTerminal({
+        state,
+        engineCounters: state.engineCounters ?? { completedNodeActivations: 0 },
+        status: "halted",
+        reason: hitlResolution.reason,
+        queue: [],
+        outputsByNode: data.dump(),
+        nodeSnapshotsByNodeId: {
+          ...(state.nodeSnapshotsByNodeId ?? {}),
+          [args.nodeId]: completedSnapshot,
+        },
+        finishedAtIso: completedAt,
+      });
+      await this.workflowExecutionRepository.save(haltedState);
+      await this.nodeEventPublisher.publish("nodeCompleted", completedSnapshot);
+      await this.terminalPersistence.maybeDeleteAfterTerminalState({
+        workflow: wf,
+        state: haltedState,
+        finalStatus: "failed",
+        finishedAt: completedAt,
+      });
+      const result: RunResult = {
+        runId: state.runId,
+        workflowId: state.workflowId,
+        startedAt: state.startedAt,
+        status: "halted",
+        reason: hitlResolution.reason,
+      };
+      this.waiters.resolveRunCompletion(result);
+      return result;
+    }
 
     const completedActivations = (state.engineCounters?.completedNodeActivations ?? 0) + 1;
     const engineCounters = { completedNodeActivations: completedActivations };
@@ -503,7 +546,7 @@ export class RunContinuationService {
     return await this.resumeFromNodeError(args);
   }
 
-  async waitForCompletion(runId: RunId): Promise<Extract<RunResult, { status: "completed" | "failed" }>> {
+  async waitForCompletion(runId: RunId): Promise<Extract<RunResult, { status: "completed" | "failed" | "halted" }>> {
     const existing = await this.workflowExecutionRepository.load(runId);
     if (existing?.status === "completed") {
       const wf = this.resolvePersistedWorkflow(existing);
@@ -527,9 +570,18 @@ export class RunContinuationService {
         error: { message: "Run failed" },
       };
     }
+    if (existing?.status === "halted") {
+      return {
+        runId: existing.runId,
+        workflowId: existing.workflowId,
+        startedAt: existing.startedAt,
+        status: "halted",
+        reason: existing.reason ?? "hitl-rejected",
+      };
+    }
 
     const result = await this.waiters.waitForCompletion(runId);
-    if (result.status !== "completed" && result.status !== "failed") {
+    if (result.status !== "completed" && result.status !== "failed" && result.status !== "halted") {
       throw new Error(`Unexpected run completion status: ${result.status}`);
     }
     return result;
@@ -1106,6 +1158,60 @@ export class RunContinuationService {
     };
     this.waiters.resolveRunCompletion(result);
     return result;
+  }
+
+  /**
+   * Inspects node outputs for a `decision.status` written by `defineHumanApprovalNode`.
+   * Returns the first-class HITL node status and halt classification, or `undefined`
+   * when the node is not a HITL approval node.
+   */
+  private resolveHitlStatus(outputs: NodeOutputs):
+    | {
+        nodeStatus: Extract<
+          NodeExecutionStatus,
+          "hitl-approved" | "hitl-rejected" | "hitl-timeout" | "hitl-auto-accepted"
+        >;
+        halt: boolean;
+        reason: RunHaltReason;
+      }
+    | { nodeStatus: Extract<NodeExecutionStatus, "hitl-approved" | "hitl-auto-accepted">; halt: false }
+    | undefined {
+    const firstItem = outputs?.main?.[0];
+    const decisionStatus =
+      firstItem &&
+      typeof firstItem === "object" &&
+      "json" in firstItem &&
+      firstItem.json &&
+      typeof firstItem.json === "object" &&
+      "decision" in firstItem.json &&
+      firstItem.json.decision &&
+      typeof firstItem.json.decision === "object" &&
+      "status" in firstItem.json.decision
+        ? (firstItem.json.decision as { status: string }).status
+        : undefined;
+
+    if (!decisionStatus) return undefined;
+
+    if (decisionStatus === "approved") {
+      return { nodeStatus: "hitl-approved", halt: false } as {
+        nodeStatus: "hitl-approved";
+        halt: false;
+      };
+    }
+    if (decisionStatus === "auto-accepted") {
+      return { nodeStatus: "hitl-auto-accepted", halt: false } as {
+        nodeStatus: "hitl-auto-accepted";
+        halt: false;
+      };
+    }
+    if (decisionStatus === "rejected") {
+      return { nodeStatus: "hitl-rejected", halt: true, reason: "hitl-rejected" as const };
+    }
+    if (decisionStatus === "timed-out") {
+      return { nodeStatus: "hitl-timeout", halt: true, reason: "hitl-timeout" as const };
+    }
+
+    return undefined;
   }
 
   private formatNodeLabel(args: {
