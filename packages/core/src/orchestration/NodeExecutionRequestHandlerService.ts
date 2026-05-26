@@ -4,12 +4,14 @@ import type {
   NodeExecutionRequest,
   NodeExecutionRequestHandler,
   PersistedRunState,
+  ResumeContext,
   RunDataFactory,
   WorkflowDefinition,
   WorkflowExecutionRepository,
   WorkflowSnapshotResolver,
 } from "../types";
 import type { EngineExecutionLimitsPolicy } from "../policies/executionLimits/EngineExecutionLimitsPolicy";
+import { RunSuspendedError } from "../execution/RunSuspendedError";
 import { NodeActivationRequestComposer } from "../execution/NodeActivationRequestComposer";
 import { NodeRunStateWriterFactory } from "../execution/NodeRunStateWriterFactory";
 import { WorkflowRunExecutionContextFactory } from "../execution/WorkflowRunExecutionContextFactory";
@@ -84,6 +86,14 @@ export class NodeExecutionRequestHandlerService implements NodeExecutionRequestH
     const portKeys = Object.keys(inputsByPort);
     const kind = portKeys.length === 1 && portKeys[0] === "in" ? ("single" as const) : ("multi" as const);
     const batchId = pendingExecution.batchId ?? "batch_1";
+    // Splice resumeContext from pendingResume if this activation is a HITL resume (story 01).
+    const pendingResume = state.pendingResume;
+    const resumeContext: ResumeContext | undefined =
+      pendingResume?.activationId === request.activationId && pendingResume?.nodeId === request.nodeId
+        ? (pendingResume.resumeContext as ResumeContext)
+        : undefined;
+    const baseWithResume = resumeContext != null ? { ...base, resumeContext } : base;
+
     const activationRequest =
       kind === "multi"
         ? this.nodeActivationRequestComposer.createMultiFromDefinitionWithActivation({
@@ -92,7 +102,7 @@ export class NodeExecutionRequestHandlerService implements NodeExecutionRequestH
             workflowId: request.workflowId,
             parent: resolvedParent,
             executionOptions: request.executionOptions ?? state.executionOptions,
-            base,
+            base: baseWithResume,
             data,
             definition: {
               id: definition.id,
@@ -107,7 +117,7 @@ export class NodeExecutionRequestHandlerService implements NodeExecutionRequestH
             workflowId: request.workflowId,
             parent: resolvedParent,
             executionOptions: request.executionOptions ?? state.executionOptions,
-            base,
+            base: baseWithResume,
             data,
             definition: {
               id: definition.id,
@@ -116,6 +126,14 @@ export class NodeExecutionRequestHandlerService implements NodeExecutionRequestH
             batchId,
             input: inputsByPort.in ?? request.input ?? [],
           });
+
+    // Clear pendingResume from state now that we have consumed it.
+    if (resumeContext != null) {
+      const clearedState = await this.workflowExecutionRepository.load(request.runId);
+      if (clearedState?.pendingResume?.activationId === request.activationId) {
+        await this.workflowExecutionRepository.save({ ...clearedState, pendingResume: undefined });
+      }
+    }
 
     await this.continuation.markNodeRunning({
       runId: activationRequest.runId,
@@ -128,6 +146,11 @@ export class NodeExecutionRequestHandlerService implements NodeExecutionRequestH
     try {
       outputs = await this.nodeExecutor.execute(activationRequest);
     } catch (error) {
+      if (error instanceof RunSuspendedError) {
+        // The node threw SuspensionRequest; NodeSuspensionHandler already persisted the
+        // suspension entry and flipped status to "suspended". Nothing more to do here.
+        return;
+      }
       await this.resumeAfterExecutionError(activationRequest, this.asError(error));
       return;
     }

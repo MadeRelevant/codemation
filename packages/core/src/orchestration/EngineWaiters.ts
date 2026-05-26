@@ -21,7 +21,7 @@ export class EngineWaiters {
   }
 
   resolveRunCompletion(result: RunResult): void {
-    if (result.status !== "completed" && result.status !== "failed") return;
+    if (result.status !== "completed" && result.status !== "failed" && result.status !== "halted") return;
     const list = this.completionWaiters.get(result.runId);
     if (!list || list.length === 0) return;
     this.completionWaiters.delete(result.runId);

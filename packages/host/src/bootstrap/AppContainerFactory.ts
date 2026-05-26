@@ -305,6 +305,23 @@ import { ManagedWebsocketAuthenticator } from "../presentation/websocket/Managed
 import { JwksCache, ManagedJwtVerifier } from "@codemation/managed-auth";
 import { CodemationTsyringeTypeInfoRegistrar } from "../presentation/server/CodemationTsyringeTypeInfoRegistrar";
 import { ControlPlaneCatalogFetcher } from "../credentials/ControlPlaneCatalogFetcher";
+import { PrismaHumanTaskStore } from "../infrastructure/persistence/PrismaHumanTaskStore";
+import { HitlResumeTokenSigner } from "../hitl/HitlResumeTokenSigner";
+import { HitlTimeoutJobScheduler } from "../hitl/HitlTimeoutJobScheduler";
+import { HitlTimeoutWorker } from "../hitl/HitlTimeoutWorker";
+import { DecideHumanTaskCommandHandler } from "../application/hitl/DecideHumanTaskCommandHandler";
+import { DecisionSchemaValidator } from "../application/hitl/DecisionSchemaValidator";
+import { HitlDecideHonoApiRouteRegistrar } from "../presentation/http/hono/registrars/HitlDecideHonoApiRouteRegistrar";
+import { HitlResumeHonoApiRouteRegistrar } from "../presentation/http/hono/registrars/HitlResumeHonoApiRouteRegistrar";
+import { HumanTaskStoreToken } from "@codemation/core";
+import { HitlResumeTokenSignerToken, HitlTimeoutJobSchedulerToken } from "@codemation/core";
+import { ControlPlaneInboxChannelToken, InboxChannelResolverToken, LocalInboxChannelToken } from "@codemation/core";
+import { InboxChannelResolver } from "../hitl/InboxChannelResolver";
+import { LocalInboxChannel } from "../hitl/LocalInboxChannel";
+import { ControlPlaneInboxChannel } from "../hitl/ControlPlaneInboxChannel";
+import { HitlCallbackHandler } from "../application/hitl/HitlCallbackHandler";
+import { HitlInternalCallbackHonoApiRouteRegistrar } from "../presentation/http/hono/registrars/HitlInternalCallbackHonoApiRouteRegistrar";
+import { ResumeTelemetryContextForRun } from "../application/telemetry/ResumeTelemetryContextForRun";
 
 type AppContainerInputs = Readonly<{
   appConfig: AppConfig;
@@ -384,6 +401,8 @@ export class AppContainerFactory {
     WhitelabelHonoApiRouteRegistrar,
     WorkflowHonoApiRouteRegistrar,
     CollectionHonoApiRouteRegistrar,
+    HitlDecideHonoApiRouteRegistrar,
+    HitlResumeHonoApiRouteRegistrar,
   ] as const;
 
   constructor(
@@ -877,6 +896,7 @@ export class AppContainerFactory {
       ),
     });
     container.registerSingleton(OtelExecutionTelemetryFactory, OtelExecutionTelemetryFactory);
+    container.registerSingleton(ResumeTelemetryContextForRun, ResumeTelemetryContextForRun);
     container.registerSingleton(InMemoryRunTraceContextRepository, InMemoryRunTraceContextRepository);
     container.registerSingleton(InMemoryTelemetrySpanStore, InMemoryTelemetrySpanStore);
     container.registerSingleton(InMemoryTelemetryArtifactStore, InMemoryTelemetryArtifactStore);
@@ -899,6 +919,32 @@ export class AppContainerFactory {
     container.registerSingleton(PrismaWorkflowActivationRepository, PrismaWorkflowActivationRepository);
     container.registerSingleton(InMemoryWorkflowActivationRepository, InMemoryWorkflowActivationRepository);
     container.registerSingleton(PrismaCredentialStore, PrismaCredentialStore);
+    // HITL story 02: token signer + timeout scheduler (persistence wired in registerRuntimeInfrastructure)
+    container.registerSingleton(PrismaHumanTaskStore, PrismaHumanTaskStore);
+    // Default: no HITL store; overridden to PrismaHumanTaskStore in the Prisma path below
+    container.register(HumanTaskStoreToken, { useFactory: () => undefined });
+    container.registerSingleton(HitlResumeTokenSigner, HitlResumeTokenSigner);
+    container.register(HitlResumeTokenSignerToken, {
+      useFactory: instanceCachingFactory((dc) => dc.resolve(HitlResumeTokenSigner)),
+    });
+    container.registerSingleton(HitlTimeoutJobScheduler, HitlTimeoutJobScheduler);
+    container.register(HitlTimeoutJobSchedulerToken, {
+      useFactory: instanceCachingFactory((dc) => dc.resolve(HitlTimeoutJobScheduler)),
+    });
+    container.registerSingleton(HitlTimeoutWorker, HitlTimeoutWorker);
+    container.registerSingleton(DecisionSchemaValidator, DecisionSchemaValidator);
+    container.registerSingleton(DecideHumanTaskCommandHandler, DecideHumanTaskCommandHandler);
+    // HITL story 05: inbox channel resolver (concrete channels registered in stories 06 + 07)
+    container.registerSingleton(InboxChannelResolver, InboxChannelResolver);
+    container.register(InboxChannelResolverToken, {
+      useFactory: instanceCachingFactory((dc) => dc.resolve(InboxChannelResolver)),
+    });
+    // HITL story 06: local inbox channel — registered unconditionally; the resolver picks it
+    // whenever managed-mode CP channel is not present.
+    container.registerSingleton(LocalInboxChannel, LocalInboxChannel);
+    container.register(LocalInboxChannelToken, {
+      useFactory: instanceCachingFactory((dc) => dc.resolve(LocalInboxChannel)),
+    });
     container.register(ApplicationTokens.WorkflowDefinitionRepository, {
       useFactory: instanceCachingFactory(
         (dependencyContainer) =>
@@ -1061,6 +1107,16 @@ export class AppContainerFactory {
     container.registerSingleton(ApplicationTokens.InternalHonoApiRouteRegistrar, InternalWorkflowDetailRegistrar);
     container.registerSingleton(ApplicationTokens.InternalHonoApiRouteRegistrar, InternalWorkflowActivationRegistrar);
     container.registerSingleton(ApplicationTokens.InternalHonoApiRouteRegistrar, InternalWorkflowTestRunRegistrar);
+    // HITL story 07: CP inbox channel + inbound decision callback (managed mode only)
+    container.registerSingleton(ControlPlaneInboxChannel, ControlPlaneInboxChannel);
+    container.register(ControlPlaneInboxChannelToken, {
+      useFactory: instanceCachingFactory((dc) => dc.resolve(ControlPlaneInboxChannel)),
+    });
+    container.registerSingleton(HitlCallbackHandler, HitlCallbackHandler);
+    container.registerSingleton(
+      ApplicationTokens.InternalHonoApiRouteRegistrar,
+      HitlInternalCallbackHonoApiRouteRegistrar,
+    );
   }
 
   private registerOperationalInfrastructure(container: Container): void {
@@ -1147,6 +1203,9 @@ export class AppContainerFactory {
           binaryStorage,
           new LazyExecutionTelemetryFactory(() => container.resolve(OtelExecutionTelemetryFactory)),
           new CatalogBackedCostTrackingTelemetryFactory(new StaticCostCatalog(FrameworkCostCatalogEntries)),
+          undefined,
+          undefined,
+          container,
         ),
       );
       this.registerRuntimeNodeActivationScheduler(container);
@@ -1184,6 +1243,8 @@ export class AppContainerFactory {
       container.resolve(PrismaWorkflowActivationRepository),
     );
     container.registerInstance(ApplicationTokens.CredentialStore, container.resolve(PrismaCredentialStore));
+    // HITL story 02: wire PrismaHumanTaskStore now that PrismaDatabaseClientToken is available
+    container.registerInstance(HumanTaskStoreToken, container.resolve(PrismaHumanTaskStore));
     container.registerInstance(ApplicationTokens.RunTraceContextRepository, runTraceContextRepository);
     container.registerInstance(ApplicationTokens.TelemetrySpanStore, telemetrySpanStore);
     container.registerInstance(ApplicationTokens.TelemetryArtifactStore, telemetryArtifactStore);
@@ -1196,6 +1257,9 @@ export class AppContainerFactory {
         binaryStorage,
         new LazyExecutionTelemetryFactory(() => container.resolve(OtelExecutionTelemetryFactory)),
         new CatalogBackedCostTrackingTelemetryFactory(new StaticCostCatalog(FrameworkCostCatalogEntries)),
+        undefined,
+        undefined,
+        container,
       ),
     );
     if (appConfig.scheduler.kind === "bullmq") {

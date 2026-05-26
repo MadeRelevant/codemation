@@ -170,7 +170,7 @@ export type PersistedRunState = Readonly<{
   executionOptions?: RunExecutionOptions;
   workflowSnapshot?: PersistedWorkflowSnapshot;
   mutableState?: PersistedMutableRunState;
-  status: "running" | "pending" | "completed" | "failed";
+  status: "running" | "pending" | "completed" | "failed" | "suspended";
   pending?: PendingNodeExecution;
   queue: ReadonlyArray<unknown>;
   outputsByNode: Readonly<Record<string, Readonly<Record<string, Items>>>>;

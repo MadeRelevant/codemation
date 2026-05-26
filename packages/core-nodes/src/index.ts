@@ -43,3 +43,4 @@ export * from "./nodes/ConnectionCredentialNodeConfig";
 export * from "./nodes/ConnectionCredentialNodeConfigFactory";
 export * from "./nodes/ConnectionCredentialExecutionContextFactory";
 export * from "./nodes/collections";
+export * from "./nodes/InboxApprovalNode.types";

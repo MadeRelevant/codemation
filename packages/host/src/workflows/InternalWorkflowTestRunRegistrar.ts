@@ -79,6 +79,15 @@ export class InternalWorkflowTestRunRegistrar implements InternalHonoApiRouteReg
         });
       }
 
+      if (runResult.status === "halted") {
+        return c.json({
+          ok: false,
+          runId: runResult.runId,
+          error: `Run halted: ${runResult.reason}`,
+          durationMs: Date.now() - startMs,
+        });
+      }
+
       // completed
       return c.json({
         ok: true,

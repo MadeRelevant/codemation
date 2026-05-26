@@ -13,6 +13,9 @@ import {
   NodeOutputNormalizer,
   RunnableOutputBehaviorResolver,
 } from "../../execution";
+import { NodeSuspensionHandler } from "../../execution/NodeSuspensionHandler";
+import { HumanTaskStoreToken } from "../../contracts/humanTaskStoreTypes";
+import { HitlResumeTokenSignerToken, HitlTimeoutJobSchedulerToken } from "../../contracts/hitlSeamTypes";
 import {
   EngineFactory,
   EngineWorkflowRunnerServiceFactory,
@@ -119,12 +122,30 @@ export class EngineRuntimeRegistrar {
         const retryRunner = dependencyContainer
           .resolve(InProcessRetryRunnerFactory)
           .create(dependencyContainer.resolve(DefaultAsyncSleeper));
+        const workflowExecutionRepository = dependencyContainer.resolve(CoreTokens.WorkflowExecutionRepository);
+        const humanTaskStore = dependencyContainer.isRegistered(HumanTaskStoreToken, true)
+          ? dependencyContainer.resolve(HumanTaskStoreToken)
+          : undefined;
+        const tokenSigner = dependencyContainer.isRegistered(HitlResumeTokenSignerToken, true)
+          ? dependencyContainer.resolve(HitlResumeTokenSignerToken)
+          : undefined;
+        const timeoutScheduler = dependencyContainer.isRegistered(HitlTimeoutJobSchedulerToken, true)
+          ? dependencyContainer.resolve(HitlTimeoutJobSchedulerToken)
+          : undefined;
+        const suspensionHandler = new NodeSuspensionHandler(
+          workflowExecutionRepository,
+          humanTaskStore ?? undefined,
+          tokenSigner ?? undefined,
+          timeoutScheduler ?? undefined,
+        );
         return dependencyContainer
           .resolve(NodeExecutorFactory)
           .create(
             dependencyContainer.resolve(CoreTokens.WorkflowNodeInstanceFactory),
             retryRunner,
             dependencyContainer.resolve(RunnableOutputBehaviorResolver),
+            suspensionHandler,
+            (runId) => workflowExecutionRepository.load(runId),
           );
       }),
     });
