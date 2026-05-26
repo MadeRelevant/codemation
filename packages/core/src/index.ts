@@ -9,6 +9,8 @@ export {
   type ResumeContext,
 } from "./contracts/runtimeTypes";
 export type { PersistedSuspensionEntry, PendingResumeEntry } from "./contracts/runTypes";
+export type { HumanTaskRecord, HumanTaskStatus, HumanTaskStore } from "./contracts/humanTaskStoreTypes";
+export { HumanTaskStoreToken } from "./contracts/humanTaskStoreTypes";
 export * from "./authoring";
 export * from "./ai/AiHost";
 export { AgentConnectionNodeCollector } from "./ai/AgentConnectionNodeCollector";

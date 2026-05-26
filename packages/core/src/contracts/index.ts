@@ -1,5 +1,6 @@
 export * from "./AgentBindError";
 export * from "./agentMcpTypes";
+export * from "./humanTaskStoreTypes";
 export * from "./NoOpAgentMcpIntegration";
 export * from "./baseTypes";
 export * from "./assertionTypes";
