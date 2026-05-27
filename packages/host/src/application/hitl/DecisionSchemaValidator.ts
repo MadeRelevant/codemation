@@ -1,4 +1,4 @@
-import Ajv from "ajv/dist/2020";
+import Ajv from "ajv/dist/2020.js";
 import { injectable } from "@codemation/core";
 import type { JsonValue } from "@codemation/core";
 
