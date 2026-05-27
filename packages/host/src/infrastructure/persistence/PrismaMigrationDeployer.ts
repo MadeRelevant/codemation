@@ -14,19 +14,22 @@ import type { AppPersistenceConfig } from "../../presentation/config/AppConfig";
 
 // The import specifier is intentionally split so static analysers (NFT / Turbopack)
 // cannot resolve it at build time and trace the heavy fs/createRequire ops inside.
-// We disambiguate source vs dist at runtime via `import.meta.url`:
+// We disambiguate source vs dist at runtime via `import.meta.url`, then resolve to
+// an absolute `file://` URL. The absolute URL bypasses tsx-loader's namespace
+// decoration, which otherwise propagates a `?tsx-namespace=...` query to every
+// transitive `node:*` builtin import in PrismaMigrationOperations and trips
+// `ENOENT: open 'node:path?tsx-namespace=...'` under the packaged smoke harness.
 //  - source (Vitest, `pnpm dev`): the wrapper and operations are siblings under
-//    `src/infrastructure/persistence/`, so `./PrismaMigrationOperations.js`.
+//    `src/infrastructure/persistence/`, so the relative path is `./PrismaMigrationOperations.js`.
 //  - dist (published tgz): tsdown inlines the wrapper into top-level chunks, while
 //    the operations module is emitted as its own entry at
-//    `dist/infrastructure/persistence/PrismaMigrationOperations.js`. The .js
-//    extension is required because the package is `"type": "module"`.
+//    `dist/infrastructure/persistence/PrismaMigrationOperations.js`.
 const implSpecifier = /* @__PURE__ */ (() => {
   const suffix = "Operations.js";
-  if (import.meta.url.includes("/src/")) {
-    return "./PrismaMigration" + suffix;
-  }
-  return "./infrastructure/persistence/PrismaMigration" + suffix;
+  const relativePath = import.meta.url.includes("/src/")
+    ? "./PrismaMigration" + suffix
+    : "./infrastructure/persistence/PrismaMigration" + suffix;
+  return new URL(relativePath, import.meta.url).href;
 })();
 
 @injectable()
