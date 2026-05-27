@@ -12,7 +12,11 @@ export type { PersistedSuspensionEntry, PendingResumeEntry, RunHaltReason } from
 export type { HumanTaskRecord, HumanTaskStatus, HumanTaskStore } from "./contracts/humanTaskStoreTypes";
 export { HumanTaskStoreToken } from "./contracts/humanTaskStoreTypes";
 export type { HitlResumeTokenSignerSeam, HitlTimeoutJobSchedulerSeam } from "./contracts/hitlSeamTypes";
-export { HitlResumeTokenSignerToken, HitlTimeoutJobSchedulerToken } from "./contracts/hitlSeamTypes";
+export {
+  HitlResumeTokenSignerToken,
+  HitlTimeoutJobSchedulerToken,
+  HitlWorkspaceIdToken,
+} from "./contracts/hitlSeamTypes";
 export type {
   InboxChannel,
   InboxChannelResolverSeam,

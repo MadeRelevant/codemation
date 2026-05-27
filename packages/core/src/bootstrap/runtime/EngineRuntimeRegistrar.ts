@@ -15,7 +15,11 @@ import {
 } from "../../execution";
 import { NodeSuspensionHandler } from "../../execution/NodeSuspensionHandler";
 import { HumanTaskStoreToken } from "../../contracts/humanTaskStoreTypes";
-import { HitlResumeTokenSignerToken, HitlTimeoutJobSchedulerToken } from "../../contracts/hitlSeamTypes";
+import {
+  HitlResumeTokenSignerToken,
+  HitlTimeoutJobSchedulerToken,
+  HitlWorkspaceIdToken,
+} from "../../contracts/hitlSeamTypes";
 import {
   EngineFactory,
   EngineWorkflowRunnerServiceFactory,
@@ -132,11 +136,15 @@ export class EngineRuntimeRegistrar {
         const timeoutScheduler = dependencyContainer.isRegistered(HitlTimeoutJobSchedulerToken, true)
           ? dependencyContainer.resolve(HitlTimeoutJobSchedulerToken)
           : undefined;
+        const workspaceId = dependencyContainer.isRegistered(HitlWorkspaceIdToken, true)
+          ? dependencyContainer.resolve(HitlWorkspaceIdToken)
+          : undefined;
         const suspensionHandler = new NodeSuspensionHandler(
           workflowExecutionRepository,
           humanTaskStore ?? undefined,
           tokenSigner ?? undefined,
           timeoutScheduler ?? undefined,
+          workspaceId ?? undefined,
         );
         return dependencyContainer
           .resolve(NodeExecutorFactory)

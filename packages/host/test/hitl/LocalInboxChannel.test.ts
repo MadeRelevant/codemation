@@ -1,12 +1,14 @@
 /**
- * Unit tests for LocalInboxChannel (Story 06).
+ * Unit tests for LocalInboxChannel (Story 06 + T4 security fix).
  *
  * Coverage:
  * 1. deliver() returns { kind: "local", inboxItemId: task.taskId }.
  * 2. deliver() logs a message containing taskId and title.
  * 3. kind property is "local".
+ * 4. (T4) deliver() logs a token fingerprint instead of the raw token.
  */
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { describe, test } from "vitest";
 
 import type { InboxDeliverArgs } from "@codemation/core";
@@ -90,16 +92,22 @@ describe("LocalInboxChannel", () => {
     assert.ok(logMessage.includes("Review payout"), `expected title in log: "${logMessage}"`);
   });
 
-  test("deliver logs the resumeUrl so devs can use it directly", async () => {
+  test("(T4) deliver logs a token fingerprint and NOT the raw resume token", async () => {
     const { channel, logger } = makeChannel();
+    const rawToken = "http://localhost:3000/api/hitl/resume/token123";
     const args = makeDeliverArgs("task-resume-url");
 
     await channel.deliver(args);
 
     const logMessage = logger.infos[0] ?? "";
+    const expectedFingerprint = createHash("sha256").update(rawToken, "utf8").digest("hex").slice(0, 8);
     assert.ok(
-      logMessage.includes("http://localhost:3000/api/hitl/resume/token123"),
-      `expected resumeUrl in log: "${logMessage}"`,
+      logMessage.includes(expectedFingerprint),
+      `expected token fingerprint "${expectedFingerprint}" in log: "${logMessage}"`,
+    );
+    assert.ok(
+      !logMessage.includes(rawToken),
+      `raw resume token must NOT appear in log: "${logMessage}"`,
     );
   });
 });

@@ -6,6 +6,9 @@ export { InternalHmacAuthMiddleware } from "./InternalHmacAuthMiddleware";
 export { InternalPingRegistrar } from "./InternalPingRegistrar";
 export { PairingConfigFactory } from "./PairingConfigFactory";
 export { PairingConfigToken } from "./PairingConfigToken";
+export type { HmacNonceStore } from "./HmacNonceStore";
+export { HmacNonceStoreToken } from "./HmacNonceStoreToken";
+export { InMemoryHmacNonceStore } from "./InMemoryHmacNonceStore";
 export type {
   PairingConfig,
   PairingVerificationResult,
