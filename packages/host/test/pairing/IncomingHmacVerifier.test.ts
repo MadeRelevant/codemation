@@ -2,6 +2,7 @@ import { describe, it } from "vitest";
 import assert from "node:assert/strict";
 import { createHmac, createHash, randomBytes } from "node:crypto";
 import { IncomingHmacVerifier } from "../../src/pairing/IncomingHmacVerifier";
+import { InMemoryHmacNonceStore } from "../../src/pairing/InMemoryHmacNonceStore";
 import type { PairingConfig } from "../../src/pairing/pairing.types";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -16,8 +17,11 @@ const DEFAULT_CONFIG: PairingConfig = {
   controlPlaneUrl: "https://cp.test",
 };
 
-function makeVerifier(config: PairingConfig = DEFAULT_CONFIG): IncomingHmacVerifier {
-  return new IncomingHmacVerifier(config);
+function makeVerifier(
+  config: PairingConfig = DEFAULT_CONFIG,
+  nonceStore = new InMemoryHmacNonceStore(),
+): IncomingHmacVerifier {
+  return new IncomingHmacVerifier(config, nonceStore);
 }
 
 interface SignOptions {
@@ -54,51 +58,51 @@ function signRequest(opts: SignOptions = {}): string {
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 describe("IncomingHmacVerifier", () => {
-  it("valid signature passes and returns workspaceId", () => {
+  it("valid signature passes and returns workspaceId", async () => {
     const verifier = makeVerifier();
     const header = signRequest();
-    const result = verifier.verify("GET", "/internal/ping", "", header);
+    const result = await verifier.verify("GET", "/internal/ping", "", header);
     assert.ok(!("failure" in result), `expected success, got failure: ${JSON.stringify(result)}`);
     assert.equal(result.workspaceId, WORKSPACE_ID);
   });
 
-  it("wrong workspaceId in header fails with workspace failure", () => {
+  it("wrong workspaceId in header fails with workspace failure", async () => {
     const verifier = makeVerifier();
     // Sign with a different workspaceId (but same secret so sig is valid for that id).
     const header = signRequest({ workspaceId: "ws-other" });
-    const result = verifier.verify("GET", "/internal/ping", "", header);
+    const result = await verifier.verify("GET", "/internal/ping", "", header);
     assert.ok("failure" in result);
     assert.equal(result.failure, "workspace");
   });
 
-  it("tampered body fails with signature failure (constant-time equality used)", () => {
+  it("tampered body fails with signature failure (constant-time equality used)", async () => {
     const verifier = makeVerifier();
     // Sign with empty body but verify with non-empty body.
     const header = signRequest({ body: "" });
-    const result = verifier.verify("GET", "/internal/ping", "tampered-body", header);
+    const result = await verifier.verify("GET", "/internal/ping", "tampered-body", header);
     assert.ok("failure" in result);
     assert.equal(result.failure, "signature");
   });
 
-  it("tampered Authorization header fails with signature failure", () => {
+  it("tampered Authorization header fails with signature failure", async () => {
     const verifier = makeVerifier();
     const header = signRequest();
     // Flip the last char of the sig value.
     const tampered = header.slice(0, -1) + (header.endsWith("A") ? "B" : "A");
-    const result = verifier.verify("GET", "/internal/ping", "", tampered);
+    const result = await verifier.verify("GET", "/internal/ping", "", tampered);
     assert.ok("failure" in result);
     assert.equal(result.failure, "signature");
   });
 
-  it("skewed timestamp (>5 min in the past) fails with expired failure", () => {
+  it("skewed timestamp (>5 min in the past) fails with expired failure", async () => {
     const verifier = makeVerifier();
     const header = signRequest({ tsOffset: -(5 * 60 + 1) }); // 301 seconds ago
-    const result = verifier.verify("GET", "/internal/ping", "", header);
+    const result = await verifier.verify("GET", "/internal/ping", "", header);
     assert.ok("failure" in result);
     assert.equal(result.failure, "expired");
   });
 
-  it("missing pairing secret throws an explicit error (not a silent signature mismatch)", () => {
+  it("missing pairing secret throws an explicit error (not a silent signature mismatch)", async () => {
     const configNoPairingSecret: PairingConfig = {
       workspaceId: WORKSPACE_ID,
       pairingSecret: "", // empty — must throw, not silently fail with signature mismatch
@@ -107,43 +111,40 @@ describe("IncomingHmacVerifier", () => {
     const verifier = makeVerifier(configNoPairingSecret);
     const header = signRequest();
     // Must throw, not return { failure: "signature" } — silent failure is the exploit condition.
-    assert.throws(() => verifier.verify("GET", "/internal/ping", "", header), /pairingSecret/i);
+    await assert.rejects(() => verifier.verify("GET", "/internal/ping", "", header), /pairingSecret/i);
   });
 
-  it("replayed nonce within window fails with replay failure", () => {
+  it("replayed nonce within window fails with replay failure", async () => {
     const verifier = makeVerifier();
     const nonce = randomBytes(16).toString("base64");
     const header = signRequest({ nonce });
 
-    const first = verifier.verify("GET", "/internal/ping", "", header);
+    const first = await verifier.verify("GET", "/internal/ping", "", header);
     assert.ok(!("failure" in first), "first request should succeed");
 
     // Replay the exact same signed request.
-    const second = verifier.verify("GET", "/internal/ping", "", header);
+    const second = await verifier.verify("GET", "/internal/ping", "", header);
     assert.ok("failure" in second);
     assert.equal(second.failure, "replay");
   });
 
-  it("nonce replay protection is per-instance and does NOT survive verifier recreation", () => {
+  it("(T6) replay protection survives verifier recreation when sharing the same nonce store", async () => {
+    // Shared store simulates a durable backing store (e.g. Prisma) across restarts.
+    const sharedNonceStore = new InMemoryHmacNonceStore();
     const nonce = randomBytes(16).toString("base64");
     const header = signRequest({ nonce });
 
-    const verifier1 = makeVerifier();
-    const first = verifier1.verify("GET", "/internal/ping", "", header);
+    const verifier1 = makeVerifier(DEFAULT_CONFIG, sharedNonceStore);
+    const first = await verifier1.verify("GET", "/internal/ping", "", header);
     assert.ok(!("failure" in first), "first verifier: request should pass");
 
-    // Same nonce, same header — second call on SAME instance must fail.
-    const replay = verifier1.verify("GET", "/internal/ping", "", header);
-    assert.ok("failure" in replay, "same instance: replay must be rejected");
-    assert.equal(replay.failure, "replay");
-
-    // A freshly created verifier has no nonce cache — the same nonce is accepted again.
-    // This documents the in-memory, per-process limitation: restart resets protection.
-    const verifier2 = makeVerifier();
-    const afterRecreation = verifier2.verify("GET", "/internal/ping", "", header);
+    // A new verifier instance sharing the same store still rejects the replay.
+    const verifier2 = makeVerifier(DEFAULT_CONFIG, sharedNonceStore);
+    const afterRecreation = await verifier2.verify("GET", "/internal/ping", "", header);
     assert.ok(
-      !("failure" in afterRecreation),
-      "new verifier instance has no memory of previous nonces — replay succeeds (expected per-process limitation)",
+      "failure" in afterRecreation,
+      "new verifier with shared store must reject replay — durability requirement",
     );
+    assert.equal(afterRecreation.failure, "replay");
   });
 });

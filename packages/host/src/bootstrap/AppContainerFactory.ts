@@ -278,6 +278,8 @@ import { HmacRequestSigner } from "../pairing/HmacRequestSigner";
 import { PairedFetch } from "../pairing/PairedFetch";
 import { IncomingHmacVerifier } from "../pairing/IncomingHmacVerifier";
 import { InternalHmacAuthMiddleware } from "../pairing/InternalHmacAuthMiddleware";
+import { HmacNonceStoreToken } from "../pairing/HmacNonceStoreToken";
+import { PrismaHmacNonceStore } from "../infrastructure/persistence/PrismaHmacNonceStore";
 import { InternalPingRegistrar } from "../pairing/InternalPingRegistrar";
 import { LocalOAuthFlowExecutor } from "../credentials/LocalOAuthFlowExecutor";
 import { LocalCredentialMaterialProvider } from "../credentials/LocalCredentialMaterialProvider";
@@ -1097,6 +1099,8 @@ export class AppContainerFactory {
     container.registerInstance(PairingConfigToken, pairingConfig);
     container.registerSingleton(HmacRequestSigner, HmacRequestSigner);
     container.registerSingleton(PairedFetch, PairedFetch);
+    // T6: Durable nonce store — PrismaHmacNonceStore survives process restarts.
+    container.registerSingleton(HmacNonceStoreToken, PrismaHmacNonceStore);
     container.registerSingleton(IncomingHmacVerifier, IncomingHmacVerifier);
     container.registerSingleton(InternalHmacAuthMiddleware, InternalHmacAuthMiddleware);
     container.registerSingleton(BrokerClient, BrokerClient);

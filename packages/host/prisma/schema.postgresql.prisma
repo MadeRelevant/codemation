@@ -512,6 +512,17 @@ model WorkflowAuditLog {
   @@map("workflow_audit_log")
 }
 
+/// HMAC nonce store for replay protection (T6 security fix).
+/// Nonces are persisted across process restarts so a replayed request within
+/// the 300-second timestamp window is rejected even after a restart.
+model HmacNonce {
+  nonce     String   @id @map("nonce")
+  expiresAt DateTime @map("expires_at")
+
+  @@index([expiresAt])
+  @@map("hmac_nonce")
+}
+
 model HumanTask {
   id                 String    @id @map("id")
   runId              String    @map("run_id")
