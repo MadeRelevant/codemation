@@ -9,9 +9,18 @@ export interface SignedHeaders {
 
 @injectable()
 export class HmacRequestSigner {
-  constructor(@inject(PairingConfigToken) private readonly config: PairingConfig) {}
+  constructor(@inject(PairingConfigToken, { isOptional: true }) private readonly config: PairingConfig | null = null) {}
 
   sign(method: string, urlOrPath: string, body: string): SignedHeaders {
+    if (this.config === null) {
+      // Should never happen in managed mode (PairingConfig is registered then). In non-managed
+      // mode this signer should never be called — callers like `PairedFetch` are themselves
+      // only reachable via `ControlPlaneCatalogFetcher` whose poll loop checks `pairingConfig`.
+      // If we land here, a CP-bound call escaped that guard.
+      throw new Error(
+        "HmacRequestSigner.sign called without a registered PairingConfig — workspace is not in managed mode.",
+      );
+    }
     const ts = Math.floor(Date.now() / 1000);
     const nonce = randomBytes(16).toString("base64");
 
