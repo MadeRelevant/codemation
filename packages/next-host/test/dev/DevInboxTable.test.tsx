@@ -88,7 +88,7 @@ describe("DevInboxTable", () => {
           "/api/hitl/tasks/task-approve/decide",
           expect.objectContaining({
             method: "POST",
-            body: JSON.stringify({ approved: true }),
+            body: JSON.stringify({ decision: { approved: true } }),
           }),
         );
       });
@@ -106,7 +106,7 @@ describe("DevInboxTable", () => {
           "/api/hitl/tasks/task-reject/decide",
           expect.objectContaining({
             method: "POST",
-            body: JSON.stringify({ approved: false }),
+            body: JSON.stringify({ decision: { approved: false } }),
           }),
         );
       });

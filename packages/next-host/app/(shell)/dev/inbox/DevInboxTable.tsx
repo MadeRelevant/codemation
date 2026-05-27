@@ -25,7 +25,7 @@ export function DevInboxTable({ tasks }: Readonly<{ tasks: HumanTaskRecord[] }>)
       const res = await fetch(`/api/hitl/tasks/${taskId}/decide`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ approved }),
+        body: JSON.stringify({ decision: { approved } }),
       });
       if (!res.ok) {
         const text = await res.text();
