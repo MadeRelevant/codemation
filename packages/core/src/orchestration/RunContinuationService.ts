@@ -663,6 +663,12 @@ export class RunContinuationService {
 
     const remainingSuspensions = (state.suspension ?? []).filter((s) => s.taskId !== args.taskId);
 
+    // Thread resumeContext into the execution context so the inline scheduler path
+    // (InlineDrivingScheduler) delivers it directly to the node's ctx.resumeContext.
+    // On the worker path (BullMQ), NodeExecutionRequestHandlerService re-derives it
+    // from state.pendingResume — passing it here is additive and harmless.
+    const baseWithResume = { ...base, resumeContext: args.resumeContext };
+
     const batchId = `resume_${newActivationId}`;
     const request = this.nodeActivationRequestComposer.createSingleFromDefinitionWithActivation({
       activationId: newActivationId,
@@ -670,7 +676,7 @@ export class RunContinuationService {
       workflowId: state.workflowId,
       parent: state.parent,
       executionOptions: state.executionOptions,
-      base,
+      base: baseWithResume,
       data,
       definition: { id: suspensionEntry.nodeId, config: def.config },
       batchId,

@@ -21,16 +21,25 @@
  * fifth (still-open) gap lands, flip its `.skip` to a real assertion.
  */
 
+import path from "node:path";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { z } from "zod";
 
 import type { PendingResumeEntry, PersistedRunState, PersistedSuspensionEntry } from "@codemation/core";
 import { SuspensionRequest } from "@codemation/core";
+import { Callback, createWorkflowBuilder, inboxApproval, ManualTrigger } from "@codemation/core-nodes";
 
 import { PrismaWorkflowRunRepository } from "../../src/infrastructure/persistence/PrismaWorkflowRunRepository";
 import type { WorkflowSnapshotRepository } from "../../src/infrastructure/persistence/PrismaWorkflowSnapshotRepository";
 import { DecisionSchemaValidator } from "../../src/application/hitl/DecisionSchemaValidator";
 import { IntegrationTestDatabaseSession } from "../http/testkit/IntegrationTestDatabaseSession";
+import { IntegrationDatabaseFactory } from "../http/testkit/IntegrationDatabaseFactory";
+import type { IntegrationDatabase } from "../http/testkit/IntegrationDatabaseFactory";
+import { FrontendHttpIntegrationHarness } from "../http/testkit/FrontendHttpIntegrationHarness";
+import { IntegrationTestAuth } from "../http/testkit/IntegrationTestAuth";
+import { mergeIntegrationDatabaseRuntime } from "../http/testkit/mergeIntegrationDatabaseRuntime";
+import { ApiPaths } from "../../src/presentation/http/ApiPaths";
+import type { RunCommandResult } from "../../src/application/contracts/RunContracts";
 
 const noopSnapshotRepo: WorkflowSnapshotRepository = {
   findOrCreate: async () => "snapshot-id-stub",
@@ -238,41 +247,148 @@ describe("HITL wiring gaps — Prisma round-trip + tsx-dev dual-class", () => {
     expect(loaded?.reason).toBe("hitl-rejected");
   });
 
-  // -------------------------------------------------------------------------
-  // GAP #5 — ctx.resumeContext is threaded into the resumed activation.
-  // -------------------------------------------------------------------------
-  //
-  // STILL OPEN. Production symptom: after POST /api/hitl/tasks/:id/decide
-  // returns 200 OK with runStatus=running, the engine re-activates the
-  // suspended node but `defineHumanApprovalNode.execute` sees
-  // `ctx.resumeContext === undefined`. It therefore throws a fresh
-  // `SuspensionRequest` instead of taking the "decided" branch, creating a
-  // second human_task row and leaving the run suspended again.
-  //
-  // The persisted state DOES carry the correct `_hitlPendingResume` with the
-  // right `activationId`/`nodeId`/`resumeContext` (verified manually). The
-  // gap is somewhere in the chain:
-  //
-  //   PrismaWorkflowRunRepository.load → state.pendingResume
-  //     → NodeExecutionRequestHandlerService line 90-95 — threads `resumeContext`
-  //       into `baseWithResume` (✓ confirmed by code reading)
-  //     → NodeActivationRequestComposer.createSingleFromDefinitionWithActivation
-  //       spreads `...args.base` into the ctx (✓ confirmed)
-  //     → NodeExecutor.executeRunnableActivation — builds iterationCtx via
-  //       `pickExecutionContext` + `itemExprResolver.resolveConfigForItem`,
-  //       both of which spread the source ctx (✓ on code read)
-  //     → defineHumanApprovalNode.execute reads `ctx.resumeContext`
-  //
-  // The unit test for the helper passes; the runtime path apparently breaks
-  // somewhere not yet identified. Next-session debug: add a console.log at
-  // the start of `defineHumanApprovalNode.execute` to dump `ctx.resumeContext`
-  // and trace upward.
-  //
-  // Flip `.skip` to a real assertion once fixed — this should drive a full
-  // workflow through `manualTrigger → inboxApproval → Callback` end-to-end
-  // against the real container + Prisma DB and assert that the Callback fires
-  // with `item.json.decision.status === "approved"`.
-  it.skip("(open) resumed inboxApproval activation receives ctx.resumeContext and routes to onDecision", async () => {
-    expect(true).toBe(false); // intentionally fails when un-skipped — implement the e2e harness here.
+  // GAP #5 tested in the describe block below.
+});
+
+// ---------------------------------------------------------------------------
+// GAP #5 — ctx.resumeContext is threaded into the resumed activation.
+// ---------------------------------------------------------------------------
+//
+// Production symptom: after POST /api/hitl/tasks/:id/decide returns 200 OK
+// with runStatus=running, the engine re-activates the suspended node but
+// `defineHumanApprovalNode.execute` sees `ctx.resumeContext === undefined`.
+// It therefore throws a fresh `SuspensionRequest` instead of taking the
+// "decided" branch, creating a second human_task row and leaving the run
+// suspended again.
+//
+// Root cause: `RunContinuationService.resumeRun` builds the activation
+// `request` using the plain `base` context (no `resumeContext`). On the
+// inline scheduler path (`InlineDrivingScheduler`) the request is passed
+// directly to `NodeExecutor.execute` without going through
+// `NodeExecutionRequestHandlerService` (which is the only place that splices
+// `resumeContext` from `state.pendingResume`). Fix: thread
+// `{ ...base, resumeContext: args.resumeContext }` through the
+// `createSingleFromDefinitionWithActivation` call.
+
+describe("HITL wiring gap #5 — ctx.resumeContext reaches inboxApproval on resume", () => {
+  const WORKFLOW_ID = "wf.hitl.gap5.resume";
+  const APPROVAL_NODE_ID = "inbox-approval-gap5";
+  const CALLBACK_NODE_ID = "callback-gap5";
+
+  const workflow = createWorkflowBuilder({ id: WORKFLOW_ID, name: "HITL GAP#5 probe" })
+    .trigger(new ManualTrigger("Start", "trigger-gap5"))
+    .then(
+      inboxApproval.create(
+        {
+          title: "GAP5 approval",
+          body: "Please decide",
+          priority: "normal",
+          timeout: "1h",
+          onTimeout: "halt",
+        },
+        "Inbox Approval",
+        APPROVAL_NODE_ID,
+      ),
+    )
+    .then(
+      new Callback(
+        "Callback",
+        (items) => items,
+        CALLBACK_NODE_ID,
+      ),
+    )
+    .build();
+
+  let database: IntegrationDatabase | null = null;
+  let harness: FrontendHttpIntegrationHarness | null = null;
+
+  beforeAll(async () => {
+    database = await IntegrationDatabaseFactory.createEphemeral();
+    harness = new FrontendHttpIntegrationHarness({
+      config: mergeIntegrationDatabaseRuntime(
+        {
+          workflows: [workflow],
+          runtime: { eventBus: { kind: "memory" }, scheduler: { kind: "local" } },
+          auth: IntegrationTestAuth.developmentBypass,
+        },
+        database,
+      ),
+      consumerRoot: path.resolve(import.meta.dirname, "../../.."),
+      env: { AUTH_SECRET: "test-auth-secret-for-hitl-gap5-integration" },
+    });
+    await harness.start();
+  });
+
+  afterAll(async () => {
+    await harness?.close();
+    await database?.close();
+  });
+
+  it("resumed inboxApproval activation receives ctx.resumeContext and routes to onDecision", async () => {
+    const h = harness!;
+
+    // 1. Start the run with one item so the inboxApproval has something to process.
+    const createResult = await h.requestJson<RunCommandResult>({
+      method: "POST",
+      url: ApiPaths.runs(),
+      payload: { workflowId: WORKFLOW_ID, items: [{ subject: "gap5-test-item" }] },
+    });
+    const runId = createResult.runId;
+
+    // 2. Poll until the run suspends.
+    const suspended = await pollUntilStatus(h, runId, "suspended", 5_000);
+    expect(suspended.suspension).toBeDefined();
+    expect(suspended.suspension).toHaveLength(1);
+
+    const taskId = suspended.suspension![0]!.taskId;
+
+    // 3. Decide: approve.
+    const decideResult = await h.requestJson<{ status: string; runStatus: string }>({
+      method: "POST",
+      url: ApiPaths.hitlTaskDecide(taskId),
+      payload: {
+        decision: { approved: true, note: "gap5-test" },
+        decidedBy: { actorId: "test-actor" },
+      },
+    });
+    expect(decideResult.status).toBe("decided");
+    expect(decideResult.runStatus).toBe("running");
+
+    // 4. Poll until the run completes (Callback fires after resume).
+    const completed = await pollUntilStatus(h, runId, "completed", 5_000);
+
+    // 5. Assert the Callback received the decided item with decision.status = "approved".
+    const callbackOutput = completed.outputsByNode[CALLBACK_NODE_ID]?.main;
+    expect(callbackOutput).toBeDefined();
+    expect(callbackOutput).toHaveLength(1);
+    expect((callbackOutput![0]!.json as Record<string, unknown>)["decision"]).toMatchObject({
+      status: "approved",
+    });
   });
 });
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+async function pollUntilStatus(
+  harness: FrontendHttpIntegrationHarness,
+  runId: string,
+  targetStatus: string,
+  timeoutMs: number,
+): Promise<PersistedRunState> {
+  const deadline = performance.now() + timeoutMs;
+  while (performance.now() < deadline) {
+    const response = await harness.request({ method: "GET", url: ApiPaths.runState(runId) });
+    if (response.statusCode === 200) {
+      const state = response.json<PersistedRunState>();
+      if (state.status === targetStatus) return state;
+    }
+    await new Promise<void>((resolve) => setTimeout(resolve, 100));
+  }
+  const last = await harness.request({ method: "GET", url: ApiPaths.runState(runId) });
+  const state = last.statusCode === 200 ? last.json<PersistedRunState>() : null;
+  throw new Error(
+    `Run ${runId} did not reach status "${targetStatus}" within ${timeoutMs}ms. Last status: ${state?.status ?? "unknown"}`,
+  );
+}
