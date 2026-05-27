@@ -22,6 +22,7 @@ model Run {
   policySnapshotJson   String? @map("policy_snapshot_json")
   engineCountersJson   String? @map("engine_counters_json")
   mutableStateJson     String? @map("mutable_state_json")
+  hitlStateJson        String? @map("hitl_state_json")
   outputsByNodeJson    String  @map("outputs_by_node_json")
   updatedAt            String  @map("updated_at")
   testSuiteRunId       String? @map("test_suite_run_id")
