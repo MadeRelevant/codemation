@@ -4,6 +4,13 @@ import { defineConfig } from "vitest/config";
 const hostPackageRoot = path.resolve(import.meta.dirname, "../host");
 
 export default defineConfig({
+  // `development` exports condition makes Vitest load `@codemation/host` from
+  // source (mirrors the unit config). Without it the integration suite picks
+  // the `import` condition (dist) and dynamic imports from the source wrapper
+  // can no longer find the lazy operations module under `src/`.
+  resolve: {
+    conditions: ["development"],
+  },
   test: {
     name: "@codemation/cli-integration",
     root: import.meta.dirname,

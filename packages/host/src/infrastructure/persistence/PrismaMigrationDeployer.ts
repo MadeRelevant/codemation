@@ -29,6 +29,10 @@ const implSpecifier = /* @__PURE__ */ (() => {
   const relativePath = import.meta.url.includes("/src/")
     ? "./PrismaMigration" + suffix
     : "./infrastructure/persistence/PrismaMigration" + suffix;
+  // Absolute `file://` URL: keeps tsx-loader from propagating its
+  // `?tsx-namespace=...` query to transitive node:* imports inside the
+  // operations module, and keeps the Turbopack NFT tracer from following the
+  // path statically (which would walk the heavy fs/createRequire ops).
   return new URL(relativePath, import.meta.url).href;
 })();
 
