@@ -25,6 +25,14 @@ const nextConfig: NextConfig = {
     "@codemation/eventbus-redis",
     "@codemation/host",
     "@codemation/node-example",
+    // `@codemation/ui` is a workspace shadcn-style component package consumed throughout
+    // next-host's features (CredentialsScreen*, DashboardCostChart, CollectionRowsPagination,
+    // UsersInviteDialog, etc.). Without listing it here, Next/Turbopack resolves it via the
+    // package.json `development` exports condition to `./src/index.ts`, walks the entire
+    // `packages/ui/src/components/` tree per route compile, and the workflow detail page's
+    // chunk-load 404s with `Failed to load chunk /_next/static/chunks/packages_ui_src_components_*.js`.
+    // Routing it through SWC via transpilePackages matches the pattern of the other workspace UI deps.
+    "@codemation/ui",
   ],
   experimental: {
     externalDir: true,
@@ -45,6 +53,9 @@ const nextConfig: NextConfig = {
       "@headless-tree/core",
       "date-fns",
       "radix-ui",
+      // Belt-and-braces with the transpilePackages entry above: rewrite barrel imports from
+      // `@codemation/ui` so Turbopack only walks the components a route actually uses.
+      "@codemation/ui",
     ],
   },
   turbopack: {
