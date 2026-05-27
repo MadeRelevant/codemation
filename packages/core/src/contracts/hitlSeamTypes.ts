@@ -24,3 +24,11 @@ export const HitlResumeTokenSignerToken = Symbol.for("codemation.core.HitlResume
 export const HitlTimeoutJobSchedulerToken = Symbol.for("codemation.core.HitlTimeoutJobScheduler") as TypeToken<
   HitlTimeoutJobSchedulerSeam | undefined
 >;
+
+/**
+ * Optional workspace ID injected into NodeSuspensionHandler in managed mode (T7 security fix).
+ * Allows the handler to stamp the workspaceId on each HumanTaskRecord so HitlCallbackHandler
+ * can assert workspace identity independently of the HMAC middleware.
+ * Not registered in non-managed mode; NodeSuspensionHandler defaults to null.
+ */
+export const HitlWorkspaceIdToken = Symbol.for("codemation.core.HitlWorkspaceId") as TypeToken<string | undefined>;

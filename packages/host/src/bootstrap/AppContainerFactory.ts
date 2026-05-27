@@ -316,7 +316,7 @@ import { DecisionSchemaValidator } from "../application/hitl/DecisionSchemaValid
 import { HitlDecideHonoApiRouteRegistrar } from "../presentation/http/hono/registrars/HitlDecideHonoApiRouteRegistrar";
 import { HitlResumeHonoApiRouteRegistrar } from "../presentation/http/hono/registrars/HitlResumeHonoApiRouteRegistrar";
 import { HumanTaskStoreToken } from "@codemation/core";
-import { HitlResumeTokenSignerToken, HitlTimeoutJobSchedulerToken } from "@codemation/core";
+import { HitlResumeTokenSignerToken, HitlTimeoutJobSchedulerToken, HitlWorkspaceIdToken } from "@codemation/core";
 import { ControlPlaneInboxChannelToken, InboxChannelResolverToken, LocalInboxChannelToken } from "@codemation/core";
 import { InboxChannelResolver } from "../hitl/InboxChannelResolver";
 import { LocalInboxChannel } from "../hitl/LocalInboxChannel";
@@ -1097,6 +1097,8 @@ export class AppContainerFactory {
       return;
     }
     container.registerInstance(PairingConfigToken, pairingConfig);
+    // T7: Stamp workspaceId on HumanTaskRecord in managed mode for defense-in-depth workspace check.
+    container.registerInstance(HitlWorkspaceIdToken, pairingConfig.workspaceId);
     container.registerSingleton(HmacRequestSigner, HmacRequestSigner);
     container.registerSingleton(PairedFetch, PairedFetch);
     // T6: Durable nonce store — PrismaHmacNonceStore survives process restarts.

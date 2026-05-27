@@ -45,6 +45,8 @@ export class NodeSuspensionHandler {
     private readonly humanTaskStore?: HumanTaskStore,
     private readonly tokenSigner?: HitlResumeTokenSignerSeam,
     private readonly timeoutScheduler?: HitlTimeoutJobSchedulerSeam,
+    /** Workspace ID to stamp on HumanTaskRecord in managed mode (T7 security fix). Null in non-managed mode. */
+    private readonly workspaceId?: string,
   ) {}
 
   async handle(args: {
@@ -120,6 +122,10 @@ export class NodeSuspensionHandler {
         id: taskId,
         runId: args.runId,
         workflowId: args.state.workflowId,
+        // T7: stamp workspaceId in managed mode so HitlCallbackHandler can assert workspace identity.
+        // Non-managed mode leaves this undefined (null in DB) — the check in HitlCallbackHandler
+        // is guarded by `task.workspaceId !== undefined` and is a no-op when null.
+        workspaceId: this.workspaceId ?? undefined,
         nodeId: args.nodeId,
         activationId: args.activationId,
         itemIndex: args.itemIndex,
