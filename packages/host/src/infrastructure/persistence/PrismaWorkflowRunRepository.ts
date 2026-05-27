@@ -172,8 +172,8 @@ export class PrismaWorkflowRunRepository implements WorkflowRunRepository, Workf
       executionOptions: this.parseJson(row.executionOptionsJson),
       control: this.parseJson(row.controlJson),
       workflowSnapshot: this.parseJson(row.workflowSnapshotJson),
-      mutableState: this.parseMutableState(row.mutableStateJson),
-      ...this.loadHitlState(row.hitlStateJson, row.mutableStateJson),
+      mutableState: this.parseJson(row.mutableStateJson),
+      ...this.loadHitlState(row.hitlStateJson),
       policySnapshot: this.parseJson(row.policySnapshotJson),
       engineCounters: this.parseJson(row.engineCountersJson),
       status: row.status as PersistedRunState["status"],
@@ -240,7 +240,7 @@ export class PrismaWorkflowRunRepository implements WorkflowRunRepository, Workf
       finishedAt: row.finishedAt ?? undefined,
       status: row.status as WorkflowRunDetailDto["status"],
       workflowSnapshot: this.parseJson(row.workflowSnapshotJson),
-      mutableState: this.parseMutableState(row.mutableStateJson) as WorkflowRunDetailDto["mutableState"],
+      mutableState: this.parseJson(row.mutableStateJson) as WorkflowRunDetailDto["mutableState"],
       slotStates,
       executionInstances,
     };
@@ -616,53 +616,22 @@ export class PrismaWorkflowRunRepository implements WorkflowRunRepository, Workf
   }
 
   /**
-   * Parse `mutable_state_json` while stripping legacy `_hitl*` keys that were
-   * stashed there by the interim fix in commit 63a6cfb3. Those keys belong in
-   * `hitl_state_json` after this migration.
-   */
-  private parseMutableState(mutableStateJson: string | null): PersistedRunState["mutableState"] {
-    const parsed = this.parseJson<Record<string, unknown>>(mutableStateJson);
-    if (!parsed) return undefined;
-    const { _hitlSuspension: _s, _hitlPendingResume: _r, _hitlReason: _reason, ...rest } = parsed;
-    return rest as unknown as PersistedRunState["mutableState"];
-  }
-
-  /**
-   * Load HITL state from the new dedicated column, with a legacy fallback that reads
-   * the `_hitl*` keys stashed inside `mutable_state_json` for rows written before
-   * this migration (commit 63a6cfb3). The fallback should be removed after one release
-   * cycle once all pre-migration rows have been re-saved.
-   *
-   * TODO(post-migration): remove the legacy fallback branch after one release cycle.
+   * Load HITL state (suspension array, pendingResume context, halt reason) from the
+   * dedicated `hitl_state_json` column.
    */
   private loadHitlState(
     hitlStateJson: string | null,
-    mutableStateJson: string | null,
   ): Pick<PersistedRunState, "suspension" | "pendingResume" | "reason"> {
-    if (hitlStateJson !== null) {
-      const parsed = this.parseJson<{
-        suspension?: PersistedRunState["suspension"];
-        pendingResume?: PersistedRunState["pendingResume"];
-        reason?: PersistedRunState["reason"];
-      }>(hitlStateJson);
-      if (!parsed) return {};
-      return {
-        suspension: parsed.suspension,
-        pendingResume: parsed.pendingResume,
-        reason: parsed.reason,
-      };
-    }
-    // Legacy fallback: row was written before the hitl_state_json column existed.
-    const m = this.parseJson<{
-      _hitlSuspension?: PersistedRunState["suspension"];
-      _hitlPendingResume?: PersistedRunState["pendingResume"];
-      _hitlReason?: PersistedRunState["reason"];
-    }>(mutableStateJson);
-    if (!m) return {};
+    const parsed = this.parseJson<{
+      suspension?: PersistedRunState["suspension"];
+      pendingResume?: PersistedRunState["pendingResume"];
+      reason?: PersistedRunState["reason"];
+    }>(hitlStateJson);
+    if (!parsed) return {};
     return {
-      suspension: m._hitlSuspension,
-      pendingResume: m._hitlPendingResume,
-      reason: m._hitlReason,
+      suspension: parsed.suspension,
+      pendingResume: parsed.pendingResume,
+      reason: parsed.reason,
     };
   }
 
