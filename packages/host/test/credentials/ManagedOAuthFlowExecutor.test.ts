@@ -69,11 +69,7 @@ function makeErrorResponse(status: number, body = ""): Response {
 }
 
 function makeExecutor(pairedFetch: ReturnType<typeof makeFakePairedFetch>): ManagedOAuthFlowExecutor {
-  return new ManagedOAuthFlowExecutor(
-    pairedFetch as never,
-    fakePairingConfig,
-    fakeLoggerFactory as never,
-  );
+  return new ManagedOAuthFlowExecutor(pairedFetch as never, fakePairingConfig, fakeLoggerFactory as never);
 }
 
 // ---------------------------------------------------------------------------
@@ -88,8 +84,12 @@ describe("ManagedOAuthFlowExecutor.start", () => {
         capturedBody = body;
         return makeOkResponse({ consentUrl: "https://consent.example.com", stateToken: "state-tok" });
       },
-      get: async () => { throw new Error("unexpected"); },
-      delete: async () => { throw new Error("unexpected"); },
+      get: async () => {
+        throw new Error("unexpected");
+      },
+      delete: async () => {
+        throw new Error("unexpected");
+      },
     };
     const executor = makeExecutor(fakeFetch);
 
@@ -111,8 +111,12 @@ describe("ManagedOAuthFlowExecutor.start", () => {
   it("does not require instanceId (managed mode)", async () => {
     const fakeFetch = {
       post: async () => makeOkResponse({ consentUrl: "https://consent.example.com", stateToken: "st" }),
-      get: async () => { throw new Error("unexpected"); },
-      delete: async () => { throw new Error("unexpected"); },
+      get: async () => {
+        throw new Error("unexpected");
+      },
+      delete: async () => {
+        throw new Error("unexpected");
+      },
     };
     const executor = makeExecutor(fakeFetch);
 
@@ -132,8 +136,12 @@ describe("ManagedOAuthFlowExecutor.start", () => {
         capturedUrl = url;
         return makeOkResponse({ consentUrl: "https://c.com", stateToken: "s" });
       },
-      get: async () => { throw new Error("unexpected"); },
-      delete: async () => { throw new Error("unexpected"); },
+      get: async () => {
+        throw new Error("unexpected");
+      },
+      delete: async () => {
+        throw new Error("unexpected");
+      },
     };
     const executor = makeExecutor(fakeFetch);
     await executor.start({ typeId: FAKE_TYPE_ID, scopes: [], redirectUri: "http://localhost:3000/cb" });
@@ -159,8 +167,12 @@ describe("ManagedOAuthFlowExecutor.lookupInstanceId", () => {
   it("always returns undefined (state owned by control plane)", () => {
     const fakeFetch = {
       post: async () => makeOkResponse({}),
-      get: async () => { throw new Error("unexpected"); },
-      delete: async () => { throw new Error("unexpected"); },
+      get: async () => {
+        throw new Error("unexpected");
+      },
+      delete: async () => {
+        throw new Error("unexpected");
+      },
     };
     const executor = makeExecutor(fakeFetch);
     expect(executor.lookupInstanceId("any-token")).toBeUndefined();
@@ -185,8 +197,12 @@ describe("ManagedOAuthFlowExecutor.completeCallback", () => {
         capturedBody = body;
         return makeOkResponse(expectedMaterial);
       },
-      get: async () => { throw new Error("unexpected"); },
-      delete: async () => { throw new Error("unexpected"); },
+      get: async () => {
+        throw new Error("unexpected");
+      },
+      delete: async () => {
+        throw new Error("unexpected");
+      },
     };
     const executor = makeExecutor(fakeFetch);
 
@@ -203,8 +219,12 @@ describe("ManagedOAuthFlowExecutor.completeCallback", () => {
         capturedUrl = url;
         return makeOkResponse({ accessToken: "at", grantedScopes: [] });
       },
-      get: async () => { throw new Error("unexpected"); },
-      delete: async () => { throw new Error("unexpected"); },
+      get: async () => {
+        throw new Error("unexpected");
+      },
+      delete: async () => {
+        throw new Error("unexpected");
+      },
     };
     const executor = makeExecutor(fakeFetch);
     await executor.completeCallback({ stateToken: "st", code: "c" });
@@ -246,8 +266,12 @@ describe("ManagedOAuthFlowExecutor.refresh", () => {
         capturedBody = body;
         return makeOkResponse(newMaterial);
       },
-      get: async () => { throw new Error("unexpected"); },
-      delete: async () => { throw new Error("unexpected"); },
+      get: async () => {
+        throw new Error("unexpected");
+      },
+      delete: async () => {
+        throw new Error("unexpected");
+      },
     };
     const executor = makeExecutor(fakeFetch);
 
@@ -267,10 +291,13 @@ describe("ManagedOAuthFlowExecutor.refresh", () => {
 
   it("preserves existing refreshToken when CP response omits it", async () => {
     const fakeFetch = {
-      post: async (): Promise<Response> =>
-        makeOkResponse({ accessToken: "new-access", grantedScopes: [] }),
-      get: async () => { throw new Error("unexpected"); },
-      delete: async () => { throw new Error("unexpected"); },
+      post: async (): Promise<Response> => makeOkResponse({ accessToken: "new-access", grantedScopes: [] }),
+      get: async () => {
+        throw new Error("unexpected");
+      },
+      delete: async () => {
+        throw new Error("unexpected");
+      },
     };
     const executor = makeExecutor(fakeFetch);
 
@@ -285,9 +312,7 @@ describe("ManagedOAuthFlowExecutor.refresh", () => {
   });
 
   it("throws ManagedOAuthRefreshInvalidGrantError on HTTP 410", async () => {
-    const responses = new Map([
-      [`${CONTROL_PLANE_URL}/internal/oauth/refresh`, makeErrorResponse(410)],
-    ]);
+    const responses = new Map([[`${CONTROL_PLANE_URL}/internal/oauth/refresh`, makeErrorResponse(410)]]);
     const executor = makeExecutor(makeFakePairedFetch(responses));
 
     await expect(
@@ -296,9 +321,7 @@ describe("ManagedOAuthFlowExecutor.refresh", () => {
   });
 
   it("throws Error with status on other non-2xx responses", async () => {
-    const responses = new Map([
-      [`${CONTROL_PLANE_URL}/internal/oauth/refresh`, makeErrorResponse(503)],
-    ]);
+    const responses = new Map([[`${CONTROL_PLANE_URL}/internal/oauth/refresh`, makeErrorResponse(503)]]);
     const executor = makeExecutor(makeFakePairedFetch(responses));
 
     await expect(
@@ -309,8 +332,12 @@ describe("ManagedOAuthFlowExecutor.refresh", () => {
   it("throws when no refresh token is present in material", async () => {
     const fakeFetch = {
       post: async () => makeOkResponse({}),
-      get: async () => { throw new Error("unexpected"); },
-      delete: async () => { throw new Error("unexpected"); },
+      get: async () => {
+        throw new Error("unexpected");
+      },
+      delete: async () => {
+        throw new Error("unexpected");
+      },
     };
     const executor = makeExecutor(fakeFetch);
     const noRefresh: OAuthMaterial = { accessToken: "at", grantedScopes: [] };

@@ -245,9 +245,7 @@ export function CredentialDialog({
         >
           <span className="inline-flex items-center gap-1.5">
             <Save className="size-4 shrink-0" aria-hidden />
-            <span className="leading-none">
-              {isSubmitting ? (isEdit ? "Saving…" : "Creating…") : "Save"}
-            </span>
+            <span className="leading-none">{isSubmitting ? (isEdit ? "Saving…" : "Creating…") : "Save"}</span>
           </span>
         </Button>
       </CodemationDialog.Actions>

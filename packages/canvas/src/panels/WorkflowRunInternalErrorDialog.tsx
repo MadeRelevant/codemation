@@ -53,7 +53,10 @@ export function WorkflowRunInternalErrorDialog(
       <DialogContent
         showCloseButton
         data-testid="workflow-run-internal-error-dialog"
-        className={cn("flex max-h-[80vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl", "ring-1 ring-destructive/20")}
+        className={cn(
+          "flex max-h-[80vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl",
+          "ring-1 ring-destructive/20",
+        )}
       >
         <DialogHeader className="flex flex-row gap-4 p-6 text-left sm:items-start">
           <AlertCircle className="mt-0.5 size-5 shrink-0 text-destructive" strokeWidth={2.25} aria-hidden />

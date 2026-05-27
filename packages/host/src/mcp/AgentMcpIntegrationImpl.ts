@@ -102,7 +102,11 @@ export class AgentMcpIntegrationImpl implements AgentMcpIntegration {
    * Looks up the credential binding for the MCP connection node and verifies the
    * referenced credential instance still exists.
    */
-  private async resolveCredentialInstanceId(workflowId: string, agentNodeId: string, serverId: string): Promise<string> {
+  private async resolveCredentialInstanceId(
+    workflowId: string,
+    agentNodeId: string,
+    serverId: string,
+  ): Promise<string> {
     const mcpNodeId = ConnectionNodeIdFactory.mcpConnectionNodeId(agentNodeId, serverId);
     const binding = await this.credentialStore.getBinding({ workflowId, nodeId: mcpNodeId, slotKey: "credential" });
     if (!binding) {

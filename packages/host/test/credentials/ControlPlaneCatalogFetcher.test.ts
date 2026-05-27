@@ -231,7 +231,12 @@ describe("ControlPlaneCatalogFetcher", () => {
       // Second fetch: mcp-servers fails
       pairedFetch.get.mockImplementation(async (url: string) => {
         if (url.includes("mcp-servers")) {
-          return { ok: false, status: 503, statusText: "Service Unavailable", json: async () => [] } as unknown as Response;
+          return {
+            ok: false,
+            status: 503,
+            statusText: "Service Unavailable",
+            json: async () => [],
+          } as unknown as Response;
         }
         const updated = [{ appId: "slack", displayName: "Slack" }];
         return {
@@ -525,14 +530,10 @@ describe("ControlPlaneCatalogFetcher — mcpServers control-plane fetch", () => 
 
 describe("ControlPlaneCatalogFetcher — onRefresh wires to CredentialTypeRegistryImpl.mergeDefinitions", () => {
   it("calls mergeDefinitions('controlPlane', credentialTypeOverrides) after a successful refresh", async () => {
-    const { CredentialTypeRegistryImpl } = await import(
-      "../../src/domain/credentials/CredentialTypeRegistryImpl"
-    );
+    const { CredentialTypeRegistryImpl } = await import("../../src/domain/credentials/CredentialTypeRegistryImpl");
 
     const warnSpy = vi.fn();
-    const registry = new CredentialTypeRegistryImpl(
-      makeLoggerFactory(warnSpy, vi.fn()) as never,
-    );
+    const registry = new CredentialTypeRegistryImpl(makeLoggerFactory(warnSpy, vi.fn()) as never);
     const mergeDefinitionsSpy = vi.spyOn(registry, "mergeDefinitions");
 
     const pairedFetch = makePairedFetch({

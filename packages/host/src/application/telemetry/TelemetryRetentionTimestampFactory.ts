@@ -19,26 +19,27 @@ export class TelemetryRetentionTimestampFactory {
 
   createArtifactExpiry(policySnapshot: PersistedRunPolicySnapshot | undefined, observedAt: Date): string {
     return this.createExpiry(
-      policySnapshot?.telemetryArtifactRetentionSeconds ?? TelemetryRetentionTimestampFactory.defaultArtifactRetentionSeconds,
+      policySnapshot?.telemetryArtifactRetentionSeconds ??
+        TelemetryRetentionTimestampFactory.defaultArtifactRetentionSeconds,
       observedAt,
     );
   }
 
   createMetricExpiry(policySnapshot: PersistedRunPolicySnapshot | undefined, observedAt: Date): string {
     return this.createExpiry(
-      policySnapshot?.telemetryMetricRetentionSeconds ?? TelemetryRetentionTimestampFactory.defaultMetricRetentionSeconds,
+      policySnapshot?.telemetryMetricRetentionSeconds ??
+        TelemetryRetentionTimestampFactory.defaultMetricRetentionSeconds,
       observedAt,
     );
   }
 
-  createTraceContextExpiry(
-    policySnapshot: PersistedRunPolicySnapshot | undefined,
-    observedAt: Date,
-  ): string {
+  createTraceContextExpiry(policySnapshot: PersistedRunPolicySnapshot | undefined, observedAt: Date): string {
     const candidates = [
       policySnapshot?.telemetrySpanRetentionSeconds ?? TelemetryRetentionTimestampFactory.defaultSpanRetentionSeconds,
-      policySnapshot?.telemetryArtifactRetentionSeconds ?? TelemetryRetentionTimestampFactory.defaultArtifactRetentionSeconds,
-      policySnapshot?.telemetryMetricRetentionSeconds ?? TelemetryRetentionTimestampFactory.defaultMetricRetentionSeconds,
+      policySnapshot?.telemetryArtifactRetentionSeconds ??
+        TelemetryRetentionTimestampFactory.defaultArtifactRetentionSeconds,
+      policySnapshot?.telemetryMetricRetentionSeconds ??
+        TelemetryRetentionTimestampFactory.defaultMetricRetentionSeconds,
     ].filter((value): value is number => typeof value === "number" && value > 0);
     const maxSeconds = Math.max(...candidates);
     return this.createExpiry(maxSeconds, observedAt);

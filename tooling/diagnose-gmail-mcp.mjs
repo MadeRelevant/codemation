@@ -47,13 +47,17 @@ if (ikm.length !== 32) {
   process.exit(1);
 }
 const aesKey = Buffer.from(
-  hkdfSync("sha256", ikm, Buffer.from("codemation/credential-cipher/v1", "utf8"), Buffer.from("aes-256-gcm-key", "utf8"), 32),
+  hkdfSync(
+    "sha256",
+    ikm,
+    Buffer.from("codemation/credential-cipher/v1", "utf8"),
+    Buffer.from("aes-256-gcm-key", "utf8"),
+    32,
+  ),
 );
 
 const db = new DatabaseSync(dbPath, { readOnly: true });
-const row = db
-  .prepare("SELECT encrypted_json FROM CredentialOAuth2Material WHERE instance_id = ?")
-  .get(instanceId);
+const row = db.prepare("SELECT encrypted_json FROM CredentialOAuth2Material WHERE instance_id = ?").get(instanceId);
 if (!row) {
   console.error(`FATAL: no OAuth2 material for instance ${instanceId}`);
   process.exit(1);
@@ -86,10 +90,9 @@ console.log(`status: ${profileRes.status} ${profileRes.statusText}`);
 console.log(`body: ${(await profileRes.text()).slice(0, 600)}`);
 
 // 3. Gmail API messages.list — exercises gmail.readonly properly (not just identity)
-const messagesRes = await fetch(
-  "https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=1",
-  { headers: { authorization: `Bearer ${accessToken}` } },
-);
+const messagesRes = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=1", {
+  headers: { authorization: `Bearer ${accessToken}` },
+});
 console.log("\n=== Gmail API users.messages.list ===");
 console.log(`status: ${messagesRes.status} ${messagesRes.statusText}`);
 console.log(`body: ${(await messagesRes.text()).slice(0, 600)}`);

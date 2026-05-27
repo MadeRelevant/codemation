@@ -67,7 +67,9 @@ export class DevCliBannerRenderer {
           "",
           `${chalk.hex("#9ca3af")("API gateway:")}  ${chalk.greenBright.underline(url)}`,
           "",
-          chalk.dim("Running in api-only mode — no workspace UI was started. The control-plane UI is the UI for this workspace."),
+          chalk.dim(
+            "Running in api-only mode — no workspace UI was started. The control-plane UI is the UI for this workspace.",
+          ),
         ].join("\n"),
         {
           padding: { top: 0, bottom: 0, left: 1, right: 1 },
