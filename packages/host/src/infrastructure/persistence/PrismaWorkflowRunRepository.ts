@@ -240,7 +240,7 @@ export class PrismaWorkflowRunRepository implements WorkflowRunRepository, Workf
       finishedAt: row.finishedAt ?? undefined,
       status: row.status as WorkflowRunDetailDto["status"],
       workflowSnapshot: this.parseJson(row.workflowSnapshotJson),
-      mutableState: this.parseJson(row.mutableStateJson) as WorkflowRunDetailDto["mutableState"],
+      mutableState: this.parseMutableState(row.mutableStateJson) as WorkflowRunDetailDto["mutableState"],
       slotStates,
       executionInstances,
     };
