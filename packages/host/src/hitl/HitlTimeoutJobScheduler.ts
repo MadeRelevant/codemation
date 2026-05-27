@@ -21,13 +21,16 @@ export interface HitlTimeoutJobPayload {
 export class HitlTimeoutJobScheduler {
   private queue: Queue | null = null;
   private readonly queueName: string;
-  private readonly connectionOptions: Readonly<Record<string, unknown>>;
+  private readonly redisUrl: string;
 
   constructor(@inject(ApplicationTokens.AppConfig) appConfig: AppConfig) {
-    const redisUrl = appConfig.env.REDIS_URL ?? appConfig.env.CODEMATION_REDIS_URL ?? "redis://127.0.0.1:6379";
+    const rawRedisUrl = appConfig.env.REDIS_URL ?? appConfig.env.CODEMATION_REDIS_URL;
+    // Defer URL parsing to queue construction so DI consumers that never enqueue
+    // (e.g. `codemation user create` with REDIS_URL="") can resolve this scheduler
+    // without throwing. fromUrl runs the first time getOrCreateQueue() fires.
+    this.redisUrl = rawRedisUrl && rawRedisUrl !== "" ? rawRedisUrl : "redis://127.0.0.1:6379";
     const queuePrefix = appConfig.env.CODEMATION_BULLMQ_PREFIX ?? "codemation";
     this.queueName = `${queuePrefix}.${HITL_TIMEOUT_QUEUE_NAME_SUFFIX}`;
-    this.connectionOptions = RedisConnectionOptionsFactory.fromConfig({ url: redisUrl });
   }
 
   async enqueueTimeoutJob(args: { taskId: string; expiresAt: Date }): Promise<void> {
@@ -60,8 +63,9 @@ export class HitlTimeoutJobScheduler {
 
   private getOrCreateQueue(): Queue {
     if (!this.queue) {
+      const connectionOptions = RedisConnectionOptionsFactory.fromConfig({ url: this.redisUrl });
       this.queue = new Queue(this.queueName, {
-        connection: this.connectionOptions as never,
+        connection: connectionOptions as never,
       });
     }
     return this.queue;
