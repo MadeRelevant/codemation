@@ -172,7 +172,8 @@ export class PrismaWorkflowRunRepository implements WorkflowRunRepository, Workf
       executionOptions: this.parseJson(row.executionOptionsJson),
       control: this.parseJson(row.controlJson),
       workflowSnapshot: this.parseJson(row.workflowSnapshotJson),
-      mutableState: this.parseJson(row.mutableStateJson),
+      mutableState: this.parseMutableState(row.mutableStateJson),
+      ...this.loadHitlState(row.hitlStateJson, row.mutableStateJson),
       policySnapshot: this.parseJson(row.policySnapshotJson),
       engineCounters: this.parseJson(row.engineCountersJson),
       status: row.status as PersistedRunState["status"],
@@ -239,7 +240,7 @@ export class PrismaWorkflowRunRepository implements WorkflowRunRepository, Workf
       finishedAt: row.finishedAt ?? undefined,
       status: row.status as WorkflowRunDetailDto["status"],
       workflowSnapshot: this.parseJson(row.workflowSnapshotJson),
-      mutableState: this.parseJson(row.mutableStateJson) as WorkflowRunDetailDto["mutableState"],
+      mutableState: this.parseMutableState(row.mutableStateJson) as WorkflowRunDetailDto["mutableState"],
       slotStates,
       executionInstances,
     };
@@ -416,6 +417,7 @@ export class PrismaWorkflowRunRepository implements WorkflowRunRepository, Workf
           policySnapshotJson: state.policySnapshot ? JSON.stringify(state.policySnapshot) : null,
           engineCountersJson: state.engineCounters ? JSON.stringify(state.engineCounters) : null,
           mutableStateJson: state.mutableState ? JSON.stringify(state.mutableState) : null,
+          hitlStateJson: this.buildHitlStateJson(state),
           outputsByNodeJson: JSON.stringify(this.buildPersistedOutputsByNode(state)),
         },
       });
@@ -593,6 +595,74 @@ export class PrismaWorkflowRunRepository implements WorkflowRunRepository, Workf
       itemIndex: row.itemIndex ?? undefined,
       parentInvocationId: row.parentInvocationId ?? undefined,
       ...(row.childRunId !== null && row.childRunId !== undefined ? { childRunId: row.childRunId } : {}),
+    };
+  }
+
+  /**
+   * Serialize HITL state fields into the dedicated `hitl_state_json` column.
+   * Returns null when none of the HITL fields are populated.
+   */
+  private buildHitlStateJson(state: PersistedRunState): string | null {
+    const hasHitl =
+      (state.suspension && state.suspension.length > 0) ||
+      state.pendingResume !== undefined ||
+      state.reason !== undefined;
+    if (!hasHitl) return null;
+    return JSON.stringify({
+      ...(state.suspension && state.suspension.length > 0 ? { suspension: state.suspension } : {}),
+      ...(state.pendingResume !== undefined ? { pendingResume: state.pendingResume } : {}),
+      ...(state.reason !== undefined ? { reason: state.reason } : {}),
+    });
+  }
+
+  /**
+   * Parse `mutable_state_json` while stripping legacy `_hitl*` keys that were
+   * stashed there by the interim fix in commit 63a6cfb3. Those keys belong in
+   * `hitl_state_json` after this migration.
+   */
+  private parseMutableState(mutableStateJson: string | null): PersistedRunState["mutableState"] {
+    const parsed = this.parseJson<Record<string, unknown>>(mutableStateJson);
+    if (!parsed) return undefined;
+    const { _hitlSuspension: _s, _hitlPendingResume: _r, _hitlReason: _reason, ...rest } = parsed;
+    return rest as unknown as PersistedRunState["mutableState"];
+  }
+
+  /**
+   * Load HITL state from the new dedicated column, with a legacy fallback that reads
+   * the `_hitl*` keys stashed inside `mutable_state_json` for rows written before
+   * this migration (commit 63a6cfb3). The fallback should be removed after one release
+   * cycle once all pre-migration rows have been re-saved.
+   *
+   * TODO(post-migration): remove the legacy fallback branch after one release cycle.
+   */
+  private loadHitlState(
+    hitlStateJson: string | null,
+    mutableStateJson: string | null,
+  ): Pick<PersistedRunState, "suspension" | "pendingResume" | "reason"> {
+    if (hitlStateJson !== null) {
+      const parsed = this.parseJson<{
+        suspension?: PersistedRunState["suspension"];
+        pendingResume?: PersistedRunState["pendingResume"];
+        reason?: PersistedRunState["reason"];
+      }>(hitlStateJson);
+      if (!parsed) return {};
+      return {
+        suspension: parsed.suspension,
+        pendingResume: parsed.pendingResume,
+        reason: parsed.reason,
+      };
+    }
+    // Legacy fallback: row was written before the hitl_state_json column existed.
+    const m = this.parseJson<{
+      _hitlSuspension?: PersistedRunState["suspension"];
+      _hitlPendingResume?: PersistedRunState["pendingResume"];
+      _hitlReason?: PersistedRunState["reason"];
+    }>(mutableStateJson);
+    if (!m) return {};
+    return {
+      suspension: m._hitlSuspension,
+      pendingResume: m._hitlPendingResume,
+      reason: m._hitlReason,
     };
   }
 

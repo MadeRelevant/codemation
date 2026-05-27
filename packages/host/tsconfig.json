@@ -28,6 +28,7 @@
       "@codemation/host/dev-server-sidecar": ["./src/devServerSidecar.ts"],
       "@codemation/host/persistence": ["./src/persistenceServer.ts"],
       "@codemation/canvas": ["../canvas/src/index.ts"],
+      "@codemation/canvas-core": ["../canvas-core/src/index.ts"],
       "@codemation/next-host/src/*": ["../next-host/src/*"],
       "@/*": ["../next-host/src/*"]
     }

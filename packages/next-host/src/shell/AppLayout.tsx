@@ -19,6 +19,8 @@ const DEFAULT_SIDEBAR_WIDTH = 16;
 
 export interface AppLayoutProps {
   readonly children: ReactNode;
+  /** True when the workspace is NOT paired with a control plane. Drives non-managed-only nav items like /dev/inbox. */
+  readonly isNonManaged?: boolean;
 }
 
 type AppLayoutState = {
@@ -84,7 +86,7 @@ export class AppLayout extends Component<AppLayoutProps, AppLayoutState> {
   };
 
   override render(): ReactNode {
-    const { children } = this.props;
+    const { children, isNonManaged } = this.props;
     const { sidebarWidth, sidebarCollapsed, isResizing } = this.state;
     const widthRem = sidebarCollapsed ? 3.5 : sidebarWidth;
     return (
@@ -115,7 +117,7 @@ export class AppLayout extends Component<AppLayoutProps, AppLayoutState> {
             )}
             aria-label="Main navigation"
           >
-            <AppLayoutNavItems collapsed={sidebarCollapsed} />
+            <AppLayoutNavItems collapsed={sidebarCollapsed} isNonManaged={isNonManaged} />
           </nav>
           {!sidebarCollapsed && (
             <div

@@ -3,8 +3,11 @@ import process from "node:process";
 
 import { ConsumerEnvLoader } from "../consumer/ConsumerEnvLoader";
 import { SourceMapNodeOptions } from "../runtime/SourceMapNodeOptions";
+import { DevelopmentConditionNodeOptions } from "../runtime/DevelopmentConditionNodeOptions";
 
 export class DevNextHostEnvironmentBuilder {
+  private readonly developmentConditionNodeOptions = new DevelopmentConditionNodeOptions();
+
   constructor(
     private readonly consumerEnvLoader: ConsumerEnvLoader,
     private readonly sourceMapNodeOptions: SourceMapNodeOptions,
@@ -90,7 +93,9 @@ export class DevNextHostEnvironmentBuilder {
       // child still gets `--conditions=development` (set in DevCommand.createRuntime), so
       // consumer-source edits to workflows / plugins still hot-reload via the runtime swap.
       // UI-side packages now resolve to their compiled `dist/` output.
-      NODE_OPTIONS: this.sourceMapNodeOptions.appendToNodeOptions(process.env.NODE_OPTIONS),
+      NODE_OPTIONS: this.sourceMapNodeOptions.appendToNodeOptions(
+        this.developmentConditionNodeOptions.removeFromNodeOptions(process.env.NODE_OPTIONS),
+      ),
       WS_NO_BUFFER_UTIL: "1",
       WS_NO_UTF_8_VALIDATE: "1",
       // Better Auth cannot infer its base URL reliably in monorepo dev; set a deterministic loopback URL.

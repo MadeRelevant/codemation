@@ -2,6 +2,7 @@ import type {
   Items,
   NodeActivationId,
   NodeExecutionSnapshot,
+  NodeExecutionStatus,
   NodeId,
   NodeInputsByPort,
   NodeOutputs,
@@ -139,6 +140,10 @@ export class RunStateSemantics {
     finishedAt: string;
     inputsByPort: NodeInputsByPort;
     outputs: NodeOutputs;
+    hitlStatus?: Extract<
+      NodeExecutionStatus,
+      "hitl-approved" | "hitl-rejected" | "hitl-timeout" | "hitl-auto-accepted" | "hitl-cancelled"
+    >;
   }): NodeExecutionSnapshot {
     const definition = args.workflow.nodes.find((node) => node.id === args.nodeId);
     if (this.missingRuntimeExecutionMarker.isMarked(definition?.config)) {

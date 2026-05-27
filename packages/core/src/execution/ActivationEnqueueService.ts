@@ -1,6 +1,8 @@
 import type {
   ConnectionInvocationRecord,
   EngineRunCounters,
+  PendingResumeEntry,
+  PersistedSuspensionEntry,
   PreparedNodeActivationDispatch,
   NodeActivationRequest,
   NodeActivationScheduler,
@@ -45,6 +47,16 @@ export type ActivationEnqueueRequest = {
   planner: RunQueuePlanner;
   engineCounters?: EngineRunCounters;
   connectionInvocations?: ReadonlyArray<ConnectionInvocationRecord>;
+  /**
+   * Remaining suspension entries after consuming one for a HITL resume (story 01).
+   * When provided, saved alongside the new pending state so they survive the enqueue.
+   */
+  suspension?: ReadonlyArray<PersistedSuspensionEntry>;
+  /**
+   * Resume context to attach to the re-activated node's execution context (story 01).
+   * Written here and consumed by `NodeExecutionRequestHandlerService` when building ctx.
+   */
+  pendingResume?: PendingResumeEntry;
 };
 
 export class ActivationEnqueueService {
@@ -114,6 +126,10 @@ export class ActivationEnqueueService {
         ...args.previousNodeSnapshotsByNodeId,
         [args.request.nodeId]: queuedSnapshot,
       },
+      // HITL story 01: preserve suspension entries and resume context when re-activating a
+      // suspended node. Omit fields when not provided (avoids polluting normal enqueue).
+      ...(args.suspension !== undefined ? { suspension: args.suspension } : {}),
+      ...(args.pendingResume !== undefined ? { pendingResume: args.pendingResume } : {}),
     });
     await this.dispatchPreparedActivation(preparedDispatch);
     return {

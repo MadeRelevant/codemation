@@ -8,12 +8,21 @@ import type { ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
 
-import { IconCollections, IconCredentials, IconDashboard, IconUsers, IconWorkflow } from "./appLayoutSidebarIcons";
+import {
+  IconCollections,
+  IconCredentials,
+  IconDashboard,
+  IconInbox,
+  IconUsers,
+  IconWorkflow,
+} from "./appLayoutSidebarIcons";
 import { WorkflowSidebarNavTree } from "./WorkflowSidebarNavTree";
 import { useWorkflowsQuery } from "@codemation/canvas";
 
 export interface AppLayoutNavItemsProps {
   readonly collapsed: boolean;
+  /** When true, show the /dev/inbox nav item (HITL local inbox is non-managed-only). */
+  readonly isNonManaged?: boolean;
 }
 
 const navLinkClass = (isActive: boolean) =>
@@ -36,7 +45,7 @@ const workflowLinkClassCollapsed = (isActive: boolean) =>
     isActive && "bg-sidebar-accent font-medium text-sidebar-primary",
   );
 
-export function AppLayoutNavItems({ collapsed }: AppLayoutNavItemsProps): ReactNode {
+export function AppLayoutNavItems({ collapsed, isNonManaged }: AppLayoutNavItemsProps): ReactNode {
   const pathname = usePathname();
   const workflowsQuery = useWorkflowsQuery();
   const workflows = workflowsQuery.data ?? [];
@@ -72,6 +81,7 @@ export function AppLayoutNavItems({ collapsed }: AppLayoutNavItemsProps): ReactN
       {navItem("/collections", "Collections", <IconCollections />)}
       {navItem("/credentials", "Credentials", <IconCredentials />)}
       {navItem("/users", "Users", <IconUsers />)}
+      {isNonManaged && navItem("/dev/inbox", "Inbox", <IconInbox />)}
       {collapsed ? (
         <div className="mt-3 flex flex-col gap-1">
           <span className="relative flex overflow-visible">

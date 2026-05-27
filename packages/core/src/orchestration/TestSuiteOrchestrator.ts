@@ -33,7 +33,7 @@ export interface TestSuiteOrchestratorEngine {
     parent?: ParentExecutionRef,
     executionOptions?: RunExecutionOptions,
   ): Promise<RunResult>;
-  waitForCompletion(runId: RunId): Promise<Extract<RunResult, { status: "completed" | "failed" }>>;
+  waitForCompletion(runId: RunId): Promise<Extract<RunResult, { status: "completed" | "failed" | "halted" }>>;
 }
 
 export interface TestSuiteCaseOutcome {
@@ -275,16 +275,17 @@ export class TestSuiteOrchestrator {
       ...(args.testCaseLabel !== undefined ? { testCaseLabel: args.testCaseLabel } : {}),
     });
 
-    let terminal: Extract<RunResult, { status: "completed" | "failed" }>;
+    let terminal: Extract<RunResult, { status: "completed" | "failed" | "halted" }>;
     if (initial.status === "completed" || initial.status === "failed") {
       terminal = initial;
     } else {
       terminal = await this.engine.waitForCompletion(runId);
     }
 
-    // RunResult.status from the engine narrows to "completed" | "failed" here; widening to
+    // RunResult.status from the engine narrows to "completed" | "failed" | "halted" here; widening to
     // "errored" / "cancelled" happens outside this code path (tracker downgrade for assertion
-    // failures; outer abort handling for cancelled).
+    // failures; outer abort handling for cancelled). Halted runs are treated as "failed" for
+    // test case status purposes.
     const status: TestCaseRunStatus = terminal.status === "completed" ? "succeeded" : "failed";
     await this.publish({
       kind: "testCaseCompleted",

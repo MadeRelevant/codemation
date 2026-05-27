@@ -128,7 +128,18 @@ export interface RunQueueEntry {
   }>;
 }
 
-export type NodeExecutionStatus = "pending" | "queued" | "running" | "completed" | "failed" | "skipped";
+export type NodeExecutionStatus =
+  | "pending"
+  | "queued"
+  | "running"
+  | "completed"
+  | "failed"
+  | "skipped"
+  | "hitl-approved"
+  | "hitl-rejected"
+  | "hitl-timeout"
+  | "hitl-auto-accepted"
+  | "hitl-cancelled";
 
 export interface NodeExecutionError {
   message: string;
@@ -245,7 +256,10 @@ export interface ExecutionFrontierPlan {
   preservedPinnedNodeIds: ReadonlyArray<NodeId>;
 }
 
-export type RunStatus = "running" | "pending" | "completed" | "failed";
+export type RunStatus = "running" | "pending" | "completed" | "failed" | "suspended" | "halted";
+
+/** Reason a run transitioned to {@link RunStatus} `"halted"`. */
+export type RunHaltReason = "hitl-rejected" | "hitl-timeout" | "hitl-cancelled";
 
 export interface RunSummary {
   runId: RunId;
@@ -283,6 +297,37 @@ export interface PersistedRunSchedulingState {
   queue: RunQueueEntry[];
 }
 
+/** One persisted suspension entry per suspended item (HITL story 01). */
+export interface PersistedSuspensionEntry {
+  /** Opaque task identifier (UUID v4). */
+  readonly taskId: string;
+  readonly nodeId: NodeId;
+  readonly activationId: NodeActivationId;
+  readonly itemIndex: number;
+  /** SHA-256 hex digest of the decision schema JSON (for schema-drift detection). */
+  readonly decisionSchemaHash: string;
+  /** Serialized return value from `SuspensionRequest.deliver` (story 02 stores this on the HumanTask row). */
+  readonly deliveryRef: JsonValue;
+  /** ISO timestamp when the task expires. */
+  readonly timeoutAt: string;
+  readonly onTimeout: "halt" | "auto-accept";
+}
+
+/**
+ * When a node is re-activated after suspension, the engine writes the resume context here
+ * so `NodeExecutionRequestHandlerService` can splice `resumeContext` into ctx.
+ * Cleared once the re-activation is consumed (story 01).
+ */
+export interface PendingResumeEntry {
+  readonly activationId: NodeActivationId;
+  readonly nodeId: NodeId;
+  /**
+   * Typed as `unknown` here to avoid a circular import between runTypes ↔ runtimeTypes.
+   * `NodeExecutionRequestHandlerService` casts this to `ResumeContext` from runtimeTypes.
+   */
+  readonly resumeContext: unknown;
+}
+
 export interface PersistedRunState {
   runId: RunId;
   workflowId: WorkflowId;
@@ -301,12 +346,24 @@ export interface PersistedRunState {
   /** Successful node completions so far (for activation budget). */
   engineCounters?: EngineRunCounters;
   status: RunStatus;
+  /** Populated when `status === "halted"` to discriminate why the run was halted. */
+  reason?: RunHaltReason;
   pending?: PendingNodeExecution;
   queue: RunQueueEntry[];
   outputsByNode: Record<NodeId, NodeOutputs>;
   nodeSnapshotsByNodeId: Record<NodeId, NodeExecutionSnapshot>;
   /** Append-only history of connection invocations (LLM/tool) nested under owning nodes. */
   connectionInvocations?: ReadonlyArray<ConnectionInvocationRecord>;
+  /**
+   * One entry per outstanding HITL suspension (per-item, D2).
+   * Present and non-empty iff `status === "suspended"`.
+   */
+  suspension?: ReadonlyArray<PersistedSuspensionEntry>;
+  /**
+   * Written by `resumeRun()` so `NodeExecutionRequestHandlerService` can splice `resumeContext`
+   * into the ctx when re-executing the suspended node. Cleared once consumed.
+   */
+  pendingResume?: PendingResumeEntry;
 }
 
 export interface WorkflowExecutionRepository {
@@ -349,7 +406,8 @@ export interface WorkflowExecutionPruneRepository {
 export type RunResult =
   | { runId: RunId; workflowId: WorkflowId; startedAt: string; status: "completed"; outputs: Items }
   | { runId: RunId; workflowId: WorkflowId; startedAt: string; status: "pending"; pending: PendingNodeExecution }
-  | { runId: RunId; workflowId: WorkflowId; startedAt: string; status: "failed"; error: { message: string } };
+  | { runId: RunId; workflowId: WorkflowId; startedAt: string; status: "failed"; error: { message: string } }
+  | { runId: RunId; workflowId: WorkflowId; startedAt: string; status: "halted"; reason: RunHaltReason };
 
 export type WebhookRunResult = Readonly<{
   runId: RunId;

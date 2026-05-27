@@ -19,6 +19,105 @@ import type { WorkflowActivationPolicy } from "./workflowActivationPolicy";
 import type { TriggerInstanceId, WebhookTriggerMatcher } from "./webhookTypes";
 import type { ZodType } from "zod";
 
+// ---------------------------------------------------------------------------
+// HITL primitives — Story 01
+// ---------------------------------------------------------------------------
+
+/** Opaque unique identifier for a single HumanTask instance. */
+export type HumanTaskId = string;
+
+/**
+ * Duration string — ISO 8601 duration ("PT24H") or shorthand ("24h").
+ * Parsed by the timeout job (story 02); stored as-is in the suspension record.
+ */
+export type Duration = string;
+
+/**
+ * Minimal handle handed to the `deliver` callback so it can route to the correct
+ * inbox channel. Story 02 fills in a real `resumeUrl`; story 01 uses a placeholder.
+ */
+export interface HumanTaskHandle {
+  readonly taskId: HumanTaskId;
+  readonly runId: string;
+  readonly nodeId: string;
+  readonly expiresAt: Date;
+  /** TODO(story-02): real signed URL; placeholder empty string for story 01. */
+  readonly resumeUrl: string;
+  /**
+   * Arbitrary JSON metadata copied from `SuspensionRequest.request.metadata` at suspension time.
+   * Used by the agent runtime (story 10) to round-trip the `agentCheckpoint` back to the
+   * resumed node via `ctx.resumeContext.task.metadata`.
+   */
+  readonly metadata?: Readonly<Record<string, import("./workflowTypes").JsonValue>>;
+}
+
+/** Human-readable description surface shown to the reviewer. */
+export interface HumanTaskSubject {
+  readonly title: string;
+  readonly summary: string;
+  readonly attributes?: import("./workflowTypes").JsonValue;
+}
+
+/** Identity of the person who made a decision on the task. */
+export interface HumanTaskActor {
+  readonly actorId: string;
+  readonly displayName?: string;
+}
+
+/**
+ * Resume context injected into `NodeExecutionContext` when the engine re-activates
+ * a previously suspended node. Story 04 wraps this with parsed `TDecision` via
+ * `defineHumanApprovalNode`; at the engine layer `decision.value` is `unknown`.
+ */
+export interface ResumeContext {
+  readonly decision:
+    | Readonly<{ kind: "decided"; value: unknown; actor: HumanTaskActor; decidedAt: Date }>
+    | Readonly<{ kind: "timed_out"; at: Date }>
+    | Readonly<{ kind: "auto_accepted"; at: Date }>;
+  readonly delivery: import("./workflowTypes").JsonValue;
+  readonly task: HumanTaskHandle;
+}
+
+/**
+ * Thrown by a node's `execute()` to request durable suspension of the current item.
+ * The engine catches this, persists the suspension entry, calls `deliver`, and
+ * continues to the next item (per-item semantics, D2).
+ *
+ * @example
+ * ```ts
+ * throw new SuspensionRequest({
+ *   decisionSchema: z.object({ approved: z.boolean() }),
+ *   timeout: "PT24H",
+ *   onTimeout: "halt",
+ *   subject: { title: "Approve invoice", summary: "Invoice #1234 needs approval" },
+ *   deliver: async (handle) => {
+ *     await notifySlack(handle);
+ *     return { channel: "slack", ts: "..." };
+ *   },
+ * });
+ * ```
+ */
+export class SuspensionRequest<
+  TDecision = unknown,
+  TDelivery extends import("./workflowTypes").JsonValue = import("./workflowTypes").JsonValue,
+> extends Error {
+  constructor(
+    readonly request: Readonly<{
+      decisionSchema: ZodType<TDecision>;
+      timeout: Duration;
+      onTimeout: "halt" | "auto-accept";
+      subject: HumanTaskSubject;
+      metadata?: Readonly<Record<string, import("./workflowTypes").JsonValue>>;
+      deliver: (handle: HumanTaskHandle) => Promise<TDelivery>;
+    }>,
+  ) {
+    // Extending Error so wrappers like InProcessRetryRunner preserve identity
+    // (`instanceof SuspensionRequest`) instead of coercing via String(thrown).
+    super(`SuspensionRequest(${request.subject?.title ?? "untitled"})`);
+    this.name = "SuspensionRequest";
+  }
+}
+
 import type {
   ActivationIdFactory,
   BinaryAttachment,
@@ -183,6 +282,14 @@ export interface ExecutionContext {
    * Collections registered in the codemation config, keyed by collection name.
    */
   readonly collections?: CollectionsContext;
+  /**
+   * Resolve a DI token from the host container.
+   * Allows nodes to reach host-side services (e.g. `InboxChannelResolverToken`)
+   * without importing host code. Wired by `DefaultExecutionContextFactory`; throws
+   * a clear error when no resolver is configured (e.g. in unit tests that don't
+   * set up the full container).
+   */
+  resolve<T>(token: TypeToken<T>): T;
 }
 
 export interface ExecutionContextFactory {
@@ -208,6 +315,11 @@ export interface NodeExecutionContext<TConfig extends NodeConfigBase = NodeConfi
   config: TConfig;
   telemetry: NodeExecutionTelemetry;
   binary: NodeBinaryAttachmentService;
+  /**
+   * Present when this node activation is a HITL resume (story 01).
+   * The node checks `ctx.resumeContext !== undefined` and takes the resume branch.
+   */
+  resumeContext?: ResumeContext;
 }
 
 export interface PollingTriggerHandle {

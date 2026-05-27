@@ -279,4 +279,14 @@ export class ApiPaths {
   static internalAuthBootstrap(): string {
     return `${this.bootstrapBasePath}/auth/internal`;
   }
+
+  /** Token-authenticated: resume a suspended HITL task. */
+  static hitlTaskResume(taskId: string): string {
+    return `${this.apiBasePath}/hitl/tasks/${encodeURIComponent(taskId)}/resume`;
+  }
+
+  /** Session-authenticated: record a decision on a suspended HITL task. */
+  static hitlTaskDecide(taskId: string): string {
+    return `${this.apiBasePath}/hitl/tasks/${encodeURIComponent(taskId)}/decide`;
+  }
 }

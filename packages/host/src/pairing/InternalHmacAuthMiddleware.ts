@@ -17,7 +17,7 @@ export class InternalHmacAuthMiddleware {
     return async (c: Context, next: Next) => {
       const body = c.req.method === "GET" || c.req.method === "HEAD" ? "" : await c.req.text();
 
-      const result = this.verifier.verify(c.req.method, c.req.url, body, c.req.header("authorization") ?? null);
+      const result = await this.verifier.verify(c.req.method, c.req.url, body, c.req.header("authorization") ?? null);
 
       if ("failure" in result) {
         return c.json({ error: "Unauthorized" }, 401);

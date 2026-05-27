@@ -1,0 +1,123 @@
+name: Publish workspace-host Docker image
+
+# Triggered by: (1) push of a version tag v*, (2) workflow_dispatch.
+# The immutable tag :<version> is derived from packages/host/package.json — if it already
+# exists in GHCR, only the rolling :<major> tag is updated (no rebuild).
+# Image repository: ghcr.io/maderelevant/codemation-workspace-host
+# Note: GHCR is case-sensitive; the org is "MadeRelevant" on GitHub but the registry path
+# must be lowercase "maderelevant".
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to publish, for example v0.8.3"
+        required: true
+        type: string
+
+concurrency:
+  group: publish-workspace-host-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: true
+
+permissions:
+  packages: write
+  contents: read
+  id-token: write # Reserved for future cosign image signing
+
+env:
+  IMAGE: ghcr.io/maderelevant/codemation-workspace-host
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Resolve release tag
+        id: release-tag
+        env:
+          REQUESTED_TAG: ${{ inputs.tag }}
+        run: |
+          if [ -n "${REQUESTED_TAG}" ]; then
+            echo "tag=${REQUESTED_TAG}" >> "${GITHUB_OUTPUT}"
+          else
+            echo "tag=${GITHUB_REF_NAME}" >> "${GITHUB_OUTPUT}"
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ steps.release-tag.outputs.tag }}
+          fetch-depth: 0
+
+      - name: Read and validate version
+        id: version
+        env:
+          RELEASE_TAG: ${{ steps.release-tag.outputs.tag }}
+        run: |
+          # Read version from packages/host/package.json — this is the source of truth for
+          # the image version. The tag (after stripping "v") must match exactly.
+          VERSION="$(node -p "require('./packages/host/package.json').version")"
+          TAG_VERSION="${RELEASE_TAG#v}"
+
+          if [ "${VERSION}" != "${TAG_VERSION}" ]; then
+            echo "::error::Version mismatch: packages/host/package.json says ${VERSION} but tag is ${RELEASE_TAG} (${TAG_VERSION}). Ensure the version-packages PR was merged before tagging."
+            exit 1
+          fi
+
+          # Compute the rolling major channel (e.g. "0.8.3" → "0").
+          MAJOR="${VERSION%%.*}"
+
+          echo "version=${VERSION}" >> "${GITHUB_OUTPUT}"
+          echo "major=${MAJOR}" >> "${GITHUB_OUTPUT}"
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check if immutable version tag already exists
+        id: tag-exists
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          # Login is required above before inspecting private GHCR images.
+          if docker manifest inspect "${IMAGE}:${VERSION}" >/dev/null 2>&1; then
+            echo "exists=true" >> "${GITHUB_OUTPUT}"
+            echo "::notice::Immutable tag :${VERSION} already exists in GHCR."
+          else
+            echo "exists=false" >> "${GITHUB_OUTPUT}"
+          fi
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push (new version)
+        if: steps.tag-exists.outputs.exists == 'false'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: packaging/workspace-host/Dockerfile
+          push: true
+          platforms: linux/amd64
+          tags: |
+            ${{ env.IMAGE }}:${{ steps.version.outputs.version }}
+            ${{ env.IMAGE }}:${{ steps.version.outputs.major }}
+          cache-from: type=gha,scope=workspace-host-prod
+          cache-to: type=gha,mode=max,scope=workspace-host-prod
+
+      - name: Retag rolling channel (version already exists)
+        # When the immutable tag already exists, skip the full build and just move the
+        # rolling :<major> pointer to the existing image manifest. This avoids creating a
+        # new digest for identical content (imagetools create copies the manifest reference).
+        if: steps.tag-exists.outputs.exists == 'true'
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          MAJOR: ${{ steps.version.outputs.major }}
+        run: |
+          docker buildx imagetools create \
+            -t "${IMAGE}:${MAJOR}" \
+            "${IMAGE}:${VERSION}"

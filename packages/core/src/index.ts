@@ -1,4 +1,35 @@
 export { SystemClock, type Clock } from "./contracts/Clock";
+export {
+  SuspensionRequest,
+  type HumanTaskHandle,
+  type HumanTaskSubject,
+  type HumanTaskActor,
+  type HumanTaskId,
+  type Duration,
+  type ResumeContext,
+} from "./contracts/runtimeTypes";
+export type { PersistedSuspensionEntry, PendingResumeEntry, RunHaltReason } from "./contracts/runTypes";
+export type { HumanTaskRecord, HumanTaskStatus, HumanTaskStore } from "./contracts/humanTaskStoreTypes";
+export { HumanTaskStoreToken } from "./contracts/humanTaskStoreTypes";
+export type { HitlResumeTokenSignerSeam, HitlTimeoutJobSchedulerSeam } from "./contracts/hitlSeamTypes";
+export {
+  HitlResumeTokenSignerToken,
+  HitlTimeoutJobSchedulerToken,
+  HitlWorkspaceIdToken,
+} from "./contracts/hitlSeamTypes";
+export type {
+  InboxChannel,
+  InboxChannelResolverSeam,
+  InboxDeliverArgs,
+  InboxDelivery,
+  InboxOnDecisionArgs,
+  InboxOnTimeoutArgs,
+} from "./contracts/inboxChannelTypes";
+export {
+  InboxChannelResolverToken,
+  LocalInboxChannelToken,
+  ControlPlaneInboxChannelToken,
+} from "./contracts/inboxChannelTypes";
 export * from "./authoring";
 export * from "./ai/AiHost";
 export { AgentConnectionNodeCollector } from "./ai/AgentConnectionNodeCollector";
