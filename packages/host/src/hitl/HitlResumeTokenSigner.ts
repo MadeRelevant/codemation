@@ -14,21 +14,30 @@ import type { AppConfig } from "../presentation/config/AppConfig";
  */
 @injectable()
 export class HitlResumeTokenSigner {
-  private readonly secret: Buffer;
+  // Cached secret bytes if AUTH_SECRET is present. Null otherwise — call sites that
+  // actually need to sign/verify will throw via requireSecret(). Deferring the throw
+  // to method invocation (instead of constructor) keeps test setups and bootstrap
+  // graphs that resolve the wider engine chain from failing when AUTH_SECRET is not
+  // set; production code paths that exercise HITL still fail loudly at use time.
+  private readonly secret: Buffer | null;
 
   constructor(@inject(ApplicationTokens.AppConfig) appConfig: AppConfig) {
     const raw = appConfig.env.AUTH_SECRET?.trim();
-    if (!raw) {
+    this.secret = raw ? Buffer.from(raw, "utf8") : null;
+  }
+
+  private requireSecret(): Buffer {
+    if (!this.secret) {
       throw new Error("HitlResumeTokenSigner: AUTH_SECRET is required.");
     }
-    this.secret = Buffer.from(raw, "utf8");
+    return this.secret;
   }
 
   sign(args: { taskId: string; expiresAt: Date; schemaHash: string }): string {
     const expiresAtUnix = String(Math.floor(args.expiresAt.getTime() / 1000));
     const schemaHash8 = args.schemaHash.slice(0, 8);
     const payload = `${args.taskId}.${expiresAtUnix}.${schemaHash8}`;
-    const sig = createHmac("sha256", this.secret).update(payload).digest("base64url");
+    const sig = createHmac("sha256", this.requireSecret()).update(payload).digest("base64url");
     return `${payload}.${sig}`;
   }
 
@@ -49,7 +58,7 @@ export class HitlResumeTokenSigner {
     }
 
     const payload = `${taskId}.${expiresAtUnixStr}.${schemaHash8}`;
-    const expectedSig = createHmac("sha256", this.secret).update(payload).digest("base64url");
+    const expectedSig = createHmac("sha256", this.requireSecret()).update(payload).digest("base64url");
     const expectedBuf = Buffer.from(expectedSig, "utf8");
     const receivedBuf = Buffer.from(receivedSig, "utf8");
     if (expectedBuf.length !== receivedBuf.length || !timingSafeEqual(expectedBuf, receivedBuf)) {

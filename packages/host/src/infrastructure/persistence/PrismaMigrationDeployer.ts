@@ -12,12 +12,21 @@ import type { AppPersistenceConfig } from "../../presentation/config/AppConfig";
  * runtime prevents it from walking the whole project when tracing this file.
  */
 
-// The import specifier is intentionally split so that static analysers (NFT / Turbopack)
-// cannot resolve it at build time. The actual module loaded is always PrismaMigrationOperations.
+// The import specifier is intentionally split so static analysers (NFT / Turbopack)
+// cannot resolve it at build time and trace the heavy fs/createRequire ops inside.
+// We disambiguate source vs dist at runtime via `import.meta.url`:
+//  - source (Vitest, `pnpm dev`): the wrapper and operations are siblings under
+//    `src/infrastructure/persistence/`, so `./PrismaMigrationOperations.js`.
+//  - dist (published tgz): tsdown inlines the wrapper into top-level chunks, while
+//    the operations module is emitted as its own entry at
+//    `dist/infrastructure/persistence/PrismaMigrationOperations.js`. The .js
+//    extension is required because the package is `"type": "module"`.
 const implSpecifier = /* @__PURE__ */ (() => {
-  const base = "./PrismaMigration";
-  const suffix = "Operations";
-  return base + suffix;
+  const suffix = "Operations.js";
+  if (import.meta.url.includes("/src/")) {
+    return "./PrismaMigration" + suffix;
+  }
+  return "./infrastructure/persistence/PrismaMigration" + suffix;
 })();
 
 @injectable()
