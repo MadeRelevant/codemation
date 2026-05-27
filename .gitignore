@@ -27,7 +27,8 @@ packages/host/.cache/
 .verdaccio/storage/
 .claude/scheduled_tasks.lock
 epic-planning/
-apps/.workspaces/
+apps/.workspaces/*
+!apps/.workspaces/.gitkeep
 .claude/
 epic-planning/SECURITY_BACKLOG.md
 

@@ -105,9 +105,6 @@ describe("LocalInboxChannel", () => {
       logMessage.includes(expectedFingerprint),
       `expected token fingerprint "${expectedFingerprint}" in log: "${logMessage}"`,
     );
-    assert.ok(
-      !logMessage.includes(rawToken),
-      `raw resume token must NOT appear in log: "${logMessage}"`,
-    );
+    assert.ok(!logMessage.includes(rawToken), `raw resume token must NOT appear in log: "${logMessage}"`);
   });
 });

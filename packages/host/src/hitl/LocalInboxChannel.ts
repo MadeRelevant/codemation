@@ -28,10 +28,7 @@ export class LocalInboxChannel implements InboxChannel {
   }
 
   async deliver(args: InboxDeliverArgs): Promise<InboxDelivery> {
-    const tokenFingerprint = createHash("sha256")
-      .update(args.task.resumeUrl, "utf8")
-      .digest("hex")
-      .slice(0, 8);
+    const tokenFingerprint = createHash("sha256").update(args.task.resumeUrl, "utf8").digest("hex").slice(0, 8);
     this.logger.info(
       `HITL task pending in local inbox — taskId=${args.task.taskId} title="${args.subject.title}" tokenFingerprint=${tokenFingerprint}`,
     );
