@@ -211,9 +211,9 @@ describe("HITL wiring gaps — Prisma round-trip + tsx-dev dual-class", () => {
   // suspension array vanished on save, and `RunContinuationService.resumeRun`
   // then bailed with `No suspension entry with taskId "..." found on run ...`.
   //
-  // The interim fix stashes the three fields under `_hitl*` keys inside the
-  // existing `mutable_state_json` blob. The proper fix is a dedicated
-  // `hitl_state_json` column. This test guards either implementation.
+  // The proper fix is the dedicated `hitl_state_json` column added in the
+  // 20260527130000_add_hitl_state_json migration (superseding the interim
+  // `_hitl*` stash in commit 63a6cfb3). This test verifies the new column path.
   it("PrismaWorkflowRunRepository round-trips suspension, pendingResume, and reason", async () => {
     const prismaClient = requireTransactionClient();
     const repo = new PrismaWorkflowRunRepository(prismaClient as never, noopSnapshotRepo);
@@ -245,6 +245,62 @@ describe("HITL wiring gaps — Prisma round-trip + tsx-dev dual-class", () => {
     expect(loaded?.pendingResume?.activationId).toBe("act_resume_001");
     expect(loaded?.pendingResume?.nodeId).toBe("approve-invoice");
     expect(loaded?.reason).toBe("hitl-rejected");
+  });
+
+  // -------------------------------------------------------------------------
+  // Legacy-row hydration — rows written before the hitl_state_json migration
+  //   (commit 63a6cfb3, _hitl* stash inside mutable_state_json) must still
+  //   load correctly after the migration.
+  // -------------------------------------------------------------------------
+  it("PrismaWorkflowRunRepository loads HITL fields from legacy _hitl* stash in mutable_state_json", async () => {
+    const prismaClient = requireTransactionClient() as {
+      run: {
+        create: (args: unknown) => Promise<unknown>;
+        update: (args: unknown) => Promise<unknown>;
+      };
+    };
+    const repo = new PrismaWorkflowRunRepository(prismaClient as never, noopSnapshotRepo);
+
+    const runId = "run_legacy_hitl_test_001";
+    const legacySuspension = [makeSuspensionEntry("htask_legacy_a")];
+    const legacyPendingResume = makeResumeEntry("act_legacy_001");
+
+    // Create the run via normal API (hitl_state_json will be null).
+    await repo.createRun({
+      runId: runId as PersistedRunState["runId"],
+      workflowId: "wf.hitl.wiring-test" as PersistedRunState["workflowId"],
+      startedAt: "2026-05-26T00:00:00.000Z",
+    });
+
+    // Directly write a legacy mutable_state_json blob with _hitl* keys, leaving
+    // hitl_state_json as null to simulate a pre-migration row.
+    await prismaClient.run.update({
+      where: { runId },
+      data: {
+        mutableStateJson: JSON.stringify({
+          nodesById: {},
+          _hitlSuspension: legacySuspension,
+          _hitlPendingResume: legacyPendingResume,
+          _hitlReason: "hitl-rejected",
+        }),
+        hitlStateJson: null,
+      },
+    });
+
+    const loaded = await repo.load(runId);
+    expect(loaded).toBeDefined();
+    // HITL fields must be hoisted from the legacy stash.
+    expect(loaded?.suspension).toBeDefined();
+    expect(loaded?.suspension).toHaveLength(1);
+    expect(loaded?.suspension?.[0]?.taskId).toBe("htask_legacy_a");
+    expect(loaded?.pendingResume?.activationId).toBe("act_legacy_001");
+    expect(loaded?.reason).toBe("hitl-rejected");
+    // _hitl* keys must NOT bleed into mutableState.
+    expect(loaded?.mutableState).toBeDefined();
+    const mutableKeys = Object.keys(loaded?.mutableState ?? {});
+    expect(mutableKeys).not.toContain("_hitlSuspension");
+    expect(mutableKeys).not.toContain("_hitlPendingResume");
+    expect(mutableKeys).not.toContain("_hitlReason");
   });
 
   // GAP #5 tested in the describe block below.
@@ -290,13 +346,7 @@ describe("HITL wiring gap #5 — ctx.resumeContext reaches inboxApproval on resu
         APPROVAL_NODE_ID,
       ),
     )
-    .then(
-      new Callback(
-        "Callback",
-        (items) => items,
-        CALLBACK_NODE_ID,
-      ),
-    )
+    .then(new Callback("Callback", (items) => items, CALLBACK_NODE_ID))
     .build();
 
   let database: IntegrationDatabase | null = null;
