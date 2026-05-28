@@ -37,6 +37,7 @@
   },
   "dependencies": {
     "@codemation/agent-skills": "workspace:*",
+    "@codemation/core": "workspace:*",
     "@codemation/host": "workspace:*",
     "@hono/node-server": "^1.19.9",
     "bcryptjs": "^3.0.3",

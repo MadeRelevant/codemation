@@ -476,6 +476,9 @@ importers:
       '@codemation/agent-skills':
         specifier: workspace:*
         version: link:../agent-skills
+      '@codemation/core':
+        specifier: workspace:*
+        version: link:../core
       '@codemation/host':
         specifier: workspace:*
         version: link:../host
