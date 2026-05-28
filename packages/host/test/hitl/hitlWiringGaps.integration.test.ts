@@ -274,140 +274,143 @@ describe("HITL wiring gaps — Prisma round-trip + tsx-dev dual-class", () => {
 // (NodeSuspensionHandler → HitlTimeoutJobScheduler). The sqlite integration suite
 // runs without Redis, so the suspension can't complete there — skip when REDIS_URL
 // is absent. The Postgres integration suite (which provisions Redis) covers these.
-describe.skipIf(!process.env.REDIS_URL)("HITL wiring gap #5 — ctx.resumeContext reaches inboxApproval on resume", () => {
-  const WORKFLOW_ID = "wf.hitl.gap5.resume";
-  const APPROVAL_NODE_ID = "inbox-approval-gap5";
-  const CALLBACK_NODE_ID = "callback-gap5";
+describe.skipIf(!process.env.REDIS_URL)(
+  "HITL wiring gap #5 — ctx.resumeContext reaches inboxApproval on resume",
+  () => {
+    const WORKFLOW_ID = "wf.hitl.gap5.resume";
+    const APPROVAL_NODE_ID = "inbox-approval-gap5";
+    const CALLBACK_NODE_ID = "callback-gap5";
 
-  const workflow = createWorkflowBuilder({ id: WORKFLOW_ID, name: "HITL GAP#5 probe" })
-    .trigger(new ManualTrigger("Start", "trigger-gap5"))
-    .then(
-      inboxApproval.create(
-        {
-          title: "GAP5 approval",
-          body: "Please decide",
-          priority: "normal",
-          timeout: "1h",
-          onTimeout: "halt",
+    const workflow = createWorkflowBuilder({ id: WORKFLOW_ID, name: "HITL GAP#5 probe" })
+      .trigger(new ManualTrigger("Start", "trigger-gap5"))
+      .then(
+        inboxApproval.create(
+          {
+            title: "GAP5 approval",
+            body: "Please decide",
+            priority: "normal",
+            timeout: "1h",
+            onTimeout: "halt",
+          },
+          "Inbox Approval",
+          APPROVAL_NODE_ID,
+        ),
+      )
+      .then(new Callback("Callback", (items) => items, CALLBACK_NODE_ID))
+      .build();
+
+    let database: IntegrationDatabase | null = null;
+    let harness: FrontendHttpIntegrationHarness | null = null;
+
+    beforeAll(async () => {
+      database = await IntegrationDatabaseFactory.createEphemeral();
+      harness = new FrontendHttpIntegrationHarness({
+        config: mergeIntegrationDatabaseRuntime(
+          {
+            workflows: [workflow],
+            runtime: { eventBus: { kind: "memory" }, scheduler: { kind: "local" } },
+            auth: IntegrationTestAuth.developmentBypass,
+          },
+          database,
+        ),
+        consumerRoot: path.resolve(import.meta.dirname, "../../.."),
+        env: { AUTH_SECRET: "test-auth-secret-for-hitl-gap5-integration" },
+      });
+      await harness.start();
+    });
+
+    afterAll(async () => {
+      await harness?.close();
+      await database?.close();
+    });
+
+    it("resumed inboxApproval activation receives ctx.resumeContext and routes to onDecision", async () => {
+      const h = harness!;
+
+      // 1. Start the run with one item so the inboxApproval has something to process.
+      const createResult = await h.requestJson<RunCommandResult>({
+        method: "POST",
+        url: ApiPaths.runs(),
+        payload: { workflowId: WORKFLOW_ID, items: [{ subject: "gap5-test-item" }] },
+      });
+      const runId = createResult.runId;
+
+      // 2. Poll until the run suspends.
+      const suspended = await pollUntilStatus(h, runId, "suspended", 5_000);
+      expect(suspended.suspension).toBeDefined();
+      expect(suspended.suspension).toHaveLength(1);
+
+      const taskId = suspended.suspension![0]!.taskId;
+
+      // 3. Decide: approve.
+      const decideResult = await h.requestJson<{ status: string; runStatus: string }>({
+        method: "POST",
+        url: ApiPaths.hitlTaskDecide(taskId),
+        payload: {
+          decision: { approved: true, note: "gap5-test" },
+          decidedBy: { actorId: "test-actor" },
         },
-        "Inbox Approval",
-        APPROVAL_NODE_ID,
-      ),
-    )
-    .then(new Callback("Callback", (items) => items, CALLBACK_NODE_ID))
-    .build();
+      });
+      expect(decideResult.status).toBe("decided");
+      expect(decideResult.runStatus).toBe("running");
 
-  let database: IntegrationDatabase | null = null;
-  let harness: FrontendHttpIntegrationHarness | null = null;
+      // 4. Poll until the run completes (Callback fires after resume).
+      const completed = await pollUntilStatus(h, runId, "completed", 5_000);
 
-  beforeAll(async () => {
-    database = await IntegrationDatabaseFactory.createEphemeral();
-    harness = new FrontendHttpIntegrationHarness({
-      config: mergeIntegrationDatabaseRuntime(
-        {
-          workflows: [workflow],
-          runtime: { eventBus: { kind: "memory" }, scheduler: { kind: "local" } },
-          auth: IntegrationTestAuth.developmentBypass,
-        },
-        database,
-      ),
-      consumerRoot: path.resolve(import.meta.dirname, "../../.."),
-      env: { AUTH_SECRET: "test-auth-secret-for-hitl-gap5-integration" },
-    });
-    await harness.start();
-  });
-
-  afterAll(async () => {
-    await harness?.close();
-    await database?.close();
-  });
-
-  it("resumed inboxApproval activation receives ctx.resumeContext and routes to onDecision", async () => {
-    const h = harness!;
-
-    // 1. Start the run with one item so the inboxApproval has something to process.
-    const createResult = await h.requestJson<RunCommandResult>({
-      method: "POST",
-      url: ApiPaths.runs(),
-      payload: { workflowId: WORKFLOW_ID, items: [{ subject: "gap5-test-item" }] },
-    });
-    const runId = createResult.runId;
-
-    // 2. Poll until the run suspends.
-    const suspended = await pollUntilStatus(h, runId, "suspended", 5_000);
-    expect(suspended.suspension).toBeDefined();
-    expect(suspended.suspension).toHaveLength(1);
-
-    const taskId = suspended.suspension![0]!.taskId;
-
-    // 3. Decide: approve.
-    const decideResult = await h.requestJson<{ status: string; runStatus: string }>({
-      method: "POST",
-      url: ApiPaths.hitlTaskDecide(taskId),
-      payload: {
-        decision: { approved: true, note: "gap5-test" },
-        decidedBy: { actorId: "test-actor" },
-      },
-    });
-    expect(decideResult.status).toBe("decided");
-    expect(decideResult.runStatus).toBe("running");
-
-    // 4. Poll until the run completes (Callback fires after resume).
-    const completed = await pollUntilStatus(h, runId, "completed", 5_000);
-
-    // 5. Assert the Callback received the decided item with decision.status = "approved".
-    const callbackOutput = completed.outputsByNode[CALLBACK_NODE_ID]?.main;
-    expect(callbackOutput).toBeDefined();
-    expect(callbackOutput).toHaveLength(1);
-    expect((callbackOutput![0]!.json as Record<string, unknown>)["decision"]).toMatchObject({
-      status: "approved",
-    });
-  });
-
-  // -------------------------------------------------------------------------
-  // GAP #6 — decide endpoint rejects a body without the `decision` wrapper.
-  // -------------------------------------------------------------------------
-  //
-  // Production symptom: deciding a task from the /dev/inbox UI 422'd with
-  //   {"error":"Decision does not match the expected schema: data must be object"}
-  // The route reads `body.decision` and forwards it to DecisionSchemaValidator.
-  // The UI was POSTing `{ approved }` at the top level (no `decision` wrapper),
-  // so `body.decision` was `undefined`; validating `undefined` against the
-  // task's object schema yields ajv's "data must be object". This guards the
-  // required request shape end-to-end and confirms a malformed decision leaves
-  // the task pending instead of resolving it.
-  it("decide endpoint 422s on a body missing the `decision` wrapper and leaves the task pending", async () => {
-    const h = harness!;
-
-    const createResult = await h.requestJson<RunCommandResult>({
-      method: "POST",
-      url: ApiPaths.runs(),
-      payload: { workflowId: WORKFLOW_ID, items: [{ subject: "gap6-bad-decision-item" }] },
-    });
-    const runId = createResult.runId;
-
-    const suspended = await pollUntilStatus(h, runId, "suspended", 5_000);
-    const taskId = suspended.suspension![0]!.taskId;
-
-    // The exact malformed shape the buggy UI sent: `{ approved }` at the top
-    // level instead of `{ decision: { approved } }`.
-    const response = await h.request({
-      method: "POST",
-      url: ApiPaths.hitlTaskDecide(taskId),
-      headers: { "content-type": "application/json" },
-      payload: JSON.stringify({ approved: true }),
+      // 5. Assert the Callback received the decided item with decision.status = "approved".
+      const callbackOutput = completed.outputsByNode[CALLBACK_NODE_ID]?.main;
+      expect(callbackOutput).toBeDefined();
+      expect(callbackOutput).toHaveLength(1);
+      expect((callbackOutput![0]!.json as Record<string, unknown>)["decision"]).toMatchObject({
+        status: "approved",
+      });
     });
 
-    expect(response.statusCode).toBe(422);
-    const errorBody = response.json<{ error: string }>();
-    expect(errorBody.error).toContain("Decision does not match the expected schema");
-    expect(errorBody.error).toContain("data must be object");
+    // -------------------------------------------------------------------------
+    // GAP #6 — decide endpoint rejects a body without the `decision` wrapper.
+    // -------------------------------------------------------------------------
+    //
+    // Production symptom: deciding a task from the /dev/inbox UI 422'd with
+    //   {"error":"Decision does not match the expected schema: data must be object"}
+    // The route reads `body.decision` and forwards it to DecisionSchemaValidator.
+    // The UI was POSTing `{ approved }` at the top level (no `decision` wrapper),
+    // so `body.decision` was `undefined`; validating `undefined` against the
+    // task's object schema yields ajv's "data must be object". This guards the
+    // required request shape end-to-end and confirms a malformed decision leaves
+    // the task pending instead of resolving it.
+    it("decide endpoint 422s on a body missing the `decision` wrapper and leaves the task pending", async () => {
+      const h = harness!;
 
-    // A rejected decision must not resolve the task — the run stays suspended.
-    const after = await h.request({ method: "GET", url: ApiPaths.runState(runId) });
-    expect(after.json<PersistedRunState>().status).toBe("suspended");
-  });
-});
+      const createResult = await h.requestJson<RunCommandResult>({
+        method: "POST",
+        url: ApiPaths.runs(),
+        payload: { workflowId: WORKFLOW_ID, items: [{ subject: "gap6-bad-decision-item" }] },
+      });
+      const runId = createResult.runId;
+
+      const suspended = await pollUntilStatus(h, runId, "suspended", 5_000);
+      const taskId = suspended.suspension![0]!.taskId;
+
+      // The exact malformed shape the buggy UI sent: `{ approved }` at the top
+      // level instead of `{ decision: { approved } }`.
+      const response = await h.request({
+        method: "POST",
+        url: ApiPaths.hitlTaskDecide(taskId),
+        headers: { "content-type": "application/json" },
+        payload: JSON.stringify({ approved: true }),
+      });
+
+      expect(response.statusCode).toBe(422);
+      const errorBody = response.json<{ error: string }>();
+      expect(errorBody.error).toContain("Decision does not match the expected schema");
+      expect(errorBody.error).toContain("data must be object");
+
+      // A rejected decision must not resolve the task — the run stays suspended.
+      const after = await h.request({ method: "GET", url: ApiPaths.runState(runId) });
+      expect(after.json<PersistedRunState>().status).toBe("suspended");
+    });
+  },
+);
 
 // ---------------------------------------------------------------------------
 // Helpers
