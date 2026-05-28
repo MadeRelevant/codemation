@@ -445,14 +445,14 @@ jobs:
       - name: Install Playwright (Chromium)
         if: steps.should_run.outputs.run == 'true'
         timeout-minutes: 35
-        # One retry: a transient Playwright-CDN stall must not burn the whole 60-min
-        # job timeout. On a cache hit the browser download is skipped. The CDN throttles
-        # the 167 MB Chromium build to ~330 KB/s (~8.5 min), so each attempt gets 900s of
-        # headroom — 540s killed the download right at 100% and never populated the cache.
+        # Single generous attempt: the Playwright CDN sustains only ~190 KB/s, so the full
+        # chromium + headless-shell install (~270 MB) takes ~24 min. A retry is useless against
+        # a *sustained* throttle (it just re-downloads from scratch and doubles wall time), so
+        # one 1800s attempt instead — enough to complete and populate actions/cache, after which
+        # later runs hit the cache and skip the download entirely.
         run: |
           install_pw() { pnpm --filter @codemation/host exec playwright install chromium --with-deps; }
-          timeout 900 bash -c "$(declare -f install_pw); install_pw" \
-            || { echo "Playwright install stalled/failed — retrying once"; timeout 900 bash -c "$(declare -f install_pw); install_pw"; }
+          timeout 1800 bash -c "$(declare -f install_pw); install_pw"
 
       - name: Build
         if: steps.should_run.outputs.run == 'true'

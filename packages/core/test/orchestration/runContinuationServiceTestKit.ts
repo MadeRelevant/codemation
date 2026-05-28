@@ -44,6 +44,8 @@ export interface RunContinuationKitOptions {
   planningFactory?: EngineWorkflowPlanningFactory;
   /** Override the enqueue service (default throws to assert it is never called). */
   enqueueResult?: { result: RunResult; queuedSnapshot: NodeExecutionSnapshot } | Error;
+  /** When set, enqueue throws this raw value (allows non-Error throws for branch coverage). */
+  enqueueThrowsRaw?: unknown;
   /** Workflow-level error handler resolved by policyErrorServices. */
   workflowErrorHandler?: WorkflowErrorHandlerLike;
   /** Node-level error handler resolved by policyErrorServices. */
@@ -121,6 +123,7 @@ export function createRunContinuationKit(options: RunContinuationKitOptions): Ru
     },
     enqueueActivationWithSnapshot: async (_args: unknown) => {
       kit.enqueueCalls += 1;
+      if (options.enqueueThrowsRaw !== undefined) throw options.enqueueThrowsRaw;
       if (options.enqueueResult instanceof Error) throw options.enqueueResult;
       if (!options.enqueueResult) {
         throw new Error("enqueueActivationWithSnapshot called but no enqueueResult configured");
