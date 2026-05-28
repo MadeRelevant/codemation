@@ -10,6 +10,7 @@
 
 import { randomUUID } from "node:crypto";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { HitlTimeoutJobScheduler as RealHitlTimeoutJobScheduler } from "../../src/hitl/HitlTimeoutJobScheduler";
 import type { HumanTaskRecord } from "@codemation/core";
 import { PrismaHumanTaskStore } from "../../src/infrastructure/persistence/PrismaHumanTaskStore";
 import { HitlTimeoutWorker } from "../../src/hitl/HitlTimeoutWorker";
@@ -197,5 +198,41 @@ describe("HitlTimeoutWorker.processTimeoutForTask", () => {
     expect(resumeCalls).toHaveLength(0);
     const updated = await store.findById(task.id);
     expect(updated?.status).toBe("decided"); // unchanged
+  });
+
+  // Exercises the BullMQ worker lifecycle (start/stop) and the private processJob
+  // dispatcher against a real Redis-backed queue, with a unique prefix for isolation.
+  it("start() consumes an enqueued timeout job and drives processTimeoutForTask", async () => {
+    const store = ctx.createStore();
+    const resumeCalls: unknown[] = [];
+    const engine = createStubEngine(resumeCalls);
+    const appConfig = {
+      ...makeAppConfig(),
+      env: { ...makeAppConfig().env, CODEMATION_BULLMQ_PREFIX: `test-worker-${randomUUID()}` },
+    };
+    const scheduler = new RealHitlTimeoutJobScheduler(appConfig as never);
+    const noOpResumeTelemetry = { forTask: async () => undefined } as never;
+    const worker = new HitlTimeoutWorker(store, engine as never, scheduler, appConfig as never, noOpResumeTelemetry);
+
+    const task = makeTask({ onTimeout: "halt" });
+    await store.create(task);
+
+    worker.start();
+    try {
+      await scheduler.enqueueTimeoutJob({ taskId: task.id, expiresAt: new Date() });
+
+      let updatedStatus: string | undefined;
+      for (let attempt = 0; attempt < 80; attempt++) {
+        updatedStatus = (await store.findById(task.id))?.status;
+        if (updatedStatus === "timed_out") break;
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+
+      expect(updatedStatus).toBe("timed_out");
+      expect(resumeCalls).toHaveLength(1);
+    } finally {
+      await worker.stop();
+      await scheduler.close();
+    }
   });
 });

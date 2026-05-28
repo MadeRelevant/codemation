@@ -240,6 +240,15 @@ class HitlNode implements RunnableNode<HitlNodeConfig | HitlNodeConfigHalt> {
   }
 }
 
+/** A HITL marker with NO `onRejected` field — `resolveHumanApprovalBehavior` must default to "return". */
+class HitlNodeConfigNoPolicy implements RunnableNodeConfig<Record<string, unknown>, Record<string, unknown>> {
+  readonly kind = "node" as const;
+  readonly type: TypeToken<unknown> = HitlNode;
+  readonly humanApprovalToolBehavior = {};
+
+  constructor(public readonly name: string) {}
+}
+
 /** Builds a NodeBackedToolConfig wrapping a HitlNodeConfig. */
 function makeHitlToolConfig(
   name: string,
@@ -249,6 +258,15 @@ function makeHitlToolConfig(
   return AgentToolFactory.asTool(nodeConfig, {
     name,
     description: `Run HITL approval for ${name}.`,
+    inputSchema: z.object({ reason: z.string() }),
+    outputSchema: z.object({ approved: z.boolean() }),
+  });
+}
+
+/** A HITL tool whose marker omits `onRejected` AND whose config carries no description. */
+function makeHitlToolConfigNoPolicyNoDescription(name: string): NodeBackedToolConfig<any, any, any> {
+  return AgentToolFactory.asTool(new HitlNodeConfigNoPolicy(name), {
+    name,
     inputSchema: z.object({ reason: z.string() }),
     outputSchema: z.object({ approved: z.boolean() }),
   });
@@ -421,6 +439,74 @@ function makeRejectedResumeContext(agentCheckpoint: unknown, onRejected: "halt" 
         agentReasoning: "I need approval before proceeding.",
       },
     },
+  };
+}
+
+/** Builds a resume context for a non-`decided` outcome (timed_out / auto_accepted). */
+function makeNonDecidedResumeContext(agentCheckpoint: unknown, kind: "timed_out" | "auto_accepted"): ResumeContext {
+  return {
+    decision: { kind, at: new Date("2026-01-01T00:00:00Z") },
+    delivery: { taskId: "htask_1" },
+    task: {
+      taskId: "htask_1",
+      runId: "run_1",
+      nodeId: "approval_tool",
+      expiresAt: new Date("2026-01-02T00:00:00Z"),
+      resumeUrl: "",
+      metadata: {
+        agentCheckpoint: agentCheckpoint as any,
+        onRejected: "return",
+        pendingToolCallId: "tool_call_1",
+      },
+    },
+  };
+}
+
+/**
+ * Builds an approved decided resume context whose decision value carries NO `approved` key.
+ * `normalizeDecision` treats a missing `approved` field as approved-by-convention (the `: true`
+ * fallback), so this also exercises that branch.
+ */
+function makeApprovedResumeContext(agentCheckpoint: unknown): ResumeContext {
+  return {
+    decision: {
+      kind: "decided",
+      value: { note: "Looks good" },
+      actor: { actorId: "u1", displayName: "Alice" },
+      decidedAt: new Date("2026-01-01T00:00:00Z"),
+    },
+    delivery: { taskId: "htask_1" },
+    task: {
+      taskId: "htask_1",
+      runId: "run_1",
+      nodeId: "approval_tool",
+      expiresAt: new Date("2026-01-02T00:00:00Z"),
+      resumeUrl: "",
+      metadata: {
+        agentCheckpoint: agentCheckpoint as any,
+        onRejected: "return",
+        pendingToolCallId: "tool_call_1",
+      },
+    },
+  };
+}
+
+function makeResumeCheckpoint() {
+  return {
+    conversation: [
+      { role: "user", content: "needs approval" },
+      {
+        role: "assistant",
+        content: [
+          { type: "tool-call", toolCallId: "tool_call_1", toolName: "approval_tool", input: { reason: "checking" } },
+        ],
+      },
+    ] satisfies ModelMessage[],
+    turnCount: 1,
+    toolCallCount: 1,
+    pendingToolCallId: "tool_call_1",
+    agentName: "HitlAgent",
+    modelId: "test-model",
   };
 }
 
@@ -732,5 +818,212 @@ test("agentReasoning is captured from last assistant message in the conversation
     metadata["agentReasoning"],
     "I need approval before I can proceed with this action.",
     "agentReasoning should contain the last assistant text",
+  );
+});
+
+// ---------------------------------------------------------------------------
+// Test 7: Resume with NO agentCheckpoint in metadata → falls through to a fresh run
+// (covers the `!checkpoint` branch in executeResumed).
+// ---------------------------------------------------------------------------
+
+test("resume without an agentCheckpoint falls through to a normal agent run", async () => {
+  const capture = new ScriptedModelCapture();
+  const config = new AIAgent({
+    name: "HitlAgent",
+    messages: [{ role: "user", content: "hello" }],
+    chatModel: new ScriptedChatModelConfig("test-model", [{ content: "fresh run answer" }], capture),
+    tools: [],
+  });
+  const rig = new HitlAgentTestRig(config, [{ token: ScriptedChatModelFactory, useClass: ScriptedChatModelFactory }]);
+
+  // A resumeContext whose task metadata has NO agentCheckpoint (e.g. a direct HITL node).
+  const resumeContext: ResumeContext = {
+    decision: {
+      kind: "decided",
+      value: { approved: true },
+      actor: { actorId: "u1", displayName: "Alice" },
+      decidedAt: new Date("2026-01-01T00:00:00Z"),
+    },
+    delivery: { taskId: "htask_1" },
+    task: {
+      taskId: "htask_1",
+      runId: "run_1",
+      nodeId: "approval_tool",
+      expiresAt: new Date("2026-01-02T00:00:00Z"),
+      resumeUrl: "",
+      // metadata omitted entirely → also exercises the `metadata ?? {}` fallback.
+    },
+  };
+
+  const result = await rig.executeResumed({ json: { query: "hello" } }, resumeContext);
+
+  assert.deepEqual(result, { output: "fresh run answer" }, "should run the agent fresh and return its answer");
+  assert.equal(capture.invocations.length, 1, "model called once for the fresh run");
+});
+
+// ---------------------------------------------------------------------------
+// Test 8: decided + null value + onRejected:"halt" → early short-circuit returns undefined
+// (covers the line-173 guard, distinct from the normalized-rejection halt in Test 4).
+// ---------------------------------------------------------------------------
+
+test("resume with decided null value and onRejected:halt short-circuits to undefined", async () => {
+  const capture = new ScriptedModelCapture();
+  const config = new AIAgent({
+    name: "HitlAgent",
+    messages: [{ role: "user", content: "needs approval" }],
+    chatModel: new ScriptedChatModelConfig("test-model", [{ content: "should not run" }], capture),
+    tools: [makeHitlToolConfig("approval_tool", "halt")],
+  });
+  const rig = new HitlAgentTestRig(config, [
+    { token: ScriptedChatModelFactory, useClass: ScriptedChatModelFactory },
+    { token: HitlNode, useClass: HitlNode },
+  ]);
+
+  const resumeContext: ResumeContext = {
+    decision: {
+      kind: "decided",
+      value: null,
+      actor: { actorId: "u1", displayName: "Alice" },
+      decidedAt: new Date("2026-01-01T00:00:00Z"),
+    },
+    delivery: { taskId: "htask_1" },
+    task: {
+      taskId: "htask_1",
+      runId: "run_1",
+      nodeId: "approval_tool",
+      expiresAt: new Date("2026-01-02T00:00:00Z"),
+      resumeUrl: "",
+      metadata: {
+        agentCheckpoint: makeResumeCheckpoint() as any,
+        onRejected: "halt",
+        pendingToolCallId: "tool_call_1",
+      },
+    },
+  };
+
+  const result = await rig.executeResumed({ json: { query: "needs approval" } }, resumeContext);
+
+  assert.equal(result, undefined, "decided-null + halt should short-circuit to undefined");
+  assert.equal(capture.invocations.length, 0, "LLM should not be called");
+});
+
+// ---------------------------------------------------------------------------
+// Test 9: approved decision (value has no `approved` key, onRejected:"return") → agent
+// continues; the injected tool_result carries status "approved" via the convention fallback
+// (covers the `: true` branch in normalizeDecision, line 236).
+// ---------------------------------------------------------------------------
+
+test("resume with an approved decision injects an approved tool_result and continues", async () => {
+  const capture = new ScriptedModelCapture();
+  const config = new AIAgent({
+    name: "HitlAgent",
+    messages: [{ role: "user", content: "needs approval" }],
+    chatModel: new ScriptedChatModelConfig("test-model", [{ content: "Approved — proceeding." }], capture),
+    tools: [makeHitlToolConfig("approval_tool", "return")],
+  });
+  const rig = new HitlAgentTestRig(config, [
+    { token: ScriptedChatModelFactory, useClass: ScriptedChatModelFactory },
+    { token: HitlNode, useClass: HitlNode },
+  ]);
+
+  const resumeContext = makeApprovedResumeContext(makeResumeCheckpoint());
+  const result = await rig.executeResumed({ json: { query: "needs approval" } }, resumeContext);
+
+  assert.deepEqual(result, { output: "Approved — proceeding." });
+  const messages = capture.invocations[0]?.messages as Array<{ role: string; content: unknown }>;
+  const toolMsg = messages?.find((m) => m.role === "tool");
+  assert.ok(toolMsg, "should inject a tool_result for the decision");
+  assert.ok(JSON.stringify(toolMsg?.content ?? "").includes("approved"), "tool_result should carry status approved");
+});
+
+// ---------------------------------------------------------------------------
+// Test 10: timed_out decision → normalizeDecision returns status "timed_out"
+// (covers line 244-246).
+// ---------------------------------------------------------------------------
+
+test("resume with a timed_out decision injects a timed_out tool_result and continues", async () => {
+  const capture = new ScriptedModelCapture();
+  const config = new AIAgent({
+    name: "HitlAgent",
+    messages: [{ role: "user", content: "needs approval" }],
+    chatModel: new ScriptedChatModelConfig("test-model", [{ content: "Timed out, moving on." }], capture),
+    tools: [makeHitlToolConfig("approval_tool", "return")],
+  });
+  const rig = new HitlAgentTestRig(config, [
+    { token: ScriptedChatModelFactory, useClass: ScriptedChatModelFactory },
+    { token: HitlNode, useClass: HitlNode },
+  ]);
+
+  const resumeContext = makeNonDecidedResumeContext(makeResumeCheckpoint(), "timed_out");
+  const result = await rig.executeResumed({ json: { query: "needs approval" } }, resumeContext);
+
+  assert.deepEqual(result, { output: "Timed out, moving on." });
+  const messages = capture.invocations[0]?.messages as Array<{ role: string; content: unknown }>;
+  const toolMsg = messages?.find((m) => m.role === "tool");
+  assert.ok(toolMsg, "should inject a tool_result for the timed_out decision");
+  assert.ok(JSON.stringify(toolMsg?.content ?? "").includes("timed_out"), "tool_result should carry status timed_out");
+});
+
+// ---------------------------------------------------------------------------
+// Test 11: auto_accepted decision → normalizeDecision returns status "auto_accepted"
+// (covers line 248).
+// ---------------------------------------------------------------------------
+
+test("resume with an auto_accepted decision injects an auto_accepted tool_result and continues", async () => {
+  const capture = new ScriptedModelCapture();
+  const config = new AIAgent({
+    name: "HitlAgent",
+    messages: [{ role: "user", content: "needs approval" }],
+    chatModel: new ScriptedChatModelConfig("test-model", [{ content: "Auto-accepted, proceeding." }], capture),
+    tools: [makeHitlToolConfig("approval_tool", "return")],
+  });
+  const rig = new HitlAgentTestRig(config, [
+    { token: ScriptedChatModelFactory, useClass: ScriptedChatModelFactory },
+    { token: HitlNode, useClass: HitlNode },
+  ]);
+
+  const resumeContext = makeNonDecidedResumeContext(makeResumeCheckpoint(), "auto_accepted");
+  const result = await rig.executeResumed({ json: { query: "needs approval" } }, resumeContext);
+
+  assert.deepEqual(result, { output: "Auto-accepted, proceeding." });
+  const messages = capture.invocations[0]?.messages as Array<{ role: string; content: unknown }>;
+  const toolMsg = messages?.find((m) => m.role === "tool");
+  assert.ok(toolMsg, "should inject a tool_result for the auto_accepted decision");
+  assert.ok(
+    JSON.stringify(toolMsg?.content ?? "").includes("auto_accepted"),
+    "tool_result should carry status auto_accepted",
+  );
+});
+
+// ---------------------------------------------------------------------------
+// Test 12: HITL tool whose marker omits `onRejected` and whose config has no description.
+// Exercises the `marker.onRejected ?? "return"` default and the description-less HITL branch
+// in buildToolSet (the tool description becomes just the solo-constraint sentence).
+// ---------------------------------------------------------------------------
+
+test("HITL tool with no onRejected and no description still gets the solo-constraint description", async () => {
+  const HITL_SENTENCE = "This tool requires human approval and may take time. Call it alone";
+  const capture = new ScriptedModelCapture();
+  const config = new AIAgent({
+    name: "HitlAgent",
+    messages: [{ role: "user", content: "do something" }],
+    // Single final answer, no tool call — enough to build + inspect the tool descriptions.
+    chatModel: new ScriptedChatModelConfig("test-model", [{ content: "done." }], capture),
+    tools: [makeHitlToolConfigNoPolicyNoDescription("approval_tool")],
+  });
+  const rig = new HitlAgentTestRig(config, [
+    { token: ScriptedChatModelFactory, useClass: ScriptedChatModelFactory },
+    { token: HitlNode, useClass: HitlNode },
+  ]);
+
+  await rig.executeItem({ json: {} });
+
+  const approvalTool = capture.toolsPerTurn[0]?.find((t) => t.name === "approval_tool");
+  assert.ok(approvalTool, "approval_tool should appear in tool descriptions");
+  // The HITL marker (with no onRejected → defaults to "return") is still detected, so the
+  // solo-constraint sentence is appended even though the config carried no description.
+  assert.ok(
+    approvalTool?.description?.includes(HITL_SENTENCE),
+    `description-less HITL tool should include the solo-constraint sentence; got: "${approvalTool?.description}"`,
   );
 });

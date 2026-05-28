@@ -226,6 +226,135 @@ describe("ControlPlaneInboxChannel (outbound)", () => {
 });
 
 // ────────────────────────────────────────────────────────────────────────────
+// Outbound tests — updateOnDecision() / updateOnTimeout()
+// ────────────────────────────────────────────────────────────────────────────
+
+describe("ControlPlaneInboxChannel update callbacks", () => {
+  function makeStubFetch(ok: boolean) {
+    const calls: Array<{ url: string; body: unknown }> = [];
+    const warnings: string[] = [];
+    const pairedFetch = {
+      post: async (url: string, body: unknown) => {
+        calls.push({ url, body });
+        return {
+          ok,
+          status: ok ? 200 : 500,
+          text: async () => "boom",
+        } as Response;
+      },
+    };
+    const loggers = {
+      create: () => ({
+        info: () => {},
+        debug: () => {},
+        error: () => {},
+        warn: (msg: string) => {
+          warnings.push(msg);
+        },
+      }),
+    };
+    return { pairedFetch, loggers, calls, warnings };
+  }
+
+  const cpDelivery = { kind: "cp" as const, inboxItemId: "inbox-42", workspaceId: WORKSPACE_ID };
+  const localDelivery = { kind: "local" as const, inboxItemId: "local-1" };
+
+  it("updateOnDecision() posts to the resolved endpoint with decision + actor", async () => {
+    const { pairedFetch, loggers, calls } = makeStubFetch(true);
+    const channel = new ControlPlaneInboxChannel(
+      pairedFetch as never,
+      makePairingConfig("http://cp"),
+      loggers as never,
+    );
+
+    await channel.updateOnDecision({
+      delivery: cpDelivery,
+      decision: { approved: true, note: "ok" },
+      actor: { actorId: "u1" },
+    });
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0]!.url).toBe("http://cp/internal/hitl/tasks/inbox-42/resolved");
+    expect(calls[0]!.body).toMatchObject({ decision: { approved: true, note: "ok" }, actor: { actorId: "u1" } });
+  });
+
+  it("updateOnDecision() is a no-op for non-cp deliveries", async () => {
+    const { pairedFetch, loggers, calls } = makeStubFetch(true);
+    const channel = new ControlPlaneInboxChannel(
+      pairedFetch as never,
+      makePairingConfig("http://cp"),
+      loggers as never,
+    );
+
+    await channel.updateOnDecision({
+      delivery: localDelivery,
+      decision: { approved: true },
+      actor: { actorId: "u1" },
+    });
+
+    expect(calls).toHaveLength(0);
+  });
+
+  it("updateOnDecision() warns but does not throw when CP returns non-ok", async () => {
+    const { pairedFetch, loggers, warnings } = makeStubFetch(false);
+    const channel = new ControlPlaneInboxChannel(
+      pairedFetch as never,
+      makePairingConfig("http://cp"),
+      loggers as never,
+    );
+
+    await channel.updateOnDecision({
+      delivery: cpDelivery,
+      decision: { approved: true },
+      actor: { actorId: "u1" },
+    });
+
+    expect(warnings.some((w) => w.includes("task decision"))).toBe(true);
+  });
+
+  it("updateOnTimeout() posts the timeout decision with the policy", async () => {
+    const { pairedFetch, loggers, calls } = makeStubFetch(true);
+    const channel = new ControlPlaneInboxChannel(
+      pairedFetch as never,
+      makePairingConfig("http://cp"),
+      loggers as never,
+    );
+
+    await channel.updateOnTimeout({ delivery: cpDelivery, policy: "halt" });
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0]!.url).toBe("http://cp/internal/hitl/tasks/inbox-42/resolved");
+    expect(calls[0]!.body).toMatchObject({ decision: { kind: "timeout", policy: "halt" } });
+  });
+
+  it("updateOnTimeout() is a no-op for non-cp deliveries", async () => {
+    const { pairedFetch, loggers, calls } = makeStubFetch(true);
+    const channel = new ControlPlaneInboxChannel(
+      pairedFetch as never,
+      makePairingConfig("http://cp"),
+      loggers as never,
+    );
+
+    await channel.updateOnTimeout({ delivery: localDelivery, policy: "auto-accept" });
+
+    expect(calls).toHaveLength(0);
+  });
+
+  it("updateOnTimeout() warns but does not throw when CP returns non-ok", async () => {
+    const { pairedFetch, loggers, warnings } = makeStubFetch(false);
+    const channel = new ControlPlaneInboxChannel(
+      pairedFetch as never,
+      makePairingConfig("http://cp"),
+      loggers as never,
+    );
+
+    await channel.updateOnTimeout({ delivery: cpDelivery, policy: "halt" });
+
+    expect(warnings.some((w) => w.includes("task timeout"))).toBe(true);
+  });
+});
+
+// ────────────────────────────────────────────────────────────────────────────
 // Inbound tests — POST /internal/hitl/tasks/:taskId/callback
 // ────────────────────────────────────────────────────────────────────────────
 
