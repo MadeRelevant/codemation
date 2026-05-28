@@ -87,7 +87,7 @@ export class OAuth2HttpRouteHandler {
       const stateToken = url.searchParams.get("state")?.trim();
       if (!code || !stateToken) {
         return new Response(
-          this.createPopupHtml({ kind: "oauth2.error", message: "Missing code or state parameter." }),
+          this.createPopupHtml({ kind: "oauth2.error", message: "Missing code and state parameters." }),
           {
             status: 400,
             headers: { "content-type": "text/html; charset=utf-8" },

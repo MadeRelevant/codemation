@@ -6,7 +6,6 @@ import type { AppConfig } from "../presentation/config/AppConfig";
 import { PairedFetch } from "../pairing/PairedFetch";
 import { PairingConfigToken } from "../pairing/PairingConfigToken";
 import type { PairingConfig } from "../pairing/pairing.types";
-import type { OAuthAppCatalogEntry } from "./catalogTypes";
 
 /**
  * Configuration read from env at construction time.
@@ -27,12 +26,11 @@ type EndpointState = {
 };
 
 /**
- * Polls the three control-plane catalog endpoints on a configurable interval,
+ * Polls the control-plane catalog endpoints on a configurable interval,
  * caches the last-known-good responses, and exposes the fetched data for
- * credential-type overrides, MCP server registrations, and OAuth app availability.
+ * credential-type overrides and MCP server registrations.
  *
  * Endpoints (HMAC-gated via PairedFetch):
- *   GET /internal/catalog/oauth-apps
  *   GET /internal/catalog/mcp-servers
  *   GET /internal/catalog/credential-types
  *
@@ -41,7 +39,7 @@ type EndpointState = {
  * are tracked independently.
  *
  * When not paired with a control plane (PairingConfigToken is null),
- * start() returns immediately and all three getters remain null.
+ * start() returns immediately and all getters remain null.
  */
 @injectable()
 export class ControlPlaneCatalogFetcher {
@@ -51,11 +49,9 @@ export class ControlPlaneCatalogFetcher {
   /** Tracks in-flight refresh so stop() can safely await it. */
   private inFlight: Promise<void> | null = null;
 
-  private _oauthApps: readonly OAuthAppCatalogEntry[] | null = null;
   private _mcpServers: readonly McpServerDeclaration[] | null = null;
   private _credentialTypeOverrides: readonly CredentialTypeDefinition[] | null = null;
 
-  private readonly oauthAppsState: EndpointState = { consecutiveFailures: 0, lastSuccessAt: null };
   private readonly mcpServersState: EndpointState = { consecutiveFailures: 0, lastSuccessAt: null };
   private readonly credentialTypesState: EndpointState = { consecutiveFailures: 0, lastSuccessAt: null };
 
@@ -80,11 +76,6 @@ export class ControlPlaneCatalogFetcher {
       staleFailuresThreshold: Number.isFinite(staleFailures) ? staleFailures : 5,
       staleHoursThreshold: Number.isFinite(staleHours) ? staleHours : 24,
     };
-  }
-
-  /** Latest fetched OAuth app catalog; null until first successful fetch. */
-  get oauthApps(): readonly OAuthAppCatalogEntry[] | null {
-    return this._oauthApps;
   }
 
   /** Latest fetched MCP server declarations; null until first successful fetch. */
@@ -163,21 +154,10 @@ export class ControlPlaneCatalogFetcher {
     const logger = this.loggers.create("ControlPlaneCatalogFetcher");
     const base = this.pairingConfig.controlPlaneUrl;
 
-    const [oauthResult, mcpResult, credTypesResult] = await Promise.allSettled([
-      this.pairedFetch.get(`${base}/internal/catalog/oauth-apps`),
+    const [mcpResult, credTypesResult] = await Promise.allSettled([
       this.pairedFetch.get(`${base}/internal/catalog/mcp-servers`),
       this.pairedFetch.get(`${base}/internal/catalog/credential-types`),
     ]);
-
-    await this.handleEndpointResult(
-      oauthResult,
-      this.oauthAppsState,
-      "oauth-apps",
-      (data) => {
-        this._oauthApps = data as OAuthAppCatalogEntry[];
-      },
-      logger,
-    );
 
     await this.handleEndpointResult(
       mcpResult,

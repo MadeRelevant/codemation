@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 import { ControlPlaneCatalogFetcher } from "../../src/credentials/ControlPlaneCatalogFetcher";
 import type { McpServerDeclaration } from "@codemation/core";
-import type { OAuthAppCatalogEntry } from "../../src/credentials/catalogTypes";
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -15,7 +14,6 @@ const fakePairingConfig = {
   controlPlaneUrl: CONTROL_PLANE_URL,
 };
 
-const fakeOAuthApps: OAuthAppCatalogEntry[] = [{ appId: "google", displayName: "Google" }];
 const fakeMcpServers: McpServerDeclaration[] = [
   { id: "gmail", displayName: "Gmail MCP", description: "Gmail", transport: "http", url: "https://mcp.example.com" },
 ];
@@ -44,27 +42,15 @@ function makeAppConfig(env: Record<string, string | undefined> = {}) {
 }
 
 function makePairedFetch(responses: {
-  oauthApps?: unknown;
   mcpServers?: unknown;
   credTypes?: unknown;
-  oauthAppsOk?: boolean;
   mcpServersOk?: boolean;
   credTypesOk?: boolean;
-  oauthAppsThrow?: boolean;
   mcpServersThrow?: boolean;
   credTypesThrow?: boolean;
 }) {
   return {
     get: vi.fn(async (url: string): Promise<Response> => {
-      if (url.includes("oauth-apps")) {
-        if (responses.oauthAppsThrow) throw new Error("network error: oauth-apps");
-        return {
-          ok: responses.oauthAppsOk !== false,
-          status: responses.oauthAppsOk !== false ? 200 : 500,
-          statusText: responses.oauthAppsOk !== false ? "OK" : "Internal Server Error",
-          json: async () => responses.oauthApps ?? [],
-        } as unknown as Response;
-      }
       if (url.includes("mcp-servers")) {
         if (responses.mcpServersThrow) throw new Error("network error: mcp-servers");
         return {
@@ -136,7 +122,7 @@ describe("ControlPlaneCatalogFetcher", () => {
 
   describe("no-op when pairingConfig is null", () => {
     it("start() returns immediately without fetching", async () => {
-      const pairedFetch = makePairedFetch({ oauthApps: fakeOAuthApps });
+      const pairedFetch = makePairedFetch({ mcpServers: fakeMcpServers });
       const fetcher = makeFetcher({ pairedFetch, pairingConfig: null });
 
       await fetcher.start();
@@ -150,7 +136,6 @@ describe("ControlPlaneCatalogFetcher", () => {
 
       await fetcher.start();
 
-      expect(fetcher.oauthApps).toBeNull();
       expect(fetcher.mcpServers).toBeNull();
       expect(fetcher.credentialTypeOverrides).toBeNull();
     });
@@ -161,16 +146,14 @@ describe("ControlPlaneCatalogFetcher", () => {
       const pairedFetch = makePairedFetch({});
       const fetcher = makeFetcher({ pairedFetch, pairingConfig: fakePairingConfig });
 
-      expect(fetcher.oauthApps).toBeNull();
       expect(fetcher.mcpServers).toBeNull();
       expect(fetcher.credentialTypeOverrides).toBeNull();
     });
   });
 
-  describe("successful fetch populates all three getters", () => {
-    it("populates oauthApps, mcpServers, and credentialTypeOverrides", async () => {
+  describe("successful fetch populates both getters", () => {
+    it("populates mcpServers and credentialTypeOverrides", async () => {
       const pairedFetch = makePairedFetch({
-        oauthApps: fakeOAuthApps,
         mcpServers: fakeMcpServers,
         credTypes: fakeCredTypes,
       });
@@ -178,14 +161,12 @@ describe("ControlPlaneCatalogFetcher", () => {
 
       await fetcher.refresh();
 
-      expect(fetcher.oauthApps).toEqual(fakeOAuthApps);
       expect(fetcher.mcpServers).toEqual(fakeMcpServers);
       expect(fetcher.credentialTypeOverrides).toEqual(fakeCredTypes);
     });
 
-    it("fetches all three endpoints in parallel (all three URLs called)", async () => {
+    it("fetches both endpoints in parallel (both URLs called)", async () => {
       const pairedFetch = makePairedFetch({
-        oauthApps: fakeOAuthApps,
         mcpServers: fakeMcpServers,
         credTypes: fakeCredTypes,
       });
@@ -194,32 +175,28 @@ describe("ControlPlaneCatalogFetcher", () => {
       await fetcher.refresh();
 
       const calledUrls = pairedFetch.get.mock.calls.map((c) => c[0] as string);
-      expect(calledUrls.some((u) => u.includes("oauth-apps"))).toBe(true);
       expect(calledUrls.some((u) => u.includes("mcp-servers"))).toBe(true);
       expect(calledUrls.some((u) => u.includes("credential-types"))).toBe(true);
-      expect(pairedFetch.get).toHaveBeenCalledTimes(3);
+      expect(pairedFetch.get).toHaveBeenCalledTimes(2);
     });
   });
 
   describe("single-endpoint failure", () => {
-    it("oauth-apps failure: mcpServers and credentialTypeOverrides still update; oauthApps retains prior null", async () => {
+    it("credential-types failure: mcpServers still updates; credentialTypeOverrides retains prior null", async () => {
       const pairedFetch = makePairedFetch({
-        oauthAppsOk: false,
         mcpServers: fakeMcpServers,
-        credTypes: fakeCredTypes,
+        credTypesOk: false,
       });
       const fetcher = makeFetcher({ pairedFetch, pairingConfig: fakePairingConfig });
 
       await fetcher.refresh();
 
-      expect(fetcher.oauthApps).toBeNull(); // unchanged — no prior value
       expect(fetcher.mcpServers).toEqual(fakeMcpServers);
-      expect(fetcher.credentialTypeOverrides).toEqual(fakeCredTypes);
+      expect(fetcher.credentialTypeOverrides).toBeNull(); // unchanged — no prior value
     });
 
-    it("mcp-servers failure: oauthApps and credentialTypeOverrides update; mcpServers retains prior value", async () => {
+    it("mcp-servers failure: credentialTypeOverrides updates; mcpServers retains prior value", async () => {
       const pairedFetch = makePairedFetch({
-        oauthApps: fakeOAuthApps,
         mcpServers: fakeMcpServers,
         credTypes: fakeCredTypes,
       });
@@ -229,6 +206,7 @@ describe("ControlPlaneCatalogFetcher", () => {
       expect(fetcher.mcpServers).toEqual(fakeMcpServers);
 
       // Second fetch: mcp-servers fails
+      const updatedCredTypes = [{ typeId: "oauth.slack", displayName: "Slack OAuth" }];
       pairedFetch.get.mockImplementation(async (url: string) => {
         if (url.includes("mcp-servers")) {
           return {
@@ -238,12 +216,11 @@ describe("ControlPlaneCatalogFetcher", () => {
             json: async () => [],
           } as unknown as Response;
         }
-        const updated = [{ appId: "slack", displayName: "Slack" }];
         return {
           ok: true,
           status: 200,
           statusText: "OK",
-          json: async () => (url.includes("oauth-apps") ? updated : fakeCredTypes),
+          json: async () => updatedCredTypes,
         } as unknown as Response;
       });
 
@@ -252,29 +229,26 @@ describe("ControlPlaneCatalogFetcher", () => {
       // mcpServers retains last-known-good
       expect(fetcher.mcpServers).toEqual(fakeMcpServers);
       // Other getters updated
-      expect(fetcher.oauthApps).toEqual([{ appId: "slack", displayName: "Slack" }]);
+      expect(fetcher.credentialTypeOverrides).toEqual(updatedCredTypes);
     });
 
     it("network throw on one endpoint does not prevent others from updating", async () => {
       const pairedFetch = makePairedFetch({
-        oauthAppsThrow: true,
-        mcpServers: fakeMcpServers,
+        mcpServersThrow: true,
         credTypes: fakeCredTypes,
       });
       const fetcher = makeFetcher({ pairedFetch, pairingConfig: fakePairingConfig });
 
       await fetcher.refresh();
 
-      expect(fetcher.oauthApps).toBeNull();
-      expect(fetcher.mcpServers).toEqual(fakeMcpServers);
+      expect(fetcher.mcpServers).toBeNull();
       expect(fetcher.credentialTypeOverrides).toEqual(fakeCredTypes);
     });
   });
 
   describe("all-failure case", () => {
-    it("all three getters retain prior values (null) when all endpoints fail", async () => {
+    it("both getters retain prior values (null) when all endpoints fail", async () => {
       const pairedFetch = makePairedFetch({
-        oauthAppsOk: false,
         mcpServersOk: false,
         credTypesOk: false,
       });
@@ -282,7 +256,6 @@ describe("ControlPlaneCatalogFetcher", () => {
 
       await fetcher.refresh();
 
-      expect(fetcher.oauthApps).toBeNull();
       expect(fetcher.mcpServers).toBeNull();
       expect(fetcher.credentialTypeOverrides).toBeNull();
     });
@@ -293,7 +266,6 @@ describe("ControlPlaneCatalogFetcher", () => {
       const loggers = makeLoggerFactory(warnSpy, errorSpy);
 
       const pairedFetch = makePairedFetch({
-        oauthAppsOk: false,
         mcpServersOk: false,
         credTypesOk: false,
       });
@@ -307,7 +279,7 @@ describe("ControlPlaneCatalogFetcher", () => {
       await fetcher.refresh();
 
       // One warn per failing endpoint
-      expect(warnSpy).toHaveBeenCalledTimes(3);
+      expect(warnSpy).toHaveBeenCalledTimes(2);
       expect(errorSpy).not.toHaveBeenCalled();
     });
   });
@@ -319,11 +291,9 @@ describe("ControlPlaneCatalogFetcher", () => {
       const loggers = makeLoggerFactory(warnSpy, errorSpy);
 
       const pairedFetch = makePairedFetch({
-        oauthAppsOk: false,
         mcpServersOk: true,
         mcpServers: fakeMcpServers,
-        credTypesOk: true,
-        credTypes: fakeCredTypes,
+        credTypesOk: false,
       });
       // staleFailuresThreshold = 2 for this test
       const fetcher = new ControlPlaneCatalogFetcher(
@@ -344,7 +314,7 @@ describe("ControlPlaneCatalogFetcher", () => {
       // Second failure → error (failures=2, threshold=2)
       await fetcher.refresh();
       expect(errorSpy).toHaveBeenCalledTimes(1);
-      expect(errorSpy.mock.calls[0]![0]).toContain("oauth-apps");
+      expect(errorSpy.mock.calls[0]![0]).toContain("credential-types");
     });
   });
 
@@ -393,7 +363,6 @@ describe("ControlPlaneCatalogFetcher", () => {
   describe("refresh() never rejects", () => {
     it("does not throw even when all endpoints fail with network errors", async () => {
       const pairedFetch = makePairedFetch({
-        oauthAppsThrow: true,
         mcpServersThrow: true,
         credTypesThrow: true,
       });
@@ -420,9 +389,8 @@ describe("ControlPlaneCatalogFetcher", () => {
   });
 
   describe("start() fires initial fetch", () => {
-    it("calls all three endpoints on start()", async () => {
+    it("calls both endpoints on start()", async () => {
       const pairedFetch = makePairedFetch({
-        oauthApps: fakeOAuthApps,
         mcpServers: fakeMcpServers,
         credTypes: fakeCredTypes,
       });
@@ -435,8 +403,7 @@ describe("ControlPlaneCatalogFetcher", () => {
 
       await fetcher.start();
 
-      expect(pairedFetch.get).toHaveBeenCalledTimes(3);
-      expect(fetcher.oauthApps).toEqual(fakeOAuthApps);
+      expect(pairedFetch.get).toHaveBeenCalledTimes(2);
       expect(fetcher.mcpServers).toEqual(fakeMcpServers);
       expect(fetcher.credentialTypeOverrides).toEqual(fakeCredTypes);
 
@@ -448,7 +415,7 @@ describe("ControlPlaneCatalogFetcher", () => {
 describe("ControlPlaneCatalogFetcher — mcpServers control-plane fetch", () => {
   it("uses controlPlaneUrl from pairing config as base URL for mcp-servers endpoint", async () => {
     const customUrl = "https://custom-cp.example.com";
-    const pairedFetch = makePairedFetch({ mcpServers: fakeMcpServers, oauthApps: [], credTypes: [] });
+    const pairedFetch = makePairedFetch({ mcpServers: fakeMcpServers, credTypes: [] });
     const fetcher = new ControlPlaneCatalogFetcher(
       pairedFetch as never,
       { workspaceId: "ws", pairingSecret: "s", controlPlaneUrl: customUrl },
@@ -467,7 +434,6 @@ describe("ControlPlaneCatalogFetcher — mcpServers control-plane fetch", () => 
 
   it("preserves last-known-good mcpServers on fetch failure", async () => {
     const pairedFetch = makePairedFetch({
-      oauthApps: fakeOAuthApps,
       mcpServers: fakeMcpServers,
       credTypes: fakeCredTypes,
     });
@@ -513,7 +479,7 @@ describe("ControlPlaneCatalogFetcher — mcpServers control-plane fetch", () => 
       return savedSetTimeout(...args);
     }) as typeof setTimeout;
 
-    const pairedFetch = makePairedFetch({ oauthApps: [], mcpServers: [], credTypes: [] });
+    const pairedFetch = makePairedFetch({ mcpServers: [], credTypes: [] });
     const fetcher = new ControlPlaneCatalogFetcher(
       pairedFetch as never,
       fakePairingConfig,
@@ -537,7 +503,6 @@ describe("ControlPlaneCatalogFetcher — onRefresh wires to CredentialTypeRegist
     const mergeDefinitionsSpy = vi.spyOn(registry, "mergeDefinitions");
 
     const pairedFetch = makePairedFetch({
-      oauthApps: fakeOAuthApps,
       mcpServers: fakeMcpServers,
       credTypes: fakeCredTypes,
     });
