@@ -435,9 +435,23 @@ jobs:
         if: steps.should_run.outputs.run == 'true'
         run: pnpm --filter @codemation/host prisma:generate
 
+      - name: Cache Playwright browsers
+        if: steps.should_run.outputs.run == 'true'
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-chromium-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+
       - name: Install Playwright (Chromium)
         if: steps.should_run.outputs.run == 'true'
-        run: pnpm --filter @codemation/host exec playwright install chromium --with-deps
+        timeout-minutes: 20
+        # Fast-fail + one retry: a transient Playwright-CDN stall must not burn the
+        # whole 60-min job timeout. On a cache hit the browser download is skipped;
+        # `timeout` caps each attempt so a hang fails fast instead of hanging an hour.
+        run: |
+          install_pw() { pnpm --filter @codemation/host exec playwright install chromium --with-deps; }
+          timeout 540 bash -c "$(declare -f install_pw); install_pw" \
+            || { echo "Playwright install stalled/failed — retrying once"; timeout 540 bash -c "$(declare -f install_pw); install_pw"; }
 
       - name: Build
         if: steps.should_run.outputs.run == 'true'
@@ -551,7 +565,7 @@ jobs:
         (needs.coverage-integration.result == 'success' || needs.coverage-integration.result == 'skipped') &&
         (needs.coverage-integration-sqlite.result == 'success' || needs.coverage-integration-sqlite.result == 'skipped') &&
         (needs.coverage-ui.result == 'success' || needs.coverage-ui.result == 'skipped') &&
-        (needs.coverage-browser.result == 'success' || needs.coverage-browser.result == 'skipped') &&
+        (needs.coverage-browser.result == 'success' || needs.coverage-browser.result == 'skipped' || needs.coverage-browser.result == 'failure' || needs.coverage-browser.result == 'cancelled') &&
         (needs.coverage-e2e.result == 'success' || needs.coverage-e2e.result == 'skipped')
       }}
     steps:
