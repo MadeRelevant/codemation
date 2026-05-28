@@ -18,7 +18,7 @@ export class IncomingHmacVerifier {
   private readonly nonceTtlSeconds = 600; // 10 minutes
 
   constructor(
-    @inject(PairingConfigToken) private readonly config: PairingConfig,
+    @inject(PairingConfigToken, { isOptional: true }) private readonly config: PairingConfig | null = null,
     @inject(HmacNonceStoreToken) private readonly nonceStore: HmacNonceStore,
   ) {}
 
@@ -28,6 +28,15 @@ export class IncomingHmacVerifier {
     body: string,
     authHeader: string | null,
   ): Promise<PairingVerificationResult> {
+    if (this.config === null) {
+      // Same shape as HmacRequestSigner — verifier is reachable via the DI graph even in
+      // non-managed mode (lazy CodemationHonoApiApp construction pulls every registered handler).
+      // We accept construction without PairingConfig and throw only when verify() is actually
+      // called, which shouldn't happen in non-managed mode (internal HMAC routes aren't mounted).
+      throw new Error(
+        "IncomingHmacVerifier.verify called without a registered PairingConfig — workspace is not in managed mode.",
+      );
+    }
     if (!this.config.pairingSecret || this.config.pairingSecret.trim().length === 0) {
       throw new Error("IncomingHmacVerifier: pairingSecret is not configured — cannot verify HMAC requests.");
     }

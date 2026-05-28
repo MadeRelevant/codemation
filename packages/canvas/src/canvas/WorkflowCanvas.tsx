@@ -52,6 +52,10 @@ export function WorkflowCanvas(args: {
   pinnedNodeIds?: ReadonlySet<string>;
   isLiveWorkflowView: boolean;
   isRunning: boolean;
+  /** Identity of the viewed run; a change re-seeds and resets the topo-cap ratchet (run switch). */
+  runId?: string | null;
+  /** Run-level status of the viewed run (e.g. "suspended"); drives the HITL "waiting for approval" treatment. */
+  runStatus?: string;
   onSelectNode: (nodeId: string) => void;
   onOpenPropertiesNode: (nodeId: string) => void;
   onRunNode: (nodeId: string) => void;
@@ -73,6 +77,8 @@ export function WorkflowCanvas(args: {
     pinnedNodeIds = EMPTY_PINNED_NODE_IDS,
     isLiveWorkflowView,
     isRunning,
+    runId = null,
+    runStatus,
     onSelectNode,
     onOpenPropertiesNode,
     onRunNode,
@@ -137,6 +143,12 @@ export function WorkflowCanvas(args: {
     () => [...workflowNodeIdsWithBoundCredential].sort().join(","),
     [workflowNodeIdsWithBoundCredential],
   );
+  // `runId` is included so switching between runs (same workflow, same
+  // selection) re-seeds AND resets the topo-cap ratchet — otherwise a node that
+  // showed `completed` in the previous run would refuse to drop back to
+  // running/waiting. `runStatus` is included so a run-status transition
+  // (running→suspended→completed) re-seeds and recomputes per-node
+  // `isWaitingForApproval`.
   const seedSignature = useMemo(
     () =>
       [
@@ -147,6 +159,8 @@ export function WorkflowCanvas(args: {
         boundCredentialKey,
         String(isLiveWorkflowView),
         String(isRunning),
+        runId ?? "",
+        runStatus ?? "",
       ].join("|"),
     [
       workflowStructureSignature,
@@ -156,6 +170,8 @@ export function WorkflowCanvas(args: {
       boundCredentialKey,
       isLiveWorkflowView,
       isRunning,
+      runId,
+      runStatus,
     ],
   );
 
@@ -179,6 +195,7 @@ export function WorkflowCanvas(args: {
       nodeSnapshotsByNodeId: seedSnapshots,
       connectionInvocations: seedConnectionInvocations,
       nodeStatusesByNodeId: seedStatuses,
+      runStatus,
       credentialAttentionTooltipByNodeId,
       selectedNodeId,
       propertiesTargetNodeId,

@@ -10,14 +10,16 @@ export class VisibleNodeStatusResolver {
     ["pending", 5],
   ]);
 
-  private static readonly invocationWorstStatusOrder = [
+  // Connection invocations (AI agent tool calls) only ever carry the non-HITL
+  // statuses, so HITL values simply fall through `indexOf` → lowest priority.
+  private static readonly invocationWorstStatusOrder: ReadonlyArray<NodeExecutionSnapshot["status"]> = [
     "failed",
     "running",
     "queued",
     "completed",
     "skipped",
     "pending",
-  ] as const;
+  ];
 
   static resolveStatuses(
     nodeSnapshotsByNodeId: Readonly<Record<string, NodeExecutionSnapshot>>,

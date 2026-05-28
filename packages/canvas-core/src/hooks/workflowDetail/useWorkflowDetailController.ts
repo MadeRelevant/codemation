@@ -31,6 +31,8 @@ export type WorkflowDetailControllerResult = Readonly<{
   credentialAttentionTooltipByNodeId: ReadonlyMap<string, string>;
   workflowNodeIdsWithBoundCredential: ReadonlySet<string>;
   selectedRun: import("../realtime/realtime").PersistedRunState | undefined;
+  viewedRunId: string | null;
+  viewedRunStatus: import("../realtime/realtime").PersistedRunState["status"] | undefined;
   propertiesPanelTelemetryRunId: string | null;
   propertiesPanelTelemetryRunStatus: import("../realtime/realtime").PersistedRunState["status"] | undefined;
   focusedInvocationIdInPropertiesPanel: string | null;
@@ -225,6 +227,8 @@ export function useWorkflowDetailController(
     credentialAttentionTooltipByNodeId: run.credentialAttentionTooltipByNodeId,
     workflowNodeIdsWithBoundCredential: run.workflowNodeIdsWithBoundCredential,
     selectedRun: run.selectedRun,
+    viewedRunId: run.viewedRunId,
+    viewedRunStatus: run.viewedRunStatus,
     propertiesPanelTelemetryRunId: run.propertiesPanelTelemetryRunId,
     propertiesPanelTelemetryRunStatus: run.propertiesPanelTelemetryRunStatus,
     sidebarModel: run.sidebarModel,

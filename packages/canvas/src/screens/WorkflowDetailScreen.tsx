@@ -219,6 +219,8 @@ export function WorkflowDetailScreen(args: Readonly<WorkflowDetailScreenArgs>) {
                     propertiesTargetNodeId={controller.propertiesPanelNodeId}
                     isLiveWorkflowView={controller.isLiveWorkflowView}
                     isRunning={controller.isRunning}
+                    runId={controller.viewedRunId}
+                    runStatus={controller.viewedRunStatus}
                     onSelectNode={controller.selectCanvasNode}
                     onOpenPropertiesNode={controller.openPropertiesPanelForNode}
                     onRunNode={controller.runCanvasNode}
