@@ -27,9 +27,7 @@ function makePositionedLayout(workflow: WorkflowDto): WorkflowPositionedLayout {
   } as unknown as WorkflowPositionedLayout;
 }
 
-function makeInput(
-  overrides: Partial<WorkflowElkMapperInput> = {},
-): WorkflowElkMapperInput {
+function makeInput(overrides: Partial<WorkflowElkMapperInput> = {}): WorkflowElkMapperInput {
   const workflow = makeWorkflow();
   return {
     positionedLayout: makePositionedLayout(workflow),

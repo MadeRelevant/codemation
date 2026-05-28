@@ -746,7 +746,10 @@ export class WorkflowDetailPresenter {
       }));
   }
 
-  private static createInvocationExecutionNode(baseNode: WorkflowNode, invocation: ConnectionInvocationRecord): WorkflowNode {
+  private static createInvocationExecutionNode(
+    baseNode: WorkflowNode,
+    invocation: ConnectionInvocationRecord,
+  ): WorkflowNode {
     return {
       ...baseNode,
       id: invocation.invocationId,
