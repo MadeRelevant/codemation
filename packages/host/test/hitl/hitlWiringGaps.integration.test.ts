@@ -270,7 +270,11 @@ describe("HITL wiring gaps — Prisma round-trip + tsx-dev dual-class", () => {
 // `{ ...base, resumeContext: args.resumeContext }` through the
 // `createSingleFromDefinitionWithActivation` call.
 
-describe("HITL wiring gap #5 — ctx.resumeContext reaches inboxApproval on resume", () => {
+// Needs Redis: suspending an inboxApproval node enqueues a BullMQ timeout job
+// (NodeSuspensionHandler → HitlTimeoutJobScheduler). The sqlite integration suite
+// runs without Redis, so the suspension can't complete there — skip when REDIS_URL
+// is absent. The Postgres integration suite (which provisions Redis) covers these.
+describe.skipIf(!process.env.REDIS_URL)("HITL wiring gap #5 — ctx.resumeContext reaches inboxApproval on resume", () => {
   const WORKFLOW_ID = "wf.hitl.gap5.resume";
   const APPROVAL_NODE_ID = "inbox-approval-gap5";
   const CALLBACK_NODE_ID = "callback-gap5";
