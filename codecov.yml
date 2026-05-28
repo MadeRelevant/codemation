@@ -148,3 +148,29 @@ ignore:
   - "packages/core-nodes-msgraph/src/credentials/msGraphMailOAuth.ts"
   - "packages/core-nodes-msgraph/src/credentials/msGraphDriveOAuth.ts"
   - "packages/core-nodes-msgraph/src/credentials/session.ts"
+  # Mirror the vitest `--coverage.exclude` set (see package.json coverage:* scripts):
+  # these are intentionally NOT instrumented (DB/infra-bound, manually exercised, or
+  # bootstrap glue), so they emit no lcov data. They must be ignored here too —
+  # otherwise Codecov counts their changed lines as "missing" patch coverage even
+  # though there is no way to record coverage for them. Keep in sync with package.json.
+  - "**/src/infrastructure/persistence/Prisma*"
+  - "**/src/infrastructure/persistence/CodemationPostgres*.ts"
+  - "**/src/infrastructure/scheduler/bullmq/**"
+  - "**/src/infrastructure/collections/Sqlite*"
+  - "**/src/pairing/**"
+  - "**/src/bootstrap/runtime/**"
+  - "**/src/bootstrap/CodemationBootstrapRequest.ts"
+  - "**/src/bootstrap/CodemationContainerRegistrationRegistrar.ts"
+  - "**/src/bootstrap/CodemationRuntimeUrlResolver.ts"
+  - "**/src/presentation/server/CodemationTsyringe*"
+  - "**/src/audit/PrismaWorkflowAuditLogRepository.ts"
+  - "**/src/server/CodemationNextHost.ts"
+  - "**/src/server/NextHostPackageRootResolver.ts"
+  - "**/src/auth/EdgeSessionVerifier.ts"
+  - "**/src/consumer/ConsumerOutputBuilder.ts"
+  - "**/src/dev/CliDevProxyServer.ts"
+  - "**/src/credentials/Broker*"
+  - "**/src/application/commands/UpsertLocalBootstrapUserCommand.ts"
+  - "**/src/canvas/WorkflowCanvasStraightCountEdge.tsx"
+  - "**/src/canvas/WorkflowCanvasSymmetricForkEdge.tsx"
+  - "**/src/canvas/WorkflowCanvasSimpleIconGlyph.tsx"
