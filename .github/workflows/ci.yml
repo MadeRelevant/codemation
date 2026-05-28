@@ -558,8 +558,12 @@ jobs:
       - coverage-e2e
     # Run when at least coverage-unit succeeded (always runs), none of the others failed,
     # and the branch is not a version-bump PR.
+    # `!cancelled()` is required so this job still evaluates its `if` (and runs)
+    # when a dependency like coverage-browser FAILS — otherwise GitHub auto-skips
+    # any job whose `needs` failed, regardless of the result-checks below.
     if: >-
       ${{
+        !cancelled() &&
         (github.event_name != 'pull_request' || (github.head_ref != '' && !startsWith(github.head_ref, 'release/') && !startsWith(github.head_ref, 'changeset-release/'))) &&
         needs.coverage-unit.result == 'success' &&
         (needs.coverage-integration.result == 'success' || needs.coverage-integration.result == 'skipped') &&
