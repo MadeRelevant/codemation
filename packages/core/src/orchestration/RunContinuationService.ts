@@ -151,7 +151,7 @@ export class RunContinuationService {
     data.setOutputs(args.nodeId, args.outputs);
     const completedAt = new Date().toISOString();
 
-    // Resolve HITL status from the node's decision output (story 03).
+    // Resolve HITL status from the node's decision output.
     // Only fires when the output carries `item.json.decision.status` written by a
     // defineHumanApprovalNode-based node. Non-HITL nodes never have this field.
     const hitlResolution = this.resolveHitlStatus(args.outputs);
@@ -170,7 +170,7 @@ export class RunContinuationService {
       hitlStatus: hitlResolution?.nodeStatus,
     });
 
-    // Halt the run for HITL rejection / timeout outcomes (D3).
+    // Halt the run for HITL rejection / timeout outcomes.
     if (hitlResolution?.halt) {
       const haltedState = this.persistedRunStateTerminalBuilder.mergeTerminal({
         state,
@@ -594,7 +594,7 @@ export class RunContinuationService {
   /**
    * Re-activate a previously suspended run item with a human decision.
    *
-   * Called by the HITL resume endpoint (story 02). This method:
+   * Called by the HITL resume endpoint. This method:
    * 1. Loads `PersistedRunState` and locates the suspension entry by `taskId`.
    * 2. Removes the entry from the `suspension` array; if empty, run stays `"suspended"` until
    *    enqueue flips it to `"pending"`.
@@ -650,7 +650,7 @@ export class RunContinuationService {
     const parentNodeId = parentEdges[0]?.from.nodeId;
     const parentOutputPort = parentEdges[0]?.from.output ?? "main";
     const allParentItems = parentNodeId ? (data.getOutputItems(parentNodeId, parentOutputPort) ?? []) : [];
-    // Per D2: each suspended item gets its own resume; pass the single item at itemIndex.
+    // Each suspended item gets its own resume; pass the single item at itemIndex.
     const resumeInput =
       allParentItems.length > suspensionEntry.itemIndex ? [allParentItems[suspensionEntry.itemIndex]!] : allParentItems;
 

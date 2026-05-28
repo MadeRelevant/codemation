@@ -29,7 +29,7 @@ export class InboxChannelResolver implements InboxChannelResolverSeam {
     if (pairingConfig && !cp) {
       this.logger.warn(
         "InboxChannelResolver: managed mode is active but no ControlPlaneInboxChannel is registered. " +
-          "Falling back to local inbox channel. Register a ControlPlaneInboxChannel (story 07) to resolve this.",
+          "Falling back to local inbox channel. Register a ControlPlaneInboxChannel to resolve this.",
       );
     }
   }
@@ -41,7 +41,7 @@ export class InboxChannelResolver implements InboxChannelResolverSeam {
     if (!this.local) {
       throw new Error(
         "InboxChannelResolver: no inbox channel is registered. " +
-          "Register a LocalInboxChannel (story 06) or ControlPlaneInboxChannel (story 07).",
+          "Register a LocalInboxChannel or ControlPlaneInboxChannel.",
       );
     }
     return { channel: this.local };

@@ -16,7 +16,7 @@ import { ServerLoggerFactory } from "../infrastructure/logging/ServerLoggerFacto
  * Inbox channel that pushes pending HITL tasks to the control plane via HMAC-signed HTTP.
  *
  * Registered only when `PairingConfig` is present (managed mode).
- * The control plane stores the task in its own DB and renders the reviewer inbox (story 09).
+ * The control plane stores the task in its own DB and renders the reviewer inbox.
  * Decisions flow back to the framework via `POST /internal/hitl/tasks/:taskId/callback`.
  */
 @injectable()

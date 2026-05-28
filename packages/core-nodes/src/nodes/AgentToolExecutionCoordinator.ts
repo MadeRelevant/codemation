@@ -37,7 +37,7 @@ export class AgentToolExecutionCoordinator {
       modelId?: string;
     }>,
   ): Promise<ReadonlyArray<ExecutedToolCall>> {
-    // D3 solo enforcement: if any HITL tool appears alongside other tools, return error results
+    // Solo enforcement: if any HITL tool appears alongside other tools, return error results
     // for all calls so the model self-corrects on the next turn.
     const hitlCalls = args.plannedToolCalls.filter((c) => c.binding.humanApproval !== undefined);
     if (hitlCalls.length > 0 && args.plannedToolCalls.length > 1) {

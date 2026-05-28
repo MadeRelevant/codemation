@@ -4,7 +4,7 @@
  * Regression suite for the wiring gaps discovered when driving the HITL flow
  * end-to-end against the real Prisma-backed repository under tsx-dev.
  *
- * The unit / integration tests added by stories 01-12 all pass under
+ * The HITL unit / integration tests all pass under
  * `InMemoryWorkflowRunRepository` and module-shared classes. They miss the
  * production runtime path:
  *
@@ -205,7 +205,7 @@ describe("HITL wiring gaps — Prisma round-trip + tsx-dev dual-class", () => {
   //          state.pendingResume, and state.reason.
   // -------------------------------------------------------------------------
   //
-  // Production symptom: stories 01/02/03 added these fields to
+  // Production symptom: the HITL feature added these fields to
   // `PersistedRunState` but `PrismaWorkflowRunRepository.saveOnce` only
   // serialised `state.mutableState` to the `mutable_state_json` column. The
   // suspension array vanished on save, and `RunContinuationService.resumeRun`

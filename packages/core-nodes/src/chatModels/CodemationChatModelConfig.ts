@@ -43,5 +43,5 @@ export class CodemationChatModelConfig implements ChatModelConfig {
     this.presentation = presentationIn ?? { icon: "lucide:bot", label: name };
   }
 
-  // No getCredentialRequirements() — authentication is implicit via workspace pairing secret (D2).
+  // No getCredentialRequirements() — authentication is implicit via workspace pairing secret.
 }

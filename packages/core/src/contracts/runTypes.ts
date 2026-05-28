@@ -297,7 +297,7 @@ export interface PersistedRunSchedulingState {
   queue: RunQueueEntry[];
 }
 
-/** One persisted suspension entry per suspended item (HITL story 01). */
+/** One persisted suspension entry per suspended item. */
 export interface PersistedSuspensionEntry {
   /** Opaque task identifier (UUID v4). */
   readonly taskId: string;
@@ -306,7 +306,7 @@ export interface PersistedSuspensionEntry {
   readonly itemIndex: number;
   /** SHA-256 hex digest of the decision schema JSON (for schema-drift detection). */
   readonly decisionSchemaHash: string;
-  /** Serialized return value from `SuspensionRequest.deliver` (story 02 stores this on the HumanTask row). */
+  /** Serialized return value from `SuspensionRequest.deliver` (stored on the HumanTask row). */
   readonly deliveryRef: JsonValue;
   /** ISO timestamp when the task expires. */
   readonly timeoutAt: string;
@@ -316,7 +316,7 @@ export interface PersistedSuspensionEntry {
 /**
  * When a node is re-activated after suspension, the engine writes the resume context here
  * so `NodeExecutionRequestHandlerService` can splice `resumeContext` into ctx.
- * Cleared once the re-activation is consumed (story 01).
+ * Cleared once the re-activation is consumed.
  */
 export interface PendingResumeEntry {
   readonly activationId: NodeActivationId;
@@ -355,7 +355,7 @@ export interface PersistedRunState {
   /** Append-only history of connection invocations (LLM/tool) nested under owning nodes. */
   connectionInvocations?: ReadonlyArray<ConnectionInvocationRecord>;
   /**
-   * One entry per outstanding HITL suspension (per-item, D2).
+   * One entry per outstanding HITL suspension (per-item).
    * Present and non-empty iff `status === "suspended"`.
    */
   suspension?: ReadonlyArray<PersistedSuspensionEntry>;

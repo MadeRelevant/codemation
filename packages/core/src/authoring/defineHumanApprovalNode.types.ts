@@ -97,7 +97,7 @@ export function isHumanApprovalNode(
  * Authoring helper that compiles a HITL approval channel down to a regular
  * {@link defineNode}-backed node with `SuspensionRequest` semantics.
  *
- * **Fast-forward decision semantics (D2):**
+ * **Fast-forward decision semantics:**
  * - On the first `execute` call (no `ctx.resumeContext`): throws a `SuspensionRequest`
  *   that calls the author's `deliver`. The engine persists the suspension and continues.
  * - On resume (`ctx.resumeContext` set): calls `onDecision`/`onTimeout` as appropriate,
@@ -112,7 +112,7 @@ export function isHumanApprovalNode(
  * If `item.json` already has a `decision` key it is **overwritten**. Namespace as
  * needed if your schema reserves that key for another purpose.
  *
- * **Predicate persistence (D4 option c):**
+ * **Predicate persistence:**
  * The `approvedPredicate` function is NOT serialized to the suspension record (except
  * as an audit-only string via `toString()`). On resume, the workflow definition is
  * reloaded from code at process start and the predicate closure is rebuilt naturally.

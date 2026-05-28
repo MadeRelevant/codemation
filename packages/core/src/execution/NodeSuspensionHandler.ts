@@ -24,9 +24,9 @@ export { RunSuspendedError };
  *
  * Responsibilities:
  * 1. Generate a `taskId` (UUID v4).
- * 2. Persist a `HumanTask` row via `HumanTaskStore.create` (story 02).
- * 3. Sign a resume URL via `HitlResumeTokenSigner.sign` (story 02).
- * 4. Enqueue a delayed BullMQ timeout job via `HitlTimeoutJobScheduler.enqueue` (story 02).
+ * 2. Persist a `HumanTask` row via `HumanTaskStore.create`.
+ * 3. Sign a resume URL via `HitlResumeTokenSigner.sign`.
+ * 4. Enqueue a delayed BullMQ timeout job via `HitlTimeoutJobScheduler.enqueue`.
  * 5. Build a `HumanTaskHandle` and call `deliver`.
  * 6. Append a `PersistedSuspensionEntry` to the run state and flip status to `"suspended"`.
  * 7. Persist via `WorkflowExecutionRepository.save`.
@@ -35,7 +35,7 @@ export { RunSuspendedError };
  * If `deliver` throws, the error propagates up to `NodeExecutionRequestHandlerService`
  * which routes it through `resumeFromNodeError` → run status becomes `"failed"`.
  *
- * Story 02: `humanTaskStore`, `tokenSigner`, and `timeoutScheduler` are optional —
+ * `humanTaskStore`, `tokenSigner`, and `timeoutScheduler` are optional —
  * when not registered (e.g. in unit tests), the handler still suspends the run but
  * skips persistence, token signing, and job scheduling.
  */
@@ -86,7 +86,7 @@ export class NodeSuspensionHandler {
       ...(metadata !== undefined ? { metadata } : {}),
     };
 
-    // Emit hitl.task.created before calling deliver (story 11 D3).
+    // Emit hitl.task.created before calling deliver.
     const channel = (metadata as Record<string, unknown> | undefined)?.["channel"];
     await args.telemetry?.addSpanEvent?.({
       name: "hitl.task.created",
@@ -116,7 +116,7 @@ export class NodeSuspensionHandler {
       throw deliverError;
     }
 
-    // Persist HumanTask row (story 02)
+    // Persist HumanTask row
     if (this.humanTaskStore) {
       const record: HumanTaskRecord = {
         id: taskId,
@@ -144,7 +144,7 @@ export class NodeSuspensionHandler {
       await this.humanTaskStore.create(record);
     }
 
-    // Enqueue timeout job (story 02)
+    // Enqueue timeout job
     if (this.timeoutScheduler) {
       await this.timeoutScheduler.enqueueTimeoutJob({ taskId, expiresAt });
     }

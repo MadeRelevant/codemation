@@ -224,7 +224,7 @@ export class NodeExecutor {
               { cause: e },
             );
           }
-          // Per-item suspension (D2): load current state, persist the suspension entry, and
+          // Per-item suspension: load current state, persist the suspension entry, and
           // continue processing remaining items. If deliver throws it propagates upward.
           const state = await this.loadRunState(request.runId);
           if (!state) {
@@ -234,7 +234,7 @@ export class NodeExecutor {
           }
           // handleSuspension throws RunSuspendedError after persisting — we re-throw it
           // to exit the loop immediately. Partial byPort outputs are intentionally dropped
-          // (TODO(story-04): consider stashing outputs of non-suspended items alongside the suspension).
+          // (TODO: consider stashing outputs of non-suspended items alongside the suspension).
           await this.suspensionHandler.handle({
             runId: request.runId,
             nodeId: request.nodeId,

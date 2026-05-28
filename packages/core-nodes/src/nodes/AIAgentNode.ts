@@ -596,7 +596,7 @@ export class AIAgentNode implements RunnableNode<AIAgent<any, any>> {
   }
 
   /**
-   * Detects whether a tool config is backed by a `defineHumanApprovalNode` (story 04 marker)
+   * Detects whether a tool config is backed by a `defineHumanApprovalNode` marker
    * and returns the HITL behavior config, or `undefined` when not a HITL tool.
    */
   private resolveHumanApprovalBehavior(config: ToolConfig): Readonly<{ onRejected: "halt" | "return" }> | undefined {
@@ -646,7 +646,7 @@ export class AIAgentNode implements RunnableNode<AIAgent<any, any>> {
    * Builds a ToolSet from resolved tools for strategy initialization.
    * The strategy uses this for its "always-included" node-backed tool descriptions.
    * HITL tools (detected via the `humanApprovalToolBehavior` field set by `defineHumanApprovalNode`) get the solo-constraint sentence
-   * appended to their description (D4).
+   * appended to their description.
    */
   private buildToolSetFromResolved(resolvedTools: ReadonlyArray<ResolvedTool>): ToolSet {
     if (resolvedTools.length === 0) return {};

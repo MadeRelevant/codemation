@@ -89,10 +89,13 @@ export const workflow = createWorkflowBuilder({
   //   inboxApproval auto-routes to the CP inbox in managed mode and to
   //   local /dev/inbox in non-managed mode — no channel config needed.
   //   The workflow resumes when the reviewer approves or rejects.
-  //   Template variables (${item.json.vendor}) are resolved at runtime.
+  //   title/body are callbacks that read the item at runtime.
   .humanApproval(inboxApproval, {
-    title: "Approve invoice from ${item.json.vendor}",
-    body: "Amount: ${item.json.amount} ${item.json.currency}\nMessage ID: ${item.json.messageId}",
+    title: ({ item }) => `Approve invoice from ${(item.json as InvoiceItem).vendor}`,
+    body: ({ item }) => {
+      const invoice = item.json as InvoiceItem;
+      return `Amount: ${invoice.amount} ${invoice.currency}\nMessage ID: ${invoice.messageId}`;
+    },
     priority: "normal",
     timeout: "24h",
     onTimeout: "halt",

@@ -1,5 +1,5 @@
 /**
- * Unit tests for HITL Story 03: first-class HITL states on node-execution + run terminal status.
+ * Unit tests for HITL first-class states on node-execution + run terminal status.
  *
  * Scenarios:
  * 1. Approved decision → node status `hitl-approved`, run continues (status "completed").
@@ -10,7 +10,7 @@
  *
  * Scenarios 1–4 exercise `RunContinuationService.resumeFromNodeResult` with a minimal
  * single-node workflow and in-memory repository. Scenario 5 is a type-level persistence
- * test (no engine cancel pathway exists yet in story 03 scope).
+ * test (no engine cancel pathway exists yet).
  */
 
 import { describe, expect, it } from "vitest";
@@ -319,7 +319,7 @@ describe("HITL status resolution in resumeFromNodeResult", () => {
 
 // ---------------------------------------------------------------------------
 // Scenario 5: `hitl-cancelled` type round-trip through snapshot factory + repository.
-// No engine cancel pathway exists yet in story 03 scope; this validates the type
+// No engine cancel pathway exists yet; this validates the type
 // system and persistence layer accept `hitl-cancelled` as a valid node status.
 // ---------------------------------------------------------------------------
 

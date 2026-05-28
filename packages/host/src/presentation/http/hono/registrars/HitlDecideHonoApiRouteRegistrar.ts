@@ -11,12 +11,12 @@ import type { PairingConfig } from "../../../../pairing/pairing.types";
 /**
  * Session-authenticated endpoint: `POST /api/hitl/tasks/:taskId/decide`
  *
- * Registered ONLY in non-managed mode. Used by the local /dev/inbox UI (story 06).
+ * Registered ONLY in non-managed mode. Used by the local /dev/inbox UI.
  *
  * In managed mode (`PairingConfig !== null`) the route is intentionally NOT mounted —
  * decisions must arrive via the HMAC-signed `POST /internal/hitl/tasks/:taskId/callback`
- * receiver from the control plane (story 07). This prevents a compromised user session
- * from deciding arbitrary pending tasks (security review story 13, finding T16).
+ * receiver from the control plane. This prevents a compromised user session
+ * from deciding arbitrary pending tasks.
  *
  * The session middleware is already applied on the /api sub-app by CodemationHonoApiAppFactory.
  */

@@ -86,7 +86,7 @@ export class NodeExecutionRequestHandlerService implements NodeExecutionRequestH
     const portKeys = Object.keys(inputsByPort);
     const kind = portKeys.length === 1 && portKeys[0] === "in" ? ("single" as const) : ("multi" as const);
     const batchId = pendingExecution.batchId ?? "batch_1";
-    // Splice resumeContext from pendingResume if this activation is a HITL resume (story 01).
+    // Splice resumeContext from pendingResume if this activation is a HITL resume.
     const pendingResume = state.pendingResume;
     const resumeContext: ResumeContext | undefined =
       pendingResume?.activationId === request.activationId && pendingResume?.nodeId === request.nodeId

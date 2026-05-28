@@ -1,5 +1,5 @@
 /**
- * Unit tests for Story 04: defineHumanApprovalNode authoring API.
+ * Unit tests for defineHumanApprovalNode authoring API.
  *
  * Tests exercise:
  * - First pass throws SuspensionRequest with the correct shape.

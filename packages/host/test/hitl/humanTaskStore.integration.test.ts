@@ -1,7 +1,7 @@
 // @vitest-environment node
 
 /**
- * Integration tests for PrismaHumanTaskStore — HITL story 02.
+ * Integration tests for PrismaHumanTaskStore.
  *
  * Covers: create, findById, findByResumeTokenHash, findPendingForWorkspace,
  *         markDecided, markTimedOut, markAutoAccepted, markCancelled, cancelPendingForRun.

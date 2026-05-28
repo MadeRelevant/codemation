@@ -13,7 +13,7 @@
 import { workflow as buildWorkflow, inboxApproval, CodemationChatModelConfig } from "@codemation/core-nodes";
 import { AgentToolFactory } from "@codemation/core";
 import { z } from "zod";
-import type { RunnableNodeConfig } from "@codemation/core";
+import type { Item, RunnableNodeConfig } from "@codemation/core";
 
 // ---------------------------------------------------------------------------
 // Input schema
@@ -36,8 +36,8 @@ const haiku = new CodemationChatModelConfig("Claude Haiku (managed)", "anthropic
 // HITL tool bindings
 //
 // inboxApproval.create({...}) returns a RunnableNodeConfig. The config uses
-// template variables like ${item.json.title} so the actual title/body come
-// from the item at execution time (set via mapInput).
+// title/body callbacks that read item.json.title / item.json.body so the actual
+// title/body come from the item at execution time (set via mapInput).
 //
 // inboxApproval has humanApprovalToolBehavior = { onRejected: "return" } by
 // default (set by defineHumanApprovalNode on the DefinedNode). For the halt
@@ -48,14 +48,14 @@ const haiku = new CodemationChatModelConfig("Claude Haiku (managed)", "anthropic
 // cloning the node config.
 // ---------------------------------------------------------------------------
 
-// Base node config using template vars — the agent populates title/body via mapInput.
+// Base node config using title/body callbacks — the agent populates title/body via mapInput.
 // We add humanApprovalToolBehavior directly so the agent runtime detects this as a HITL
 // tool and appends the solo-constraint sentence to its description (story 10).
 const inboxApprovalNodeConfig: RunnableNodeConfig<any, any> = Object.assign(
   inboxApproval.create(
     {
-      title: "${item.json.title}",
-      body: "${item.json.body}",
+      title: ({ item }: { item: Item }) => String((item.json as { title?: unknown }).title ?? ""),
+      body: ({ item }: { item: Item }) => String((item.json as { body?: unknown }).body ?? ""),
       priority: "normal",
       timeout: "24h",
       onTimeout: "halt",
@@ -69,8 +69,8 @@ const inboxApprovalNodeConfig: RunnableNodeConfig<any, any> = Object.assign(
 const inboxApprovalNodeConfigHalt: RunnableNodeConfig<any, any> = Object.assign(
   inboxApproval.create(
     {
-      title: "${item.json.title}",
-      body: "${item.json.body}",
+      title: ({ item }: { item: Item }) => String((item.json as { title?: unknown }).title ?? ""),
+      body: ({ item }: { item: Item }) => String((item.json as { body?: unknown }).body ?? ""),
       priority: "high",
       timeout: "8h",
       onTimeout: "halt",

@@ -1,5 +1,5 @@
 /**
- * Unit tests for HITL Story 01: engine SuspensionRequest outcome + suspended run
+ * Unit tests for HITL: engine SuspensionRequest outcome + suspended run
  * persistence + resume queue.
  *
  * Tests cover the five scenarios from the spec (§ Implementation plan, step 7):
@@ -221,7 +221,7 @@ describe("pendingResume / resumeContext threading", () => {
 //            status is "suspended" and suspension array has exactly one entry
 // ---------------------------------------------------------------------------
 
-describe("NodeExecutor per-item suspension (D2)", () => {
+describe("NodeExecutor per-item suspension", () => {
   it("suspends at item 0 and stops processing further items", async () => {
     const repo = new InMemoryWorkflowRunRepository();
     await repo.createRun(makeRunState());

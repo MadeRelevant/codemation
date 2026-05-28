@@ -20,7 +20,7 @@ import type { TriggerInstanceId, WebhookTriggerMatcher } from "./webhookTypes";
 import type { ZodType } from "zod";
 
 // ---------------------------------------------------------------------------
-// HITL primitives — Story 01
+// HITL primitives
 // ---------------------------------------------------------------------------
 
 /** Opaque unique identifier for a single HumanTask instance. */
@@ -28,24 +28,24 @@ export type HumanTaskId = string;
 
 /**
  * Duration string — ISO 8601 duration ("PT24H") or shorthand ("24h").
- * Parsed by the timeout job (story 02); stored as-is in the suspension record.
+ * Parsed by the timeout job; stored as-is in the suspension record.
  */
 export type Duration = string;
 
 /**
  * Minimal handle handed to the `deliver` callback so it can route to the correct
- * inbox channel. Story 02 fills in a real `resumeUrl`; story 01 uses a placeholder.
+ * inbox channel.
  */
 export interface HumanTaskHandle {
   readonly taskId: HumanTaskId;
   readonly runId: string;
   readonly nodeId: string;
   readonly expiresAt: Date;
-  /** TODO(story-02): real signed URL; placeholder empty string for story 01. */
+  /** TODO: real signed URL; placeholder empty string for now. */
   readonly resumeUrl: string;
   /**
    * Arbitrary JSON metadata copied from `SuspensionRequest.request.metadata` at suspension time.
-   * Used by the agent runtime (story 10) to round-trip the `agentCheckpoint` back to the
+   * Used by the agent runtime to round-trip the `agentCheckpoint` back to the
    * resumed node via `ctx.resumeContext.task.metadata`.
    */
   readonly metadata?: Readonly<Record<string, import("./workflowTypes").JsonValue>>;
@@ -66,8 +66,8 @@ export interface HumanTaskActor {
 
 /**
  * Resume context injected into `NodeExecutionContext` when the engine re-activates
- * a previously suspended node. Story 04 wraps this with parsed `TDecision` via
- * `defineHumanApprovalNode`; at the engine layer `decision.value` is `unknown`.
+ * a previously suspended node. `defineHumanApprovalNode` wraps this with parsed
+ * `TDecision`; at the engine layer `decision.value` is `unknown`.
  */
 export interface ResumeContext {
   readonly decision:
@@ -81,7 +81,7 @@ export interface ResumeContext {
 /**
  * Thrown by a node's `execute()` to request durable suspension of the current item.
  * The engine catches this, persists the suspension entry, calls `deliver`, and
- * continues to the next item (per-item semantics, D2).
+ * continues to the next item (per-item semantics).
  *
  * @example
  * ```ts
@@ -316,7 +316,7 @@ export interface NodeExecutionContext<TConfig extends NodeConfigBase = NodeConfi
   telemetry: NodeExecutionTelemetry;
   binary: NodeBinaryAttachmentService;
   /**
-   * Present when this node activation is a HITL resume (story 01).
+   * Present when this node activation is a HITL resume.
    * The node checks `ctx.resumeContext !== undefined` and takes the resume branch.
    */
   resumeContext?: ResumeContext;

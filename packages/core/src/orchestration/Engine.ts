@@ -237,8 +237,8 @@ export class Engine implements NodeActivationContinuation, NodeExecutionRequestH
   }
 
   /**
-   * Re-activate a suspended run item with a human decision (HITL story 01).
-   * Story 02 owns the HTTP endpoint that calls this; this method exposes the engine primitive.
+   * Re-activate a suspended run item with a human decision (HITL).
+   * The HTTP resume endpoint calls this; this method exposes the engine primitive.
    */
   async resumeRun(args: { runId: RunId; taskId: string; resumeContext: ResumeContext }): Promise<RunResult> {
     return await this.deps.runContinuationService.resumeRun(args);

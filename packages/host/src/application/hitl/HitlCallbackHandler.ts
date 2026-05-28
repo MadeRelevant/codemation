@@ -29,7 +29,7 @@ export type HitlCallbackResult =
  * middleware already guarantees the request is signed by the paired CP, so
  * this is a secondary assertion matching the task's stored workspace.
  *
- * D3: The framework's timeout worker and CP's callback can both fire for the
+ * The framework's timeout worker and CP's callback can both fire for the
  * same task. Whichever lands first wins; the second gets a 409 from
  * `markDecided`/`markTimedOut` (task already resolved). This is intentional.
  */
@@ -68,7 +68,7 @@ export class HitlCallbackHandler {
       return { status: 409, body: { error: `HumanTask is not pending (current status: ${task.status})` } };
     }
 
-    // Timeout path (story 07 D3: CP-originated timeout)
+    // Timeout path (CP-originated timeout)
     if ("kind" in body && body.kind === "timeout") {
       await this.taskStore.markTimedOut(taskId);
       this.logger.info(`HITL task timed out via CP callback — taskId=${taskId}`);

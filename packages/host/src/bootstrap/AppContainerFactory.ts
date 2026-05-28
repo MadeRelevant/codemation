@@ -766,11 +766,10 @@ export class AppContainerFactory {
       container.registerSingleton(LocalOAuthFlowExecutor, LocalOAuthFlowExecutor);
     }
     container.registerSingleton(CredentialOAuth2MaterialReader, CredentialOAuth2MaterialReader);
-    // Story 01 (credentials-vault sprint): register the local material provider
-    // unconditionally. Story 02 wires the dispatcher that picks between this and
-    // the control-plane provider in managed mode.
+    // Register the local material provider unconditionally. The dispatcher picks
+    // between this and the control-plane provider in managed mode.
     container.registerSingleton(LocalCredentialMaterialProvider, LocalCredentialMaterialProvider);
-    // Story 02 (credentials-vault sprint): in managed mode (paired with a
+    // In managed mode (paired with a
     // control plane) wrap the cache around a `CompositeCredentialMaterialProvider`
     // that dispatches by `ref.source`. In standalone mode the cache wraps the
     // local provider directly.
@@ -785,7 +784,7 @@ export class AppContainerFactory {
         useFactory: instanceCachingFactory((c) => c.resolve(LocalCredentialMaterialProvider)),
       });
     }
-    // Story 03 (credentials-vault sprint): in-memory TTL cache decorator.
+    // In-memory TTL cache decorator.
     container.registerSingleton(CachingCredentialMaterialProvider, CachingCredentialMaterialProvider);
     container.registerSingleton(CodemationFrontendAuthSnapshotFactory, CodemationFrontendAuthSnapshotFactory);
     container.registerSingleton(FrontendAppConfigFactory, FrontendAppConfigFactory);
@@ -922,7 +921,7 @@ export class AppContainerFactory {
     container.registerSingleton(PrismaWorkflowActivationRepository, PrismaWorkflowActivationRepository);
     container.registerSingleton(InMemoryWorkflowActivationRepository, InMemoryWorkflowActivationRepository);
     container.registerSingleton(PrismaCredentialStore, PrismaCredentialStore);
-    // HITL story 02: token signer + timeout scheduler (persistence wired in registerRuntimeInfrastructure)
+    // HITL: token signer + timeout scheduler (persistence wired in registerRuntimeInfrastructure)
     container.registerSingleton(PrismaHumanTaskStore, PrismaHumanTaskStore);
     // Default: no HITL store; overridden to PrismaHumanTaskStore in the Prisma path below
     container.register(HumanTaskStoreToken, { useFactory: () => undefined });
@@ -937,12 +936,12 @@ export class AppContainerFactory {
     container.registerSingleton(HitlTimeoutWorker, HitlTimeoutWorker);
     container.registerSingleton(DecisionSchemaValidator, DecisionSchemaValidator);
     container.registerSingleton(DecideHumanTaskCommandHandler, DecideHumanTaskCommandHandler);
-    // HITL story 05: inbox channel resolver (concrete channels registered in stories 06 + 07)
+    // HITL: inbox channel resolver (concrete local + control-plane channels registered below)
     container.registerSingleton(InboxChannelResolver, InboxChannelResolver);
     container.register(InboxChannelResolverToken, {
       useFactory: instanceCachingFactory((dc) => dc.resolve(InboxChannelResolver)),
     });
-    // HITL story 06: local inbox channel — registered unconditionally; the resolver picks it
+    // HITL: local inbox channel — registered unconditionally; the resolver picks it
     // whenever managed-mode CP channel is not present.
     container.registerSingleton(LocalInboxChannel, LocalInboxChannel);
     container.register(LocalInboxChannelToken, {
@@ -1115,7 +1114,7 @@ export class AppContainerFactory {
     container.registerSingleton(ApplicationTokens.InternalHonoApiRouteRegistrar, InternalWorkflowDetailRegistrar);
     container.registerSingleton(ApplicationTokens.InternalHonoApiRouteRegistrar, InternalWorkflowActivationRegistrar);
     container.registerSingleton(ApplicationTokens.InternalHonoApiRouteRegistrar, InternalWorkflowTestRunRegistrar);
-    // HITL story 07: CP inbox channel + inbound decision callback (managed mode only)
+    // HITL: CP inbox channel + inbound decision callback (managed mode only)
     container.registerSingleton(ControlPlaneInboxChannel, ControlPlaneInboxChannel);
     container.register(ControlPlaneInboxChannelToken, {
       useFactory: instanceCachingFactory((dc) => dc.resolve(ControlPlaneInboxChannel)),
@@ -1251,7 +1250,7 @@ export class AppContainerFactory {
       container.resolve(PrismaWorkflowActivationRepository),
     );
     container.registerInstance(ApplicationTokens.CredentialStore, container.resolve(PrismaCredentialStore));
-    // HITL story 02: wire PrismaHumanTaskStore now that PrismaDatabaseClientToken is available
+    // HITL: wire PrismaHumanTaskStore now that PrismaDatabaseClientToken is available
     container.registerInstance(HumanTaskStoreToken, container.resolve(PrismaHumanTaskStore));
     container.registerInstance(ApplicationTokens.RunTraceContextRepository, runTraceContextRepository);
     container.registerInstance(ApplicationTokens.TelemetrySpanStore, telemetrySpanStore);

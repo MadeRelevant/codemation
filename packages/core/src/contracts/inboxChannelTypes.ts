@@ -4,7 +4,7 @@ import type { Item } from "./workflowTypes";
 
 /**
  * A single inbox delivery channel.
- * Implementations: `LocalInboxChannel` (story 06), `ControlPlaneInboxChannel` (story 07).
+ * Implementations: `LocalInboxChannel`, `ControlPlaneInboxChannel`.
  */
 export interface InboxChannel {
   readonly kind: "local" | "control-plane-inbox";

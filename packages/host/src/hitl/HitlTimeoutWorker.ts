@@ -20,7 +20,7 @@ import { ResumeTelemetryContextForRun } from "../application/telemetry/ResumeTel
  *   with `decision: { kind: "timed_out" }`.
  *
  * The engine's resume handler distinguishes halt vs. continue based on the decision kind
- * (story 03 handles the halt-the-run path).
+ * (the first-class HITL states handle the halt-the-run path).
  *
  * `processTimeoutForTask` is public to allow direct testing without BullMQ.
  */
@@ -72,7 +72,7 @@ export class HitlTimeoutWorker {
     if (task.onTimeout === "auto-accept") {
       await this.taskStore.markAutoAccepted(taskId);
 
-      // Emit hitl.task.timed_out on the run's trace (story 11 D3).
+      // Emit hitl.task.timed_out on the run's trace.
       const telemetry = await this.resumeTelemetry.forTask(taskId);
       await telemetry?.addSpanEvent({
         name: "hitl.task.timed_out",
@@ -100,7 +100,7 @@ export class HitlTimeoutWorker {
     } else {
       await this.taskStore.markTimedOut(taskId);
 
-      // Emit hitl.task.timed_out on the run's trace (story 11 D3).
+      // Emit hitl.task.timed_out on the run's trace.
       const telemetry = await this.resumeTelemetry.forTask(taskId);
       await telemetry?.addSpanEvent({
         name: "hitl.task.timed_out",

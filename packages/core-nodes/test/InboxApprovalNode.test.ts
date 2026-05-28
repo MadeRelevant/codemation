@@ -20,6 +20,7 @@ import type {
   InboxDelivery,
   InboxOnDecisionArgs,
   InboxOnTimeoutArgs,
+  Item,
   NodeExecutionContext,
   TelemetrySpanEventRecord,
   TypeToken,
@@ -104,17 +105,19 @@ class StubInboxChannel implements InboxChannel {
 // RunnableNodeConfig as `ctx.config`, not the flat config object.
 // ---------------------------------------------------------------------------
 
+type InboxSubjectField = string | ((args: { item: Item }) => string);
+
 function makeNodeAndCtx(opts: {
   resolver: InboxChannelResolverSeam | undefined;
   telemetry?: CapturingTelemetry;
-  title?: string;
-  body?: string;
+  title?: InboxSubjectField;
+  body?: InboxSubjectField;
 }) {
   const nodeConfig = inboxApproval.create(
     {
       name: "Inbox Approval",
-      title: opts.title ?? "Approve: ${item.json.invoiceId}",
-      body: opts.body ?? "Invoice ${item.json.invoiceId} needs review.",
+      title: opts.title ?? (({ item }) => `Approve: ${(item.json as { invoiceId?: unknown }).invoiceId}`),
+      body: opts.body ?? (({ item }) => `Invoice ${(item.json as { invoiceId?: unknown }).invoiceId} needs review.`),
       priority: "normal",
       timeout: "24h",
       onTimeout: "halt",

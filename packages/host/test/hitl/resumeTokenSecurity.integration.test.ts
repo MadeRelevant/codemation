@@ -1,7 +1,7 @@
 // @vitest-environment node
 
 /**
- * Integration tests for HitlResumeTokenSigner — HITL story 02.
+ * Integration tests for HitlResumeTokenSigner.
  *
  * Covers: valid tokens, bad signatures, expired tokens, taskId mismatch,
  *         and schema-hash drift detection (D6).

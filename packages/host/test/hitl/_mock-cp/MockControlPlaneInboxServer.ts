@@ -7,7 +7,7 @@ import { createHash, createHmac, timingSafeEqual } from "node:crypto";
  * Verifies HMAC-signed requests on POST /internal/hitl/tasks and records
  * received deliveries. Returns a deterministic `inboxItemId` for each task.
  *
- * Reused across story 07 integration tests — ~50 LOC.
+ * Reused across the control-plane inbox integration tests — ~50 LOC.
  */
 export class MockControlPlaneInboxServer {
   private server: http.Server | null = null;

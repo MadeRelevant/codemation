@@ -117,7 +117,7 @@ export function WorkflowDetailScreen(args: Readonly<WorkflowDetailScreenArgs>) {
   const badgeState = useWorkflowRealtimeBadgeState();
   const realtimeBadge = resolveWorkflowRealtimeBadge(badgeState);
 
-  // Build slot ctx objects (minimal subsets per D2).
+  // Build slot ctx objects (minimal subsets).
   const headerCtx: WorkflowDetailHeaderSlotContext = {
     workflowId: args.workflowId,
     workflowName: controller.displayedWorkflow?.name,

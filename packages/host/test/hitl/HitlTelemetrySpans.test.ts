@@ -14,8 +14,8 @@
  * Note: hitl.task.decided is emitted by DecideHumanTaskCommandHandler which has
  * deep DI dependencies (DecisionSchemaValidator uses ajv); tested separately via
  * the integration test path.
- * Note: hitl.task.delivered is emitted by InboxApprovalNode.deliver callback (story 05).
- * Note: hitl.task.cancelled requires a run-cancel hook (story 02 step 6, not yet implemented).
+ * Note: hitl.task.delivered is emitted by InboxApprovalNode.deliver callback.
+ * Note: hitl.task.cancelled requires a run-cancel hook (not yet implemented).
  */
 
 import { describe, expect, it, vi } from "vitest";

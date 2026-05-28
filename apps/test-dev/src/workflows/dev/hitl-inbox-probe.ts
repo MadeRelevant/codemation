@@ -1,5 +1,5 @@
 import { workflow } from "@codemation/host";
-import type { RunnableNodeConfig } from "@codemation/core";
+import type { Item, RunnableNodeConfig } from "@codemation/core";
 import { Callback, inboxApproval } from "@codemation/core-nodes";
 
 type InvoiceItem = { invoiceId: string; vendor: string; amount: number };
@@ -32,8 +32,9 @@ export default workflow("wf.hitl-inbox-probe")
   .then(
     inboxApproval.create(
       {
-        title: "Approve invoice from ${item.json.vendor}",
-        body: "Invoice ${item.json.invoiceId} for €${item.json.amount}",
+        title: ({ item }: { item: Item }) => `Approve invoice from ${(item.json as { vendor?: unknown }).vendor}`,
+        body: ({ item }: { item: Item }) =>
+          `Invoice ${(item.json as { invoiceId?: unknown }).invoiceId} for €${(item.json as { amount?: unknown }).amount}`,
         priority: "normal",
         timeout: "1h",
         onTimeout: "halt",

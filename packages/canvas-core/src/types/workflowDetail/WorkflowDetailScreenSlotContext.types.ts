@@ -57,7 +57,7 @@ export type InspectorSlotPin = Readonly<{
 
 /**
  * Context passed to `renderInspector`. Exposes the sub-controller state that drives the
- * inspector panel today, per D2: { inspect, pin, jsonEdit }.
+ * inspector panel today: { inspect, pin, jsonEdit }.
  */
 export type WorkflowDetailInspectorSlotContext = Readonly<{
   inspect: InspectorSlotInspect;

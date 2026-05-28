@@ -1,5 +1,5 @@
 /**
- * Unit tests for InboxChannelResolver (Story 05).
+ * Unit tests for InboxChannelResolver.
  *
  * Coverage:
  * 1. Returns local channel when PairingConfig is null.

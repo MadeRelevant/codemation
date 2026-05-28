@@ -1,7 +1,7 @@
 import type { TypeToken } from "../di";
 
 /**
- * Seam interfaces for HITL story 02 collaborators that are implemented in `@codemation/host`
+ * Seam interfaces for HITL collaborators that are implemented in `@codemation/host`
  * and injected into `NodeSuspensionHandler` at runtime. Core defines the interface only —
  * no HTTP, vendor SDK, or Prisma dependencies here.
  */

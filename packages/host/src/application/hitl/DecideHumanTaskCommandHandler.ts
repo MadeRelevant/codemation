@@ -70,7 +70,7 @@ export class DecideHumanTaskCommandHandler {
     // Cancel the timeout job to prevent double-resolution
     await this.timeoutScheduler.cancelTimeoutJob(args.taskId);
 
-    // Emit hitl.task.decided on the run's trace (story 11 D3).
+    // Emit hitl.task.decided on the run's trace.
     const telemetry = await this.resumeTelemetry.forTask(args.taskId);
     const latencyMs = decidedAt.getTime() - task.createdAt.getTime();
     const decisionPayload = args.decision as Record<string, unknown> | null;

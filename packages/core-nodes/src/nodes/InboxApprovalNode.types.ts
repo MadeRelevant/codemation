@@ -1,17 +1,18 @@
 import { z } from "zod";
 import { defineHumanApprovalNode } from "@codemation/core";
-import type { JsonValue } from "@codemation/core";
+import type { Item, JsonValue } from "@codemation/core";
 import { InboxChannelResolverToken } from "@codemation/core";
 
 /**
- * Renders a simple string template, replacing `${item.json.<key>}` placeholders.
+ * A subject field (title / body) for an inbox approval. Either a static string
+ * or a contextual callback that builds the string from the item using ordinary
+ * JavaScript template literals — e.g. `({ item }) => `Approve ${item.json.vendor}``.
+ * Code-first: no template DSL, just functions.
  */
-function renderTemplate(template: string, vars: { item: { json: unknown } }): string {
-  const json = vars.item.json as Record<string, unknown>;
-  return template.replace(/\$\{item\.json\.([^}]+)\}/g, (_match, key: string) => {
-    const val = json[key];
-    return val !== undefined && val !== null ? String(val) : "";
-  });
+type InboxSubjectField = string | ((args: { item: Item }) => string);
+
+function resolveSubjectField(field: InboxSubjectField, item: Item): string {
+  return typeof field === "function" ? field({ item }) : field;
 }
 
 /**
@@ -32,8 +33,8 @@ export const inboxApproval = defineHumanApprovalNode({
   channel: "inbox",
 
   configSchema: z.object({
-    title: z.string(),
-    body: z.string(),
+    title: z.custom<InboxSubjectField>((v) => typeof v === "string" || typeof v === "function"),
+    body: z.custom<InboxSubjectField>((v) => typeof v === "string" || typeof v === "function"),
     priority: z.enum(["low", "normal", "high"]).default("normal"),
     timeout: z.string().default("24h"),
     onTimeout: z.enum(["halt", "auto-accept"]).default("halt"),
@@ -52,8 +53,8 @@ export const inboxApproval = defineHumanApprovalNode({
     }
     const { channel, workspaceId } = resolver.resolve();
     const subject = {
-      title: renderTemplate(config.title, { item }),
-      summary: renderTemplate(config.body, { item }),
+      title: resolveSubjectField(config.title, item),
+      summary: resolveSubjectField(config.body, item),
       attributes: { workflowId: ctx.workflowId, item: item.json as JsonValue },
     };
     const delivery = await channel.deliver({

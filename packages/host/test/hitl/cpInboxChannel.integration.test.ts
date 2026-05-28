@@ -1,7 +1,7 @@
 // @vitest-environment node
 
 /**
- * Integration tests for story 07 — ControlPlaneInboxChannel + inbound callback receiver.
+ * Integration tests for ControlPlaneInboxChannel + inbound callback receiver.
  *
  * Outbound tests: ControlPlaneInboxChannel.deliver() issues a signed POST to a
  * mock CP server; verifies body shape and HMAC signature.
@@ -112,7 +112,7 @@ async function createInboundHarness(
       CONTROL_PLANE_JWKS_URL: `${mockCpUrl}/.well-known/jwks.json`,
       CONTROL_PLANE_ISSUER: mockCpUrl,
       CP_WEB_ORIGIN: mockCpUrl,
-      // Required by HitlResumeTokenSigner (wired at app boot in HITL story 02)
+      // Required by HitlResumeTokenSigner (wired at app boot)
       AUTH_SECRET,
     },
     // Share the same Prisma client so tasks inserted by the test are visible inside the harness

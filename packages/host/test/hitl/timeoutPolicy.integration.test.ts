@@ -1,7 +1,7 @@
 // @vitest-environment node
 
 /**
- * Integration tests for HitlTimeoutWorker.processTimeoutForTask — HITL story 02.
+ * Integration tests for HitlTimeoutWorker.processTimeoutForTask.
  *
  * Tests the halt and auto-accept timeout paths directly (no BullMQ / Redis).
  * The `Engine` is mocked minimally — we only need the `resumeRun` call to be

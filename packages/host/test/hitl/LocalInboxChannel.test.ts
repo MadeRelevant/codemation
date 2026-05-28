@@ -1,5 +1,5 @@
 /**
- * Unit tests for LocalInboxChannel (Story 06 + T4 security fix).
+ * Unit tests for LocalInboxChannel.
  *
  * Coverage:
  * 1. deliver() returns { kind: "local", inboxItemId: task.taskId }.

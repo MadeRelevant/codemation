@@ -34,7 +34,7 @@ export type ResolvedTool = Readonly<{
  * (fresh activationId, telemetry parented at the tool-call span, `parentInvocationId` set).
  *
  * `humanApproval` is present only when the tool was created via `defineHumanApprovalNode`
- * (story 04 marker) — detected during `resolveTools` in `AIAgentNode`.
+ * (via its marker) — detected during `resolveTools` in `AIAgentNode`.
  */
 export type ItemScopedToolBinding = Readonly<{
   config: ToolConfig;
