@@ -202,37 +202,42 @@ describe("HitlTimeoutWorker.processTimeoutForTask", () => {
 
   // Exercises the BullMQ worker lifecycle (start/stop) and the private processJob
   // dispatcher against a real Redis-backed queue, with a unique prefix for isolation.
-  it("start() consumes an enqueued timeout job and drives processTimeoutForTask", async () => {
-    const store = ctx.createStore();
-    const resumeCalls: unknown[] = [];
-    const engine = createStubEngine(resumeCalls);
-    const appConfig = {
-      ...makeAppConfig(),
-      env: { ...makeAppConfig().env, CODEMATION_BULLMQ_PREFIX: `test-worker-${randomUUID()}` },
-    };
-    const scheduler = new RealHitlTimeoutJobScheduler(appConfig as never);
-    const noOpResumeTelemetry = { forTask: async () => undefined } as never;
-    const worker = new HitlTimeoutWorker(store, engine as never, scheduler, appConfig as never, noOpResumeTelemetry);
+  // Only the Redis-backed integration lane sets REDIS_URL; the sqlite lane has no
+  // Redis service, so skip there rather than fail on ECONNREFUSED.
+  it.skipIf(!process.env.REDIS_URL)(
+    "start() consumes an enqueued timeout job and drives processTimeoutForTask",
+    async () => {
+      const store = ctx.createStore();
+      const resumeCalls: unknown[] = [];
+      const engine = createStubEngine(resumeCalls);
+      const appConfig = {
+        ...makeAppConfig(),
+        env: { ...makeAppConfig().env, CODEMATION_BULLMQ_PREFIX: `test-worker-${randomUUID()}` },
+      };
+      const scheduler = new RealHitlTimeoutJobScheduler(appConfig as never);
+      const noOpResumeTelemetry = { forTask: async () => undefined } as never;
+      const worker = new HitlTimeoutWorker(store, engine as never, scheduler, appConfig as never, noOpResumeTelemetry);
 
-    const task = makeTask({ onTimeout: "halt" });
-    await store.create(task);
+      const task = makeTask({ onTimeout: "halt" });
+      await store.create(task);
 
-    worker.start();
-    try {
-      await scheduler.enqueueTimeoutJob({ taskId: task.id, expiresAt: new Date() });
+      worker.start();
+      try {
+        await scheduler.enqueueTimeoutJob({ taskId: task.id, expiresAt: new Date() });
 
-      let updatedStatus: string | undefined;
-      for (let attempt = 0; attempt < 80; attempt++) {
-        updatedStatus = (await store.findById(task.id))?.status;
-        if (updatedStatus === "timed_out") break;
-        await new Promise((resolve) => setTimeout(resolve, 100));
+        let updatedStatus: string | undefined;
+        for (let attempt = 0; attempt < 80; attempt++) {
+          updatedStatus = (await store.findById(task.id))?.status;
+          if (updatedStatus === "timed_out") break;
+          await new Promise((resolve) => setTimeout(resolve, 100));
+        }
+
+        expect(updatedStatus).toBe("timed_out");
+        expect(resumeCalls).toHaveLength(1);
+      } finally {
+        await worker.stop();
+        await scheduler.close();
       }
-
-      expect(updatedStatus).toBe("timed_out");
-      expect(resumeCalls).toHaveLength(1);
-    } finally {
-      await worker.stop();
-      await scheduler.close();
-    }
-  });
+    },
+  );
 });
