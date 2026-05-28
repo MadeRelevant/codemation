@@ -59,6 +59,16 @@ describe("trailingIconForNode", () => {
   it("returns null when not pinned and status is undefined", () => {
     expect(trailingIconForNode({ status: undefined, isPinned: false })).toBeNull();
   });
+
+  it("returns an hourglass icon when waiting for approval (status running but suspended)", () => {
+    const icon = trailingIconForNode({ status: "running", isPinned: false, isWaitingForApproval: true });
+    expect(icon).not.toBeNull();
+  });
+
+  it("pin still wins over waiting-for-approval", () => {
+    const icon = trailingIconForNode({ status: "running", isPinned: true, isWaitingForApproval: true });
+    expect(icon).not.toBeNull();
+  });
 });
 
 describe("trailingIconKindForNode", () => {
@@ -88,5 +98,15 @@ describe("trailingIconKindForNode", () => {
 
   it("returns 'none' for queued status", () => {
     expect(trailingIconKindForNode({ status: "queued", isPinned: false })).toBe("none");
+  });
+
+  it("returns 'waiting-for-approval' when waiting and not pinned", () => {
+    expect(trailingIconKindForNode({ status: "running", isPinned: false, isWaitingForApproval: true })).toBe(
+      "waiting-for-approval",
+    );
+  });
+
+  it("returns 'pin' when pinned even if waiting for approval", () => {
+    expect(trailingIconKindForNode({ status: "running", isPinned: true, isWaitingForApproval: true })).toBe("pin");
   });
 });

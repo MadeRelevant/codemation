@@ -191,6 +191,23 @@ export function useWorkflowRunController(
     return undefined;
   }, [activeLiveRun?.status, activeLiveRunId, selectedRun?.status, selectedRunId]);
 
+  // Identity of the run being viewed — explicit so the canvas can re-seed (and
+  // reset the topo-cap ratchet) on a run switch. Historical view → selected run
+  // id; live view → the active live run's id.
+  const viewedRunId = useMemo<string | null>(() => {
+    if (selectedRunId) return selectedRunId;
+    return activeLiveRun?.runId ?? activeLiveRunId;
+  }, [activeLiveRun?.runId, activeLiveRunId, selectedRunId]);
+
+  // Run-level status of the viewed run. Used by the canvas to distinguish a
+  // normally-running node from a HITL node that is suspended waiting for a human
+  // decision (run "suspended" + node displayed status "running").
+  const viewedRunStatus = useMemo<PersistedRunState["status"] | undefined>(() => {
+    if (selectedRunId) return selectedRun?.status;
+    if (activeLiveRunId) return activeLiveRun?.status;
+    return undefined;
+  }, [activeLiveRun?.status, activeLiveRunId, selectedRun?.status, selectedRunId]);
+
   const normalizedConnectionInvocations = useMemo(
     () => WorkflowDetailPresenter.normalizeConnectionInvocations(currentExecutionState?.connectionInvocations),
     [currentExecutionState?.connectionInvocations],
@@ -548,6 +565,8 @@ export function useWorkflowRunController(
     credentialAttentionTooltipByNodeId,
     workflowNodeIdsWithBoundCredential,
     selectedRun,
+    viewedRunId,
+    viewedRunStatus,
     propertiesPanelTelemetryRunId,
     propertiesPanelTelemetryRunStatus,
     sidebarModel: {

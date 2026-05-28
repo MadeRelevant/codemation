@@ -25,8 +25,9 @@ export function WorkflowCanvasCodemationNodeCard(
   const isSelected = data.selected;
   const isPropertiesTarget = data.propertiesTarget;
   const isPinned = data.isPinned;
+  const isWaitingForApproval = data.isWaitingForApproval === true;
   const iconPx = treatAsSmallAttachment ? WORKFLOW_CANVAS_ATTACHMENT_NODE_ICON_PX : WORKFLOW_CANVAS_MAIN_NODE_ICON_PX;
-  const trailing = trailingIconForNode({ status: data.status, isPinned });
+  const trailing = trailingIconForNode({ status: data.status, isPinned, isWaitingForApproval });
   const hasTopBadges =
     Boolean(data.retryPolicySummary) ||
     Boolean(data.hasNodeErrorHandler) ||
@@ -49,7 +50,8 @@ export function WorkflowCanvasCodemationNodeCard(
       data-codemation-node-status={data.status ?? "pending"}
       data-codemation-node-role={data.role ?? "workflowNode"}
       data-codemation-node-pinned={isPinned ? "true" : "false"}
-      aria-label={`${data.label} (${data.status ?? "pending"})`}
+      data-codemation-node-waiting={isWaitingForApproval ? "true" : "false"}
+      aria-label={`${data.label} (${isWaitingForApproval ? "Waiting for approval" : (data.status ?? "pending")})`}
     >
       <div
         style={{
@@ -58,26 +60,30 @@ export function WorkflowCanvasCodemationNodeCard(
           overflow: "hidden",
           height: "100%",
           width: "100%",
-          border: isActive
-            ? "1px solid transparent"
-            : isPinned
-              ? "1px solid #6d28d9"
-              : isSelected
-                ? "1px solid #111827"
-                : isPropertiesTarget
-                  ? "1px solid #7c3aed"
-                  : "1px solid #e2e8f0",
-          background: isSelected
-            ? treatAsSmallAttachment
-              ? "#fffaf0"
-              : "#fffdf5"
-            : isPropertiesTarget
-              ? "#faf5ff"
+          border: isWaitingForApproval
+            ? "1px solid #d97706"
+            : isActive
+              ? "1px solid transparent"
               : isPinned
-                ? "#f5f3ff"
-                : treatAsSmallAttachment
-                  ? "#f8fafc"
-                  : "#ffffff",
+                ? "1px solid #6d28d9"
+                : isSelected
+                  ? "1px solid #111827"
+                  : isPropertiesTarget
+                    ? "1px solid #7c3aed"
+                    : "1px solid #e2e8f0",
+          background: isWaitingForApproval
+            ? "#fffbeb"
+            : isSelected
+              ? treatAsSmallAttachment
+                ? "#fffaf0"
+                : "#fffdf5"
+              : isPropertiesTarget
+                ? "#faf5ff"
+                : isPinned
+                  ? "#f5f3ff"
+                  : treatAsSmallAttachment
+                    ? "#f8fafc"
+                    : "#ffffff",
           boxShadow: isActive
             ? "0 1px 2px rgba(15,23,42,0.06), 0 4px 14px rgba(15,23,42,0.06)"
             : isSelected
@@ -215,7 +221,7 @@ export function WorkflowCanvasCodemationNodeCard(
               {trailing ? (
                 <div
                   data-testid={`canvas-node-trailing-icon-${data.nodeId}`}
-                  data-icon-kind={trailingIconKindForNode({ status: data.status, isPinned })}
+                  data-icon-kind={trailingIconKindForNode({ status: data.status, isPinned, isWaitingForApproval })}
                   style={{ display: "grid", placeItems: "center", color: "#111827" }}
                 >
                   {trailing}

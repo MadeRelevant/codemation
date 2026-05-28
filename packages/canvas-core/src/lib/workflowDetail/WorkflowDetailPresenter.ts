@@ -56,6 +56,11 @@ export class WorkflowDetailPresenter {
     "running",
     "completed",
     "failed",
+    "hitl-approved",
+    "hitl-rejected",
+    "hitl-timeout",
+    "hitl-auto-accepted",
+    "hitl-cancelled",
   ]);
 
   static async runWorkflow(

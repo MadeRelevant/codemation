@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { Toaster } from "sonner";
 import { AppLayout } from "../../src/shell/AppLayout";
 import { WorkflowDetailChromeProvider } from "../../src/shell/WorkflowDetailChromeContext";
 
@@ -13,6 +14,7 @@ export default function ShellLayout(args: Readonly<{ children: ReactNode }>) {
   return (
     <WorkflowDetailChromeProvider>
       <AppLayout isNonManaged={isNonManaged}>{args.children}</AppLayout>
+      <Toaster richColors position="bottom-right" />
     </WorkflowDetailChromeProvider>
   );
 }

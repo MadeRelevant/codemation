@@ -116,4 +116,19 @@ describe("WorkflowCanvasCodemationNodeCard", () => {
     renderCard(makeData({ nodeId: "n11", propertiesTarget: true }));
     expect(screen.getByTestId("canvas-node-card-n11").getAttribute("data-codemation-properties-target")).toBe("true");
   });
+
+  it("marks the card waiting-for-approval with a distinct attribute, aria label and hourglass trailing icon", () => {
+    renderCard(makeData({ nodeId: "n12", status: "running", isWaitingForApproval: true }));
+    const card = screen.getByTestId("canvas-node-card-n12");
+    expect(card.getAttribute("data-codemation-node-waiting")).toBe("true");
+    expect(card.getAttribute("aria-label")).toBe("HTTP Request (Waiting for approval)");
+    expect(screen.getByTestId("canvas-node-trailing-icon-n12").getAttribute("data-icon-kind")).toBe(
+      "waiting-for-approval",
+    );
+  });
+
+  it("does not mark the card waiting when isWaitingForApproval is absent", () => {
+    renderCard(makeData({ nodeId: "n13", status: "running" }));
+    expect(screen.getByTestId("canvas-node-card-n13").getAttribute("data-codemation-node-waiting")).toBe("false");
+  });
 });

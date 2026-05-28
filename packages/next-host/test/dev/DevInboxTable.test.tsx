@@ -2,6 +2,7 @@
 
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { toast } from "sonner";
 
 import type { HumanTaskRecord } from "../../src/server/devInboxComposition";
 import { DevInboxTable } from "../../app/(shell)/dev/inbox/DevInboxTable";
@@ -112,7 +113,34 @@ describe("DevInboxTable", () => {
       });
     });
 
-    it("shows error message when API call fails", async () => {
+    it("fires a success toast after a successful Approve", async () => {
+      const successSpy = vi.spyOn(toast, "success").mockImplementation(() => "toast-id");
+      const mockFetch = vi.fn().mockResolvedValue({ ok: true });
+      globalThis.fetch = mockFetch;
+
+      render(<DevInboxTable tasks={[makeTask({ id: "task-toast-approve" })]} />);
+      fireEvent.click(screen.getByText("Approve"));
+
+      await waitFor(() => {
+        expect(successSpy).toHaveBeenCalledWith("Task approved");
+      });
+    });
+
+    it("fires a success toast after a successful Reject", async () => {
+      const successSpy = vi.spyOn(toast, "success").mockImplementation(() => "toast-id");
+      const mockFetch = vi.fn().mockResolvedValue({ ok: true });
+      globalThis.fetch = mockFetch;
+
+      render(<DevInboxTable tasks={[makeTask({ id: "task-toast-reject" })]} />);
+      fireEvent.click(screen.getByText("Reject"));
+
+      await waitFor(() => {
+        expect(successSpy).toHaveBeenCalledWith("Task rejected");
+      });
+    });
+
+    it("fires an error toast with the server message when the API call fails", async () => {
+      const errorSpy = vi.spyOn(toast, "error").mockImplementation(() => "toast-id");
       const mockFetch = vi.fn().mockResolvedValue({ ok: false, text: async () => "task not found" });
       globalThis.fetch = mockFetch;
 
@@ -120,8 +148,7 @@ describe("DevInboxTable", () => {
       fireEvent.click(screen.getByText("Approve"));
 
       await waitFor(() => {
-        expect(screen.getByRole("alert")).toBeTruthy();
-        expect(screen.getByRole("alert").textContent).toContain("task not found");
+        expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("task not found"));
       });
     });
   });

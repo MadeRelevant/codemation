@@ -1,6 +1,7 @@
 "use client";
 
-import { Fragment, useState, useTransition } from "react";
+import { Fragment, useState } from "react";
+import { toast } from "sonner";
 
 import type { HumanTaskRecord } from "../../../../src/server/devInboxComposition";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../../../src/components/ui/table";
@@ -15,11 +16,8 @@ function formatAge(createdAt: Date): string {
 export function DevInboxTable({ tasks }: Readonly<{ tasks: HumanTaskRecord[] }>) {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [decisionInFlight, setDecisionInFlight] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [, startTransition] = useTransition();
 
   async function decide(taskId: string, approved: boolean): Promise<void> {
-    setError(null);
     setDecisionInFlight(taskId);
     try {
       const res = await fetch(`/api/hitl/tasks/${taskId}/decide`, {
@@ -29,14 +27,14 @@ export function DevInboxTable({ tasks }: Readonly<{ tasks: HumanTaskRecord[] }>)
       });
       if (!res.ok) {
         const text = await res.text();
-        setError(`Failed to decide task ${taskId}: ${text}`);
+        toast.error(`Failed to decide task ${taskId}: ${text}`);
         return;
       }
-      startTransition(() => {
-        window.location.reload();
-      });
+      toast.success(approved ? "Task approved" : "Task rejected");
+      // Brief delay so the toast is visible before the list refreshes.
+      setTimeout(() => window.location.reload(), 1200);
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      toast.error(err instanceof Error ? err.message : String(err));
     } finally {
       setDecisionInFlight(null);
     }
@@ -48,11 +46,6 @@ export function DevInboxTable({ tasks }: Readonly<{ tasks: HumanTaskRecord[] }>)
 
   return (
     <div className="space-y-2">
-      {error && (
-        <p className="text-sm text-destructive" role="alert">
-          {error}
-        </p>
-      )}
       <Table>
         <TableHeader>
           <TableRow>

@@ -359,6 +359,50 @@ describe("HITL wiring gap #5 — ctx.resumeContext reaches inboxApproval on resu
       status: "approved",
     });
   });
+
+  // -------------------------------------------------------------------------
+  // GAP #6 — decide endpoint rejects a body without the `decision` wrapper.
+  // -------------------------------------------------------------------------
+  //
+  // Production symptom: deciding a task from the /dev/inbox UI 422'd with
+  //   {"error":"Decision does not match the expected schema: data must be object"}
+  // The route reads `body.decision` and forwards it to DecisionSchemaValidator.
+  // The UI was POSTing `{ approved }` at the top level (no `decision` wrapper),
+  // so `body.decision` was `undefined`; validating `undefined` against the
+  // task's object schema yields ajv's "data must be object". This guards the
+  // required request shape end-to-end and confirms a malformed decision leaves
+  // the task pending instead of resolving it.
+  it("decide endpoint 422s on a body missing the `decision` wrapper and leaves the task pending", async () => {
+    const h = harness!;
+
+    const createResult = await h.requestJson<RunCommandResult>({
+      method: "POST",
+      url: ApiPaths.runs(),
+      payload: { workflowId: WORKFLOW_ID, items: [{ subject: "gap6-bad-decision-item" }] },
+    });
+    const runId = createResult.runId;
+
+    const suspended = await pollUntilStatus(h, runId, "suspended", 5_000);
+    const taskId = suspended.suspension![0]!.taskId;
+
+    // The exact malformed shape the buggy UI sent: `{ approved }` at the top
+    // level instead of `{ decision: { approved } }`.
+    const response = await h.request({
+      method: "POST",
+      url: ApiPaths.hitlTaskDecide(taskId),
+      headers: { "content-type": "application/json" },
+      payload: JSON.stringify({ approved: true }),
+    });
+
+    expect(response.statusCode).toBe(422);
+    const errorBody = response.json<{ error: string }>();
+    expect(errorBody.error).toContain("Decision does not match the expected schema");
+    expect(errorBody.error).toContain("data must be object");
+
+    // A rejected decision must not resolve the task — the run stays suspended.
+    const after = await h.request({ method: "GET", url: ApiPaths.runState(runId) });
+    expect(after.json<PersistedRunState>().status).toBe("suspended");
+  });
 });
 
 // ---------------------------------------------------------------------------

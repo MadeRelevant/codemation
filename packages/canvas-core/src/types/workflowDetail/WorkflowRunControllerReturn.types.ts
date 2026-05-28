@@ -72,6 +72,10 @@ export type WorkflowRunControllerReturn = WorkflowRunControllerSharedState &
     showRealtimeDisconnectedBadge: boolean;
     canCopySelectedRunToLive: boolean;
     selectedRun: PersistedRunState | undefined;
+    /** Identity of the run currently being viewed (selected historical run or active live run). */
+    viewedRunId: string | null;
+    /** Run-level status of the viewed run (e.g. "suspended"); drives the HITL "waiting for approval" treatment. */
+    viewedRunStatus: PersistedRunState["status"] | undefined;
     propertiesPanelTelemetryRunId: string | null;
     propertiesPanelTelemetryRunStatus: PersistedRunState["status"] | undefined;
     sidebarModel: WorkflowRunsSidebarModel;

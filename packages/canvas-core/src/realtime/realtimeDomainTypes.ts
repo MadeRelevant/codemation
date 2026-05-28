@@ -82,7 +82,18 @@ export type NodeExecutionSnapshot = Readonly<{
   nodeId: string;
   activationId?: string;
   parent?: ParentExecutionRef;
-  status: "pending" | "queued" | "running" | "completed" | "failed" | "skipped";
+  status:
+    | "pending"
+    | "queued"
+    | "running"
+    | "completed"
+    | "failed"
+    | "skipped"
+    | "hitl-approved"
+    | "hitl-rejected"
+    | "hitl-timeout"
+    | "hitl-auto-accepted"
+    | "hitl-cancelled";
   usedPinnedOutput?: boolean;
   queuedAt?: string;
   startedAt?: string;
