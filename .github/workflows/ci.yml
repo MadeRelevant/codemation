@@ -441,10 +441,15 @@ jobs:
       # hangs after the binary download on these runners (delivers 100% then never
       # closes the stream). `install-deps` only runs apt for the OS libraries and
       # never touches that CDN, so it can't hang.
-      - name: Install Playwright OS deps (no browser download)
+      - name: Install Playwright OS deps + ffmpeg (no chromium download)
         if: steps.should_run.outputs.run == 'true'
         timeout-minutes: 10
-        run: pnpm --filter @codemation/host exec playwright install-deps chromium
+        # No chromium download (tests use system Chrome via channel: "chrome"), but we
+        # still need ffmpeg for video: "retain-on-failure". ffmpeg is ~3 MB so it does
+        # not hit the multi-hundred-MB stream-close bug that hangs the chromium download.
+        run: |
+          pnpm --filter @codemation/host exec playwright install-deps chromium
+          pnpm --filter @codemation/host exec playwright install ffmpeg
 
       - name: Build
         if: steps.should_run.outputs.run == 'true'
