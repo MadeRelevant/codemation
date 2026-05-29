@@ -1,4 +1,4 @@
-import { access, cp, mkdir, readdir, readFile, realpath, rm } from "node:fs/promises";
+import { access, cp, mkdir, readdir, readFile, realpath, rm, writeFile } from "node:fs/promises";
 import module from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -21,6 +21,31 @@ class StandaloneRuntimePreparer {
     await this.copyIfPresent(path.join(packageRoot, ".next", "BUILD_ID"), path.join(standaloneNextRoot, "BUILD_ID"));
     await this.copyIfPresent(path.join(packageRoot, "public"), path.join(packagedAppRoot, "public"));
     await this.materializeStandaloneExternalPackages(standaloneRoot, packagedAppRoot);
+    await this.copyHostMigrationOperations(packageRoot, standaloneRoot);
+  }
+
+  /**
+   * PrismaMigrationDeployer loads PrismaMigrationOperations through a runtime-computed
+   * `file://` import specifier that Next's static file tracer cannot follow, so the
+   * standalone build omits the module and startup `migrate()` throws ERR_MODULE_NOT_FOUND
+   * (every SSR request then 404s). The deployer resolves the sibling
+   * `./PrismaMigrationOperations.js` against its own `/src/` location, so copy the
+   * self-contained dist build to that mirrored path, plus a `type: module` marker so
+   * Node loads the ESM file correctly.
+   */
+  static async copyHostMigrationOperations(packageRoot, standaloneRoot) {
+    const hostRoot = path.resolve(packageRoot, "..", "host");
+    const source = path.join(hostRoot, "dist", "infrastructure", "persistence", "PrismaMigrationOperations.js");
+    if (!(await this.exists(source))) {
+      throw new Error(`prepare-standalone: missing host dist build at ${source} (did @codemation/host build first?)`);
+    }
+    const targetDir = path.join(standaloneRoot, "packages", "host", "src", "infrastructure", "persistence");
+    await mkdir(targetDir, { recursive: true });
+    await cp(source, path.join(targetDir, "PrismaMigrationOperations.js"), { force: true });
+    const hostPackageJson = path.join(standaloneRoot, "packages", "host", "package.json");
+    if (!(await this.exists(hostPackageJson))) {
+      await writeFile(hostPackageJson, `${JSON.stringify({ type: "module" }, null, 2)}\n`);
+    }
   }
 
   static async copyIfPresent(sourcePath, targetPath) {
