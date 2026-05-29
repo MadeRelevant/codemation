@@ -14,14 +14,18 @@ export type OAuthGoogleGmailMaterial = Readonly<{
   grantedScopes: string[];
 }>;
 
-// Matches Google's documented requirement for the Gmail MCP server
-// (https://developers.google.com/workspace/gmail/api/guides/configure-mcp-server):
-// gmail.readonly + gmail.compose. Even though gmail.modify is a *semantic* superset for
-// direct Gmail API calls, the MCP server enforces a literal scope-name check — a token
-// scoped only to gmail.modify gets a 403 "The caller does not have permission" from MCP.
+// Scopes for the Gmail MCP server
+// (https://developers.google.com/workspace/gmail/api/reference/mcp):
+// - gmail.readonly  → search_threads, get_thread, list_drafts, list_labels
+// - gmail.compose   → create_draft + send
+// - gmail.labels    → create_label / label_message / label_thread / unlabel_*
+// The MCP server enforces a literal scope-name check, so gmail.modify / gmail.send
+// (semantic supersets) get a 403 "The caller does not have permission"; use the
+// narrow per-capability scopes above instead.
 const GMAIL_DEFAULT_SCOPES = [
   "https://www.googleapis.com/auth/gmail.readonly",
   "https://www.googleapis.com/auth/gmail.compose",
+  "https://www.googleapis.com/auth/gmail.labels",
 ] as const;
 
 export const oauthGoogleGmailType: CredentialType<
