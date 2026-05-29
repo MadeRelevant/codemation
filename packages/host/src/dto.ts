@@ -12,6 +12,8 @@ export type {
   CreateCredentialInstanceRequest,
   UpdateCredentialInstanceRequest,
   UpsertCredentialBindingRequest,
+  AppGalleryEntry,
+  AppsResponse,
 } from "./application/contracts/CredentialContractsRegistry";
 
 export type {

@@ -25,3 +25,4 @@ export const testSuiteRunChildRunsQueryKey = (testSuiteRunId: string) =>
 export const runAssertionsQueryKey = (runId: string) => ["run-assertions", runId] as const;
 export const assertionMetricTrendsQueryKey = (workflowId: string, names: ReadonlyArray<string>) =>
   ["assertion-metric-trends", workflowId, [...names].sort().join(",")] as const;
+export const credentialAppsQueryKey = ["credential-apps"] as const;

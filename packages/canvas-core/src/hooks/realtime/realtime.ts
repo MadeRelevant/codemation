@@ -1,6 +1,8 @@
 "use client";
 
 export type {
+  AppGalleryEntry,
+  AppsResponse,
   CredentialInstanceDto,
   CredentialInstanceWithSecretsDto,
   WorkflowCredentialHealthDto,
@@ -23,6 +25,7 @@ import { RealtimeContext } from "../../realtime/RealtimeContext";
 import { RealtimeReadyState } from "../../realtime/realtimeClientBridge";
 import { getRealtimeBridge } from "../../realtime/realtimeClientBridge";
 import {
+  credentialAppsQueryKey,
   credentialFieldEnvStatusQueryKey,
   credentialInstanceWithSecretsQueryKey,
   credentialInstancesQueryKey,
@@ -249,6 +252,15 @@ export function useCredentialInstancesQuery() {
   return useQuery({
     queryKey: credentialInstancesQueryKey,
     queryFn: () => apiClient!.fetchCredentialInstances(),
+    enabled: Boolean(apiClient),
+  });
+}
+
+export function useCredentialAppsQuery() {
+  const apiClient = useWorkflowCanvasApiClientOptional();
+  return useQuery({
+    queryKey: credentialAppsQueryKey,
+    queryFn: () => apiClient!.fetchCredentialApps(),
     enabled: Boolean(apiClient),
   });
 }

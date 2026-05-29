@@ -16,6 +16,7 @@ import type {
   UpsertCredentialBindingRequest,
 } from "../../../application/contracts/CredentialContractsRegistry";
 import {
+  GetCredentialAppsQuery,
   GetCredentialFieldEnvStatusQuery,
   GetCredentialInstanceQuery,
   GetCredentialInstanceWithSecretsQuery,
@@ -61,6 +62,14 @@ export class CredentialHttpRouteHandler {
   async getCredentialInstances(): Promise<Response> {
     try {
       return Response.json(await this.queryBus.execute(new ListCredentialInstancesQuery()));
+    } catch (error) {
+      return ServerHttpErrorResponseFactory.fromUnknown(error);
+    }
+  }
+
+  async getCredentialApps(): Promise<Response> {
+    try {
+      return Response.json(await this.queryBus.execute(new GetCredentialAppsQuery()));
     } catch (error) {
       return ServerHttpErrorResponseFactory.fromUnknown(error);
     }
