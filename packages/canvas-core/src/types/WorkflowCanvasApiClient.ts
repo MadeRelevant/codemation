@@ -1,5 +1,6 @@
 import type { BinaryAttachment, CredentialTypeDefinition } from "@codemation/core/browser";
 import type {
+  AppsResponse,
   AssertionMetricTrendDto,
   CredentialInstanceDto,
   CredentialInstanceWithSecretsDto,
@@ -62,6 +63,7 @@ export type WorkflowCanvasApiClient = Readonly<{
   fetchCredentialTypes(): Promise<ReadonlyArray<CredentialTypeDefinition>>;
   fetchCredentialFieldEnvStatus(): Promise<Readonly<Record<string, boolean>>>;
   fetchCredentialInstances(): Promise<ReadonlyArray<CredentialInstanceDto>>;
+  fetchCredentialApps(): Promise<AppsResponse>;
   fetchCredentialInstanceWithSecrets(instanceId: string): Promise<CredentialInstanceWithSecretsDto>;
   fetchWorkflowCredentialHealth(workflowId: string): Promise<WorkflowCredentialHealthDto>;
   fetchUserAccounts(): Promise<ReadonlyArray<UserAccountDto>>;

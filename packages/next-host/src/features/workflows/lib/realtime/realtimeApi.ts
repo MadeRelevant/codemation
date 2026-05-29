@@ -1,5 +1,6 @@
 import type { CredentialTypeDefinition } from "@codemation/core/browser";
 import type {
+  AppsResponse,
   CredentialInstanceDto,
   CredentialInstanceWithSecretsDto,
   WorkflowCredentialHealthDto,
@@ -77,6 +78,10 @@ export async function fetchCredentialFieldEnvStatus(): Promise<Readonly<Record<s
 
 export async function fetchCredentialInstances(): Promise<ReadonlyArray<CredentialInstanceDto>> {
   return await codemationApiClient.getJson<ReadonlyArray<CredentialInstanceDto>>(ApiPaths.credentialInstances());
+}
+
+export async function fetchCredentialApps(): Promise<AppsResponse> {
+  return await codemationApiClient.getJson<AppsResponse>(ApiPaths.credentialApps());
 }
 
 export async function fetchCredentialInstanceWithSecrets(

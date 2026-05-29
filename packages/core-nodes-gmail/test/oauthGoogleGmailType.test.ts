@@ -19,7 +19,7 @@ describe("oauthGoogleGmailType", () => {
     expect("tokenUrl" in auth && auth.tokenUrl).toBe("https://oauth2.googleapis.com/token");
   });
 
-  it("defaultScopes match Google's documented Gmail MCP requirement: gmail.readonly + gmail.compose", () => {
+  it("defaultScopes are the Gmail MCP per-capability scopes: readonly + compose + labels", () => {
     const auth = definition.auth;
     expect(auth?.kind).toBe("oauth2");
     if (!auth || auth.kind !== "oauth2") {
@@ -28,6 +28,7 @@ describe("oauthGoogleGmailType", () => {
     expect([...auth.scopes]).toEqual([
       "https://www.googleapis.com/auth/gmail.readonly",
       "https://www.googleapis.com/auth/gmail.compose",
+      "https://www.googleapis.com/auth/gmail.labels",
     ]);
   });
 

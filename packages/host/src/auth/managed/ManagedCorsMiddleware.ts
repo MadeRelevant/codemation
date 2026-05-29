@@ -4,12 +4,27 @@ import type { MiddlewareHandler } from "hono";
 /**
  * CORS allowlist middleware for managed mode.
  *
- * Only the single `CP_WEB_ORIGIN` value (provisioner-injected) is permitted.
- * All other origins are refused on preflight with a 403.
+ * `CP_WEB_ORIGIN` (provisioner-injected) is a comma-separated allowlist of the
+ * browser origins the CP UI may be served from — e.g. the Caddy origin and the
+ * direct dev port. The request's own origin is echoed back only when it is a
+ * member; all other origins are refused on preflight with a 403.
  */
 @injectable()
 export class ManagedCorsMiddleware {
-  constructor(private readonly allowedOrigin: string) {}
+  private readonly allowedOrigins: ReadonlySet<string>;
+
+  constructor(allowedOrigin: string) {
+    this.allowedOrigins = new Set(
+      allowedOrigin
+        .split(",")
+        .map((o) => o.trim())
+        .filter(Boolean),
+    );
+  }
+
+  private isAllowed(origin: string | undefined): origin is string {
+    return origin !== undefined && this.allowedOrigins.has(origin);
+  }
 
   handle(): MiddlewareHandler {
     return async (c, next) => {
@@ -17,7 +32,7 @@ export class ManagedCorsMiddleware {
 
       // Respond to CORS preflight
       if (c.req.method === "OPTIONS") {
-        if (origin === this.allowedOrigin) {
+        if (this.isAllowed(origin)) {
           c.header("access-control-allow-origin", origin);
           c.header("access-control-allow-methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
           c.header("access-control-allow-headers", "content-type, authorization");
@@ -29,7 +44,7 @@ export class ManagedCorsMiddleware {
       }
 
       // For actual requests, set CORS headers after the handler runs
-      if (origin === this.allowedOrigin) {
+      if (this.isAllowed(origin)) {
         await next();
         c.header("access-control-allow-origin", origin);
         c.header("access-control-allow-credentials", "true");

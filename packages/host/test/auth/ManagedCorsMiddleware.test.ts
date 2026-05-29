@@ -75,4 +75,35 @@ describe("ManagedCorsMiddleware.handle", () => {
     });
     expect(res.headers.get("vary")).toBe("Origin");
   });
+
+  describe("comma-separated allowlist", () => {
+    const MULTI = "http://app.localhost, http://localhost:3010";
+
+    it("echoes the matching origin for each member of the allowlist", async () => {
+      const app = makeApp(MULTI);
+      for (const origin of ["http://app.localhost", "http://localhost:3010"]) {
+        const res = await app.request("/test", { method: "OPTIONS", headers: { origin } });
+        expect(res.status).toBe(204);
+        expect(res.headers.get("access-control-allow-origin")).toBe(origin);
+      }
+    });
+
+    it("does not match the joined string itself", async () => {
+      const app = makeApp(MULTI);
+      const res = await app.request("/test", {
+        method: "OPTIONS",
+        headers: { origin: MULTI },
+      });
+      expect(res.status).toBe(403);
+    });
+
+    it("refuses an origin outside the allowlist", async () => {
+      const app = makeApp(MULTI);
+      const res = await app.request("/test", {
+        method: "OPTIONS",
+        headers: { origin: "https://evil.com" },
+      });
+      expect(res.status).toBe(403);
+    });
+  });
 });
