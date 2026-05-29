@@ -34,7 +34,10 @@ export default defineConfig({
   ],
   use: {
     trace: "retain-on-failure",
-    video: "retain-on-failure",
+    // Video is disabled: it requires Playwright's ffmpeg binary, and every
+    // cdn.playwright.dev download hangs on CI (delivers bytes then never closes the
+    // stream). trace + screenshot already cover on-failure debugging without ffmpeg.
+    video: "off",
     screenshot: "only-on-failure",
   },
   projects: [

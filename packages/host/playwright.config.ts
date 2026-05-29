@@ -55,7 +55,10 @@ export default defineConfig({
     /** Align with app URL and AUTH_URL so Auth.js cookies are not split across localhost vs 127.0.0.1. */
     baseURL: baseUrl,
     trace: "retain-on-failure",
-    video: "retain-on-failure",
+    // Video is disabled: it requires Playwright's ffmpeg binary, and every
+    // cdn.playwright.dev download hangs on CI (delivers bytes then never closes the
+    // stream). trace + screenshot already cover on-failure debugging without ffmpeg.
+    video: "off",
   },
   projects: [
     {
