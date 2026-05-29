@@ -1,6 +1,7 @@
 import type { RunWorkflowRequest, RunWorkflowResult, WorkflowCanvasApiClient } from "@codemation/canvas";
 import type { BinaryAttachment } from "@codemation/core/browser";
 import type {
+  AppsResponse,
   AssertionMetricTrendDto,
   CredentialInstanceDto,
   CredentialInstanceWithSecretsDto,
@@ -39,6 +40,7 @@ import {
   fetchTelemetryRunTrace,
   fetchCredentialTypes,
   fetchCredentialFieldEnvStatus,
+  fetchCredentialApps,
   fetchCredentialInstances,
   fetchCredentialInstanceWithSecrets,
   fetchWorkflowCredentialHealth,
@@ -91,6 +93,10 @@ export class NextHostApiClientAdapter implements WorkflowCanvasApiClient {
 
   async fetchCredentialFieldEnvStatus(): Promise<Readonly<Record<string, boolean>>> {
     return fetchCredentialFieldEnvStatus();
+  }
+
+  async fetchCredentialApps(): Promise<AppsResponse> {
+    return fetchCredentialApps();
   }
 
   async fetchCredentialInstances(): Promise<ReadonlyArray<CredentialInstanceDto>> {

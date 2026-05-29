@@ -81,6 +81,21 @@ export type UpsertCredentialBindingRequest = Readonly<{
   instanceId: CredentialInstanceId;
 }>;
 
+export type AppGalleryEntry = Readonly<{
+  mcpId: string;
+  displayName: string;
+  description: string;
+  iconUrl: string | null;
+  acceptedCredentialTypes: ReadonlyArray<string>;
+  primaryOAuthTypeId: string | null;
+  instances: ReadonlyArray<CredentialInstanceDto>;
+}>;
+
+export type AppsResponse = Readonly<{
+  apps: ReadonlyArray<AppGalleryEntry>;
+  customInstances: ReadonlyArray<CredentialInstanceDto>;
+}>;
+
 export class CredentialResponseMapper {
   static toTypeDefinitionList(types: ReadonlyArray<CredentialTypeDefinition>): ReadonlyArray<CredentialTypeDefinition> {
     return [...types];

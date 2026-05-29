@@ -57,6 +57,7 @@ import {
   UploadOverlayPinnedBinaryCommandHandler,
 } from "../application/commands/WorkflowCommandHandlers";
 import {
+  GetCredentialAppsQueryHandler,
   GetCredentialFieldEnvStatusQueryHandler,
   GetCredentialInstanceQueryHandler,
   GetCredentialInstanceWithSecretsQueryHandler,
@@ -64,6 +65,7 @@ import {
   ListCredentialInstancesQueryHandler,
   ListCredentialTypesQueryHandler,
 } from "../application/queries/CredentialQueryHandlers";
+import { AppGalleryProjector } from "../application/credentials/AppGalleryProjector";
 import {
   ListUserAccountsQueryHandler,
   VerifyUserInviteQueryHandler,
@@ -337,6 +339,7 @@ type PrismaOwnership = Readonly<{
 
 export class AppContainerFactory {
   private static readonly queryHandlers = [
+    GetCredentialAppsQueryHandler,
     GetCredentialFieldEnvStatusQueryHandler,
     GetCredentialInstanceQueryHandler,
     GetCredentialInstanceWithSecretsQueryHandler,
@@ -744,6 +747,7 @@ export class AppContainerFactory {
     container.registerSingleton(CredentialRuntimeMaterialService, CredentialRuntimeMaterialService);
     container.registerSingleton(WorkflowCredentialNodeResolver, WorkflowCredentialNodeResolver);
     container.registerSingleton(CredentialInstanceService, CredentialInstanceService);
+    container.registerSingleton(AppGalleryProjector, AppGalleryProjector);
     container.registerSingleton(CredentialBindingService, CredentialBindingService);
     container.registerSingleton(WorkflowActivationPreflightRules, WorkflowActivationPreflightRules);
     container.registerSingleton(WorkflowActivationPreflight, WorkflowActivationPreflight);

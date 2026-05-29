@@ -132,6 +132,10 @@ export class ApiPaths {
     return `${this.credentialsBasePath}/instances`;
   }
 
+  static credentialApps(): string {
+    return `${this.credentialsBasePath}/apps`;
+  }
+
   static credentialInstance(instanceId: string, withSecrets?: boolean): string {
     const base = `${this.credentialInstances()}/${encodeURIComponent(instanceId)}`;
     return withSecrets ? `${base}?withSecrets=1` : base;

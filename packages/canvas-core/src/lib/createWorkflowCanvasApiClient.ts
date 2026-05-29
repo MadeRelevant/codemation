@@ -1,4 +1,5 @@
 import type {
+  AppsResponse,
   AssertionMetricTrendDto,
   CredentialInstanceDto,
   CredentialInstanceWithSecretsDto,
@@ -198,6 +199,10 @@ export function createWorkflowCanvasApiClient(options: WorkflowCanvasApiClientOp
 
     async fetchCredentialInstances(): Promise<ReadonlyArray<CredentialInstanceDto>> {
       return getJson("api/credentials/instances");
+    },
+
+    async fetchCredentialApps(): Promise<AppsResponse> {
+      return getJson("api/credentials/apps");
     },
 
     async fetchCredentialInstanceWithSecrets(instanceId: string): Promise<CredentialInstanceWithSecretsDto> {
