@@ -40,7 +40,10 @@ export default defineConfig({
   projects: [
     {
       name: "chromium",
-      use: { ...devices["Desktop Chrome"] },
+      // Use the runner's preinstalled Google Chrome (channel) instead of Playwright's
+      // bundled chromium: cdn.playwright.dev deterministically hangs after the binary
+      // download on CI, and the system Chrome is the same engine/version.
+      use: { ...devices["Desktop Chrome"], channel: "chrome" },
     },
   ],
 });
