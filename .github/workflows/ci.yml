@@ -435,24 +435,47 @@ jobs:
         if: steps.should_run.outputs.run == 'true'
         run: pnpm --filter @codemation/host prisma:generate
 
-      - name: Cache Playwright browsers
+      # Restore-only: pairs with the explicit save step below. The default
+      # actions/cache action skips its post-job save whenever a later step fails,
+      # so when the install hangs the browser never gets cached and every run
+      # re-downloads from the (flaky) CDN. Splitting restore/save lets us persist
+      # the browser the instant a download succeeds, independent of test outcome.
+      - name: Restore Playwright browser cache
+        id: playwright-cache
         if: steps.should_run.outputs.run == 'true'
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: ~/.cache/ms-playwright
           key: playwright-chromium-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
 
       - name: Install Playwright (Chromium)
         if: steps.should_run.outputs.run == 'true'
-        timeout-minutes: 35
-        # Single generous attempt: the Playwright CDN sustains only ~190 KB/s, so the full
-        # chromium + headless-shell install (~270 MB) takes ~24 min. A retry is useless against
-        # a *sustained* throttle (it just re-downloads from scratch and doubles wall time), so
-        # one 1800s attempt instead — enough to complete and populate actions/cache, after which
-        # later runs hit the cache and skip the download entirely.
+        timeout-minutes: 30
+        # cdn.playwright.dev is flaky in two ways: it sometimes throttles, and it
+        # sometimes delivers the zip to 100% but never finalizes the stream (the
+        # download bar hits 100% then the process hangs indefinitely). A healthy
+        # install completes in ~90s, so fail-fast each attempt at 300s and retry —
+        # a hung attempt dies quickly and a fresh connection usually finalizes
+        # cleanly. On a cache hit `playwright install` finds the browser present and
+        # returns in seconds.
         run: |
           install_pw() { pnpm --filter @codemation/host exec playwright install chromium --with-deps; }
-          timeout 1800 bash -c "$(declare -f install_pw); install_pw"
+          ok=0
+          for attempt in 1 2 3 4 5; do
+            if timeout 300 bash -c "$(declare -f install_pw); install_pw"; then ok=1; break; fi
+            echo "Playwright install attempt ${attempt} stalled/failed — retrying"
+          done
+          [ "${ok}" = 1 ]
+
+      # Save immediately after a successful install (not in a post-job hook), so the
+      # browser is cached even if a later step fails — this is what finally breaks the
+      # re-download-every-run cycle once any run gets a clean download.
+      - name: Save Playwright browser cache
+        if: steps.should_run.outputs.run == 'true' && steps.playwright-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-chromium-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
 
       - name: Build
         if: steps.should_run.outputs.run == 'true'
