@@ -10,43 +10,45 @@ This file is the **honest reconciliation** between commit messages and reality, 
 
 Measured by Reviewer C against the merged `coverage/lcov.info`, post the pipeline-fix work that landed in fix-pass C':
 
-| Package | Baseline | Sprint 14 commit msg claimed | Reviewer-C measured | Status |
-|---|---|---|---|---|
-| canvas | 37.1% | 90%+ | **81.9%** | deferred to S16 |
-| canvas-core | 46.7% | 90%+ | **87.7%** | deferred to S16 |
-| cli | 77.3% | 90%+ | **80.0%** | deferred to S16 |
-| core | 85.2% | 92.46% | **86.5%** | deferred to S16 |
-| core-nodes | 86.9% | 90.34% | **89.7%** | deferred to S16 |
-| core-nodes-gmail | 95.2% | ≥90% | **89.6%** | deferred to S16 |
-| create-codemation | 80.0% | ≥90% | **80.0%** | deferred to S16 |
-| eventbus-redis | 0.0% | 96.55% | **wired into global suite now; re-measure pending** | deferred to S16 |
-| host | 52.5% (→65% post pipeline) | 90.01% | **84.8%** | deferred to S16 |
-| next-host | 71.8% | 91-100% per file | **85.3%** | deferred to S16 |
-| tooling/eslint-config | 44.9% | ≥90% | **88.8%** | deferred to S16 |
-| ui (new) | n/a | n/a | **75.5%** | deferred to S16 |
-| **agent-skills** | 73.7% | ✅ | **94.87% (per-agent)** | ✅ confirmed delivered |
-| **managed-auth** | 93.8% | ✅ | **above 90%** | ✅ confirmed delivered |
-| **tooling/discovery** | 91.0% | ✅ | **above 90%** | ✅ confirmed delivered |
-| **tooling/release** | 90.4% | ✅ | **above 90%** | ✅ confirmed delivered |
+| Package               | Baseline                   | Sprint 14 commit msg claimed | Reviewer-C measured                                 | Status                 |
+| --------------------- | -------------------------- | ---------------------------- | --------------------------------------------------- | ---------------------- |
+| canvas                | 37.1%                      | 90%+                         | **81.9%**                                           | deferred to S16        |
+| canvas-core           | 46.7%                      | 90%+                         | **87.7%**                                           | deferred to S16        |
+| cli                   | 77.3%                      | 90%+                         | **80.0%**                                           | deferred to S16        |
+| core                  | 85.2%                      | 92.46%                       | **86.5%**                                           | deferred to S16        |
+| core-nodes            | 86.9%                      | 90.34%                       | **89.7%**                                           | deferred to S16        |
+| core-nodes-gmail      | 95.2%                      | ≥90%                         | **89.6%**                                           | deferred to S16        |
+| create-codemation     | 80.0%                      | ≥90%                         | **80.0%**                                           | deferred to S16        |
+| eventbus-redis        | 0.0%                       | 96.55%                       | **wired into global suite now; re-measure pending** | deferred to S16        |
+| host                  | 52.5% (→65% post pipeline) | 90.01%                       | **84.8%**                                           | deferred to S16        |
+| next-host             | 71.8%                      | 91-100% per file             | **85.3%**                                           | deferred to S16        |
+| tooling/eslint-config | 44.9%                      | ≥90%                         | **88.8%**                                           | deferred to S16        |
+| ui (new)              | n/a                        | n/a                          | **75.5%**                                           | deferred to S16        |
+| **agent-skills**      | 73.7%                      | ✅                           | **94.87% (per-agent)**                              | ✅ confirmed delivered |
+| **managed-auth**      | 93.8%                      | ✅                           | **above 90%**                                       | ✅ confirmed delivered |
+| **tooling/discovery** | 91.0%                      | ✅                           | **above 90%**                                       | ✅ confirmed delivered |
+| **tooling/release**   | 90.4%                      | ✅                           | **above 90%**                                       | ✅ confirmed delivered |
 
 Why per-agent measurements diverged from the merged-lcov measurement:
+
 - Per-package coverage reports include tests from sibling packages that import the package's code (cross-package coverage from integration tests). The merged lcov gives a cleaner per-package number but lower.
 - The host coverage agent's `miscCoverage.test.ts` with 49 micro-tests technically passes per-package but doesn't translate to the same global %.
 
 ## Misleading commit messages
 
-| Commit | Claim | Reality |
-|---|---|---|
-| `1950b66e` (framework) | "push 11 packages to ≥90%" | Did wire `eventbus-redis`, fix coverage pipeline, finish `@codemation/ui` extraction, fix `mutableExecutionFlows` test. Did NOT achieve per-package 90% (12 packages still 75-89%). |
-| `20260b17` (host coverage) | "Sprint 14 coverage → 90%" | Per-package isolated measurement was 90.01%. Merged-lcov measurement is 84.8%. |
-| `3429e3cd` (smaller pkgs) | "core, cli, eventbus-redis, core-nodes, agent-skills, eslint-config" | core 86.5%, cli 80.0%, eventbus-redis required separate global-suite wiring (done in `1950b66e`), eslint-config 88.8% — all below 90% on merged measurement. |
-| `f4c363e` (CP fix-pass) | A's message + B's files | Fix-pass A's commit message was used but the staged files came from fix-pass B's concurrent commit. A's actual files were committed separately as `887878a`. |
+| Commit                     | Claim                                                                | Reality                                                                                                                                                                             |
+| -------------------------- | -------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `1950b66e` (framework)     | "push 11 packages to ≥90%"                                           | Did wire `eventbus-redis`, fix coverage pipeline, finish `@codemation/ui` extraction, fix `mutableExecutionFlows` test. Did NOT achieve per-package 90% (12 packages still 75-89%). |
+| `20260b17` (host coverage) | "Sprint 14 coverage → 90%"                                           | Per-package isolated measurement was 90.01%. Merged-lcov measurement is 84.8%.                                                                                                      |
+| `3429e3cd` (smaller pkgs)  | "core, cli, eventbus-redis, core-nodes, agent-skills, eslint-config" | core 86.5%, cli 80.0%, eventbus-redis required separate global-suite wiring (done in `1950b66e`), eslint-config 88.8% — all below 90% on merged measurement.                        |
+| `f4c363e` (CP fix-pass)    | A's message + B's files                                              | Fix-pass A's commit message was used but the staged files came from fix-pass B's concurrent commit. A's actual files were committed separately as `887878a`.                        |
 
 None of these are intentionally dishonest — they reflect each agent's own measurement at commit time. The merged-lcov reality emerged later from Reviewer C's audit.
 
 ## What's actually delivered in Sprint 14 + 14.5
 
 ✅ **Genuinely delivered**:
+
 - All 14 Sprint 14 implementation stories landed; functional code shipped
 - Sprint 15 stories 01 (drop bash), 02 (auto-compact), 03 (S3 binary) landed
 - workspace-mcp cleanup (DI + reorg + max-files-per-directory lint) landed
@@ -69,12 +71,14 @@ None of these are intentionally dishonest — they reflect each agent's own meas
 - 4 remaining shadcn primitives extracted to `@codemation/ui`
 
 🟡 **Delivered but not at 100% of spec**:
+
 - Per-package coverage 80-89% on 12 packages (deferred to Sprint 16 Story 01)
 - HKDF migration is backwards-incompatible without auto-re-encrypt script (operator must re-enter credentials)
 - `agent/tools/` has 10 files; workspace-mcp cleanup spec said ≤8 (split deferred)
 - `HmacSigner` `new`-d outside bootstrap in 2 non-composition-root classes (DI debt deferred)
 
 ❌ **Operator actions still required** (cannot be done by agents):
+
 1. **Rotate Langfuse + Anthropic keys in git history.** `.env.example` is scrubbed in the current tree, but the previous content is in `git log --all -p -- .env.example` and is treated as compromised.
 2. **Re-enter all credentials post-HKDF cipher migration.** Existing credentials encrypted with the v1 SHA-256-derived key cannot be decrypted by the v2 HKDF-derived key; the v1 read path falls back IFF the same key value is configured AND the keyId matches. Operationally cleanest path: re-enter through the UI after upgrade.
 
@@ -83,6 +87,7 @@ None of these are intentionally dishonest — they reflect each agent's own meas
 See [../sprint-16/01-coverage-push-to-90-per-package.md](../sprint-16/01-coverage-push-to-90-per-package.md). Twelve work units, one per package, ~4-6 dev-days fully parallelized.
 
 Other follow-ups:
+
 - HKDF auto-migration script (read v1 key from `OLD_CREDENTIALS_MASTER_KEY` env, re-encrypt with new HKDF key)
 - `agent/tools/` 10 → ≤8 file split (covered by workspace-mcp cleanup story when revisited)
 - `HmacSigner` DI compliance for 2 remaining classes

@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 
+import { randomUUID } from "node:crypto";
 import type { PersistedRunState } from "@codemation/canvas";
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
@@ -27,8 +28,11 @@ type OverlayBody = Readonly<{
 
 class WorkflowDetailRealIntegrationFixture {
   static createDefaultWorkflow(): WorkflowDetailRuntimeFixture {
+    // Unique id per call: this fixture is shared by multiple tests and the integration
+    // Postgres DB persists across them, so a fixed id would let earlier tests' runs leak
+    // into a later test's `GET /api/runs` view and break exact run-count assertions.
     return WorkflowDetailRuntimeFixtureFactory.createLinearWorkflow({
-      workflowId: "wf.frontend.real.default",
+      workflowId: `wf.frontend.real.default.${randomUUID()}`,
       workflowName: "Workflow detail real default",
       nodeIds: ["Trigger", "Agent", "Node1", "Node2"],
     });

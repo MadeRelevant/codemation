@@ -1,7 +1,7 @@
 // @vitest-environment node
 
 /**
- * Unit tests for CredentialHttpRouteHandler ownership check (Sprint 14 Story 03).
+ * Unit tests for CredentialHttpRouteHandler ownership check.
  *
  * Verifies that ?withSecrets=1 returns 403 when the requesting principal's
  * workspaceId (from a managed-JWT aud claim) does not match the installation's
@@ -55,7 +55,7 @@ function makeHandler(
 
 // ── Tests ──────────────────────────────────────────────────────────────────────
 
-describe("CredentialHttpRouteHandler — ?withSecrets=1 ownership check (Story 03 D3)", () => {
+describe("CredentialHttpRouteHandler — ?withSecrets=1 ownership check", () => {
   const INSTALLATION_WORKSPACE_ID = "ws-installation";
 
   const pairingConfig: PairingConfig = {

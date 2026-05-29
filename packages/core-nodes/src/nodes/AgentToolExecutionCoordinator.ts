@@ -1,5 +1,6 @@
 import type { JsonValue, NodeExecutionContext } from "@codemation/core";
-import { CodemationTelemetryAttributeNames, inject, injectable } from "@codemation/core";
+import { CodemationTelemetryAttributeNames, SuspensionRequest, inject, injectable } from "@codemation/core";
+import type { ModelMessage } from "ai";
 
 import type { AIAgent } from "./AIAgentConfig";
 import { AgentOutputFactory } from "./AgentOutputFactory";
@@ -9,6 +10,7 @@ import { AgentToolRepairExhaustedError } from "./AgentToolRepairExhaustedError";
 import { AgentToolRepairPolicy } from "./AgentToolRepairPolicy";
 import type { AgentToolRepairDecision, AgentToolValidationIssue } from "./AgentToolRepair.types";
 import type { ExecutedToolCall, PlannedToolCall } from "./aiAgentSupport.types";
+import type { AgentLoopCheckpoint } from "./AgentLoopCheckpoint.types";
 
 @injectable()
 export class AgentToolExecutionCoordinator {
@@ -25,8 +27,38 @@ export class AgentToolExecutionCoordinator {
       ctx: NodeExecutionContext<AIAgent<any, any>>;
       agentName: string;
       repairAttemptsByToolName: Map<string, number>;
+      /** Conversation including the assistant message that emitted these tool_use blocks. Stored in checkpoint on HITL suspension. */
+      conversationSnapshot?: ReadonlyArray<ModelMessage>;
+      /** Turn count at the moment of this coordinator invocation. */
+      turnCount?: number;
+      /** Cumulative tool-call count up to and including this batch. */
+      toolCallCount?: number;
+      /** Model id for checkpoint migration safety. */
+      modelId?: string;
     }>,
   ): Promise<ReadonlyArray<ExecutedToolCall>> {
+    // Solo enforcement: if any HITL tool appears alongside other tools, return error results
+    // for all calls so the model self-corrects on the next turn.
+    const hitlCalls = args.plannedToolCalls.filter((c) => c.binding.humanApproval !== undefined);
+    if (hitlCalls.length > 0 && args.plannedToolCalls.length > 1) {
+      return args.plannedToolCalls.map((c) => ({
+        toolName: c.binding.config.name,
+        toolCallId: c.toolCall.id ?? c.binding.config.name,
+        result: {
+          error:
+            c.binding.humanApproval !== undefined
+              ? `HITL tool '${c.binding.config.name}' cannot be called alongside other tools in the same turn; call it alone.`
+              : `deferred: a HITL tool in the same turn blocked execution. Retry this tool alone in the next turn.`,
+        },
+        serialized: JSON.stringify({
+          error:
+            c.binding.humanApproval !== undefined
+              ? `HITL tool '${c.binding.config.name}' cannot be called alongside other tools in the same turn; call it alone.`
+              : `deferred: a HITL tool in the same turn blocked execution. Retry this tool alone in the next turn.`,
+        }),
+      }));
+    }
+
     const results = await Promise.allSettled(
       args.plannedToolCalls.map(
         async (plannedToolCall) => await this.executePlannedToolCall({ ...args, plannedToolCall }),
@@ -35,7 +67,10 @@ export class AgentToolExecutionCoordinator {
 
     const rejected = results.find((result) => result.status === "rejected");
     if (rejected?.status === "rejected") {
-      throw rejected.reason instanceof Error ? rejected.reason : new Error(String(rejected.reason));
+      const reason = rejected.reason;
+      // Preserve SuspensionRequest (not an Error subclass) before falling back to Error wrapping.
+      if (reason instanceof SuspensionRequest) throw reason;
+      throw reason instanceof Error ? reason : new Error(String(reason));
     }
 
     return results
@@ -49,6 +84,10 @@ export class AgentToolExecutionCoordinator {
       ctx: NodeExecutionContext<AIAgent<any, any>>;
       agentName: string;
       repairAttemptsByToolName: Map<string, number>;
+      conversationSnapshot?: ReadonlyArray<ModelMessage>;
+      turnCount?: number;
+      toolCallCount?: number;
+      modelId?: string;
     }>,
   ): Promise<ExecutedToolCall> {
     const { plannedToolCall, ctx } = args;
@@ -134,6 +173,32 @@ export class AgentToolExecutionCoordinator {
         result,
       } satisfies ExecutedToolCall;
     } catch (error) {
+      // D1: Suspension catch — intercept before error classifier, augment with agent checkpoint.
+      if (error instanceof SuspensionRequest) {
+        const pendingToolCallId = plannedToolCall.toolCall.id ?? plannedToolCall.binding.config.name;
+        const checkpoint: AgentLoopCheckpoint = {
+          conversation: args.conversationSnapshot ? [...args.conversationSnapshot] : [],
+          turnCount: args.turnCount ?? 0,
+          toolCallCount: args.toolCallCount ?? 0,
+          pendingToolCallId,
+          agentName: args.agentName,
+          modelId: args.modelId ?? "",
+        };
+        const agentReasoning = this.extractLastAssistantText(args.conversationSnapshot ?? []);
+        const augmented = new SuspensionRequest({
+          ...error.request,
+          metadata: {
+            ...error.request.metadata,
+            agentCheckpoint: checkpoint as unknown as JsonValue,
+            pendingToolCallId: pendingToolCallId as JsonValue,
+            agentReasoning: agentReasoning as JsonValue,
+            onRejected: (plannedToolCall.binding.humanApproval?.onRejected ?? "return") as JsonValue,
+          },
+        });
+        await span.end({ status: "error", statusMessage: "suspended", endedAt: new Date() });
+        throw augmented;
+      }
+
       const classification = this.errorClassifier.classify({
         error,
         toolName: plannedToolCall.binding.config.name,
@@ -360,6 +425,30 @@ export class AgentToolExecutionCoordinator {
   private extractErrorDetails(error: Error): JsonValue | undefined {
     const candidate = error as Error & { details?: JsonValue };
     return candidate.details;
+  }
+
+  /**
+   * Extracts the text content from the last assistant message in the conversation snapshot.
+   * Used to populate `agentReasoning` in the HITL suspension metadata.
+   */
+  private extractLastAssistantText(conversation: ReadonlyArray<ModelMessage>): string {
+    for (let i = conversation.length - 1; i >= 0; i--) {
+      const msg = conversation[i];
+      if (msg?.role !== "assistant") continue;
+      const content = msg.content;
+      if (typeof content === "string") return content;
+      if (Array.isArray(content)) {
+        const textParts = content
+          .filter(
+            (part): part is { type: "text"; text: string } =>
+              typeof part === "object" && (part as { type?: unknown }).type === "text",
+          )
+          .map((part) => part.text);
+        if (textParts.length > 0) return textParts.join("");
+      }
+      break;
+    }
+    return "";
   }
 
   private serializeIssue(issue: AgentToolValidationIssue): JsonValue {

@@ -22,6 +22,7 @@ model Run {
   policySnapshotJson   String? @map("policy_snapshot_json")
   engineCountersJson   String? @map("engine_counters_json")
   mutableStateJson     String? @map("mutable_state_json")
+  hitlStateJson        String? @map("hitl_state_json")
   outputsByNodeJson    String  @map("outputs_by_node_json")
   updatedAt            String  @map("updated_at")
   testSuiteRunId       String? @map("test_suite_run_id")
@@ -510,4 +511,47 @@ model WorkflowAuditLog {
   @@index([actorUserId, occurredAt])
   @@index([workflowId, occurredAt])
   @@map("workflow_audit_log")
+}
+
+/// HMAC nonce store for replay protection (T6 security fix).
+/// Nonces are persisted across process restarts so a replayed request within
+/// the 300-second timestamp window is rejected even after a restart.
+model HmacNonce {
+  nonce     String   @id @map("nonce")
+  expiresAt DateTime @map("expires_at")
+
+  @@index([expiresAt])
+  @@map("hmac_nonce")
+}
+
+model HumanTask {
+  id                 String    @id @map("id")
+  runId              String    @map("run_id")
+  workflowId         String    @map("workflow_id")
+  workspaceId        String?   @map("workspace_id")
+  nodeId             String    @map("node_id")
+  activationId       String    @map("activation_id")
+  itemIndex          Int       @map("item_index")
+  /// pending | decided | timed_out | auto_accepted | cancelled
+  status             String    @map("status")
+  /// local | control-plane-inbox
+  channel            String    @map("channel")
+  subjectJson        String    @map("subject_json")
+  metadataJson       String    @map("metadata_json")
+  decisionSchemaJson String    @map("decision_schema_json")
+  decisionSchemaHash String    @map("decision_schema_hash")
+  /// halt | auto-accept
+  onTimeout          String    @map("on_timeout")
+  deliveryRefJson    String?   @map("delivery_ref_json")
+  decisionJson       String?   @map("decision_json")
+  decidedAt          DateTime? @map("decided_at")
+  decidedByJson      String?   @map("decided_by_json")
+  resumeTokenHash    String    @map("resume_token_hash")
+  expiresAt          DateTime  @map("expires_at")
+  createdAt          DateTime  @default(now()) @map("created_at")
+
+  @@index([runId])
+  @@index([workflowId, status])
+  @@index([workspaceId, status, expiresAt])
+  @@map("human_task")
 }

@@ -35,7 +35,6 @@ const FAKE_MCP_SERVERS = [
     url: "https://mcp.test.example.com",
   },
 ];
-const FAKE_OAUTH_APPS = [{ appId: "google", displayName: "Google" }];
 const FAKE_CRED_TYPES = [{ typeId: "oauth.test", displayName: "Test OAuth" }];
 
 // ── Stub control-plane server ─────────────────────────────────────────────────
@@ -64,9 +63,7 @@ class StubControlPlane {
       this.receivedPaths.push(url.pathname);
 
       res.writeHead(200, { "Content-Type": "application/json" });
-      if (url.pathname.endsWith("oauth-apps")) {
-        res.end(JSON.stringify(FAKE_OAUTH_APPS));
-      } else if (url.pathname.endsWith("mcp-servers")) {
+      if (url.pathname.endsWith("mcp-servers")) {
         res.end(JSON.stringify(FAKE_MCP_SERVERS));
       } else if (url.pathname.endsWith("credential-types")) {
         res.end(JSON.stringify(FAKE_CRED_TYPES));
@@ -214,13 +211,11 @@ describe("ControlPlaneCatalogFetcher — integration against stub control plane"
 
     await fetcher.refresh();
 
-    // All three endpoints reached and authorized
-    expect(stub.receivedPaths).toContain("/internal/catalog/oauth-apps");
+    // Both endpoints reached and authorized
     expect(stub.receivedPaths).toContain("/internal/catalog/mcp-servers");
     expect(stub.receivedPaths).toContain("/internal/catalog/credential-types");
 
     // Stub returned 200 and data was accepted
-    expect(fetcher.oauthApps).toEqual(FAKE_OAUTH_APPS);
     expect(fetcher.mcpServers).toEqual(FAKE_MCP_SERVERS);
     expect(fetcher.credentialTypeOverrides).toEqual(FAKE_CRED_TYPES);
   });

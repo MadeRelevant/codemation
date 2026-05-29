@@ -292,6 +292,47 @@ describe("WorkflowCanvasTopologicalStatusCap", () => {
     expect(round2Result["high-branch"]).toBe("running");
   });
 
+  it("ratchet reset (run switch): a node that displayed `completed` drops back to `running` when no prior displayed state is supplied", () => {
+    // Mirror of the ratchet-holds test, for the run-switch path: when the canvas
+    // switches runs it resets `previouslyDisplayedByNodeId` to `{}` so the cap
+    // is free to show the new run's in-flight state. Without that reset the
+    // stale `completed` would stick (BUG 2).
+    const workflow = makeWorkflow(["A", "B"], [{ from: "A", to: "B" }]);
+
+    // Run #1: B completed.
+    const run1 = WorkflowCanvasTopologicalStatusCap.applyCap({
+      workflow,
+      statusByNodeId: statuses([
+        ["A", "completed"],
+        ["B", "completed"],
+      ]),
+    });
+    expect(run1["B"]).toBe("completed");
+
+    // Run #2 of the same workflow: B is running again. With the ratchet still
+    // carrying run #1's `completed`, B would wrongly stay completed.
+    const withStaleRatchet = WorkflowCanvasTopologicalStatusCap.applyCap({
+      workflow,
+      statusByNodeId: statuses([
+        ["A", "completed"],
+        ["B", "running"],
+      ]),
+      previouslyDisplayedByNodeId: run1,
+    });
+    expect(withStaleRatchet["B"]).toBe("completed"); // stale ratchet pins it
+
+    // Resetting the ratchet (run switch) lets the cap show the fresh state.
+    const afterReset = WorkflowCanvasTopologicalStatusCap.applyCap({
+      workflow,
+      statusByNodeId: statuses([
+        ["A", "completed"],
+        ["B", "running"],
+      ]),
+      previouslyDisplayedByNodeId: {},
+    });
+    expect(afterReset["B"]).toBe("running");
+  });
+
   it("cycles in workflow graph: handled defensively without infinite loop", () => {
     // A → B → C → A (malformed cycle)
     const workflow = makeWorkflow(

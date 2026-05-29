@@ -418,7 +418,7 @@ describe("credential instances http integration", () => {
         encryptionKeyId: storedMaterial!.encryptionKeyId,
         schemaVersion: storedMaterial!.schemaVersion,
       });
-      expect(decrypted.access_token).toBe("access-token-1");
+      expect(decrypted.accessToken).toBe("access-token-1");
     } finally {
       globalThis.fetch = priorFetch;
     }

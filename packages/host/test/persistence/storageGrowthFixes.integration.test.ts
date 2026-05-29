@@ -1,5 +1,5 @@
 // @vitest-environment node
-// Sprint 14 Story 07: Storage growth fixes — integration tests.
+// Storage growth fixes — integration tests.
 
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { OtelIdentityFactory } from "../../src/application/telemetry/OtelIdentityFactory";
@@ -10,7 +10,7 @@ import type { BinaryStorage, BinaryStorageWriteResult, PersistedRunState } from 
 import { IntegrationTestDatabaseSession } from "../http/testkit/IntegrationTestDatabaseSession";
 
 // ---------------------------------------------------------------------------
-// Story 07, Fix 1: TelemetryArtifact payload offload
+// Fix 1: TelemetryArtifact payload offload
 // ---------------------------------------------------------------------------
 describe("TelemetryArtifact payload offload to BinaryStorage when payload > 64 KB", () => {
   const session = new IntegrationTestDatabaseSession();
@@ -102,7 +102,7 @@ describe("TelemetryArtifact payload offload to BinaryStorage when payload > 64 K
 });
 
 // ---------------------------------------------------------------------------
-// Story 07, Fix 2: Run snapshot deduplication
+// Fix 2: Run snapshot deduplication
 // ---------------------------------------------------------------------------
 describe("WorkflowSnapshot deduplication: same snapshot JSON stored only once", () => {
   const session = new IntegrationTestDatabaseSession();

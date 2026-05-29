@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import { reduceWorkflowEventIntoPersistedRunState } from "../../src/realtime/realtimeRunMutations";
-import type { ConnectionInvocationRecord, PersistedRunState, WorkflowEvent } from "../../src/realtime/realtimeDomainTypes";
+import type {
+  ConnectionInvocationRecord,
+  PersistedRunState,
+  WorkflowEvent,
+} from "../../src/realtime/realtimeDomainTypes";
 
 function makeInvocation(overrides: Partial<ConnectionInvocationRecord>): ConnectionInvocationRecord {
   return {

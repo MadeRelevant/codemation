@@ -104,11 +104,13 @@ describe("WorkflowActivationPreflight — scope validation integration", () => {
   const WORKFLOW_ID = "wf-scope";
   const workflow = { id: WORKFLOW_ID, name: "Scope Test", nodes: [], edges: [] };
 
-  function makeHealthWithBoundSlot(opts: {
-    instanceId?: string;
-    typeId?: string;
-    displayName?: string;
-  } = {}): WorkflowCredentialHealthDto {
+  function makeHealthWithBoundSlot(
+    opts: {
+      instanceId?: string;
+      typeId?: string;
+      displayName?: string;
+    } = {},
+  ): WorkflowCredentialHealthDto {
     const instanceId = opts.instanceId ?? "inst-1";
     const typeId = opts.typeId ?? "oauth.google.gmail";
     return {
@@ -136,9 +138,19 @@ describe("WorkflowActivationPreflight — scope validation integration", () => {
       makeWorkflowRepository(workflow) as never,
       makeCredentialBindingService(health) as never,
       new (class {
-        collectNonManualTriggerErrors() { return []; }
-        collectRequiredCredentialErrors() { return []; }
-        async collectScopeMismatchErrors(_h: WorkflowCredentialHealthDto, _opts: { getRequiredScopes: (t: string) => ReadonlyArray<string>; getGrantedScopes: (id: string) => Promise<ReadonlyArray<string>> }) {
+        collectNonManualTriggerErrors() {
+          return [];
+        }
+        collectRequiredCredentialErrors() {
+          return [];
+        }
+        async collectScopeMismatchErrors(
+          _h: WorkflowCredentialHealthDto,
+          _opts: {
+            getRequiredScopes: (t: string) => ReadonlyArray<string>;
+            getGrantedScopes: (id: string) => Promise<ReadonlyArray<string>>;
+          },
+        ) {
           return [];
         }
       })() as never,
@@ -159,7 +171,8 @@ describe("WorkflowActivationPreflight — scope validation integration", () => {
     const health = makeHealthWithBoundSlot({ displayName: "Work Gmail" });
 
     // Use real WorkflowActivationPreflightRules to test the full integration
-    const { WorkflowActivationPreflightRules } = await import("../../src/domain/workflows/WorkflowActivationPreflightRules");
+    const { WorkflowActivationPreflightRules } =
+      await import("../../src/domain/workflows/WorkflowActivationPreflightRules");
     const rules = new WorkflowActivationPreflightRules();
 
     const preflight = new WorkflowActivationPreflight(
@@ -192,7 +205,13 @@ describe("WorkflowActivationPreflight — scope validation integration", () => {
     const rules = {
       collectNonManualTriggerErrors: () => [],
       collectRequiredCredentialErrors: () => [],
-      collectScopeMismatchErrors: async (h: WorkflowCredentialHealthDto, opts: { getRequiredScopes: (typeId: string) => ReadonlyArray<string>; getGrantedScopes: (id: string) => Promise<ReadonlyArray<string>> }) => {
+      collectScopeMismatchErrors: async (
+        h: WorkflowCredentialHealthDto,
+        opts: {
+          getRequiredScopes: (typeId: string) => ReadonlyArray<string>;
+          getGrantedScopes: (id: string) => Promise<ReadonlyArray<string>>;
+        },
+      ) => {
         // Real logic: getRequiredScopes returns [] for non-OAuth, so no error
         const errors: string[] = [];
         for (const slot of h.slots) {

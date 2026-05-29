@@ -2,19 +2,41 @@ import { createHmac, createHash, timingSafeEqual } from "node:crypto";
 import { inject, injectable } from "@codemation/core";
 import type { PairingConfig, PairingVerificationResult } from "./pairing.types";
 import { PairingConfigToken } from "./PairingConfigToken";
+import type { HmacNonceStore } from "./HmacNonceStore";
+import { HmacNonceStoreToken } from "./HmacNonceStoreToken";
 
 /**
  * Verifies incoming HMAC-signed requests from the control plane.
  * Mirrors the control-plane HmacVerifier — both sides follow docs/pairing-protocol.md.
+ *
+ * Security (T6): The nonce store is injected and defaults to PrismaHmacNonceStore in
+ * managed mode so replay protection survives process restarts within the 300-second
+ * timestamp window.
  */
 @injectable()
 export class IncomingHmacVerifier {
-  private readonly usedNonces = new Map<string, number>();
   private readonly nonceTtlSeconds = 600; // 10 minutes
 
-  constructor(@inject(PairingConfigToken) private readonly config: PairingConfig) {}
+  constructor(
+    @inject(PairingConfigToken, { isOptional: true }) private readonly config: PairingConfig | null = null,
+    @inject(HmacNonceStoreToken) private readonly nonceStore: HmacNonceStore,
+  ) {}
 
-  verify(method: string, url: string, body: string, authHeader: string | null): PairingVerificationResult {
+  async verify(
+    method: string,
+    url: string,
+    body: string,
+    authHeader: string | null,
+  ): Promise<PairingVerificationResult> {
+    if (this.config === null) {
+      // Same shape as HmacRequestSigner — verifier is reachable via the DI graph even in
+      // non-managed mode (lazy CodemationHonoApiApp construction pulls every registered handler).
+      // We accept construction without PairingConfig and throw only when verify() is actually
+      // called, which shouldn't happen in non-managed mode (internal HMAC routes aren't mounted).
+      throw new Error(
+        "IncomingHmacVerifier.verify called without a registered PairingConfig — workspace is not in managed mode.",
+      );
+    }
     if (!this.config.pairingSecret || this.config.pairingSecret.trim().length === 0) {
       throw new Error("IncomingHmacVerifier: pairingSecret is not configured — cannot verify HMAC requests.");
     }
@@ -47,10 +69,10 @@ export class IncomingHmacVerifier {
       return { failure: "signature" };
     }
 
-    this.pruneExpiredNonces(nowSec);
     const nonceKey = `${parts.workspaceId}:${parts.nonce}`;
-    if (this.usedNonces.has(nonceKey)) return { failure: "replay" };
-    this.usedNonces.set(nonceKey, nowSec + this.nonceTtlSeconds);
+    const nonceExpiresAt = new Date((nowSec + this.nonceTtlSeconds) * 1000);
+    const isNew = await this.nonceStore.recordIfNew(nonceKey, nonceExpiresAt);
+    if (!isNew) return { failure: "replay" };
 
     return { workspaceId: parts.workspaceId };
   }
@@ -72,11 +94,5 @@ export class IncomingHmacVerifier {
     const { v, workspaceId, ts, nonce, sig } = fields;
     if (!v || !workspaceId || !ts || !nonce || !sig) return null;
     return { v, workspaceId, ts: Number(ts), nonce, sig };
-  }
-
-  private pruneExpiredNonces(nowSec: number): void {
-    for (const [key, expiry] of this.usedNonces.entries()) {
-      if (expiry <= nowSec) this.usedNonces.delete(key);
-    }
   }
 }

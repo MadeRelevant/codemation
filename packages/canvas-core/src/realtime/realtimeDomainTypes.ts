@@ -82,7 +82,18 @@ export type NodeExecutionSnapshot = Readonly<{
   nodeId: string;
   activationId?: string;
   parent?: ParentExecutionRef;
-  status: "pending" | "queued" | "running" | "completed" | "failed" | "skipped";
+  status:
+    | "pending"
+    | "queued"
+    | "running"
+    | "completed"
+    | "failed"
+    | "skipped"
+    | "hitl-approved"
+    | "hitl-rejected"
+    | "hitl-timeout"
+    | "hitl-auto-accepted"
+    | "hitl-cancelled";
   usedPinnedOutput?: boolean;
   queuedAt?: string;
   startedAt?: string;
@@ -170,7 +181,7 @@ export type PersistedRunState = Readonly<{
   executionOptions?: RunExecutionOptions;
   workflowSnapshot?: PersistedWorkflowSnapshot;
   mutableState?: PersistedMutableRunState;
-  status: "running" | "pending" | "completed" | "failed";
+  status: "running" | "pending" | "completed" | "failed" | "suspended";
   pending?: PendingNodeExecution;
   queue: ReadonlyArray<unknown>;
   outputsByNode: Readonly<Record<string, Readonly<Record<string, Items>>>>;

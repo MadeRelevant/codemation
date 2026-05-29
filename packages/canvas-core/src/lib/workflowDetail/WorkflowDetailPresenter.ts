@@ -56,6 +56,11 @@ export class WorkflowDetailPresenter {
     "running",
     "completed",
     "failed",
+    "hitl-approved",
+    "hitl-rejected",
+    "hitl-timeout",
+    "hitl-auto-accepted",
+    "hitl-cancelled",
   ]);
 
   static async runWorkflow(
@@ -741,7 +746,10 @@ export class WorkflowDetailPresenter {
       }));
   }
 
-  private static createInvocationExecutionNode(baseNode: WorkflowNode, invocation: ConnectionInvocationRecord): WorkflowNode {
+  private static createInvocationExecutionNode(
+    baseNode: WorkflowNode,
+    invocation: ConnectionInvocationRecord,
+  ): WorkflowNode {
     return {
       ...baseNode,
       id: invocation.invocationId,

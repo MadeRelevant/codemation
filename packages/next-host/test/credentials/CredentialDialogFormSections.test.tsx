@@ -106,10 +106,10 @@ describe("CredentialDialogFormSections — OAuth2 block", () => {
     expect(screen.queryByTestId("credential-oauth2-redirect-uri")).not.toBeInTheDocument();
   });
 
-  it("does not render the connect or disconnect button in create mode (footer Create handles it)", () => {
+  it("renders the connect button (but not disconnect) in create mode so a credential can be connected before saving", () => {
     render(<CredentialDialogFormSections {...makeOAuth2CreateProps()} />);
 
-    expect(screen.queryByTestId("credential-oauth2-connect-button")).not.toBeInTheDocument();
+    expect(screen.getByTestId("credential-oauth2-connect-button")).toBeInTheDocument();
     expect(screen.queryByTestId("credential-oauth2-disconnect-button")).not.toBeInTheDocument();
   });
 

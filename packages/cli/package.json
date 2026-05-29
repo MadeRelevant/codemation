@@ -37,6 +37,7 @@
   },
   "dependencies": {
     "@codemation/agent-skills": "workspace:*",
+    "@codemation/core": "workspace:*",
     "@codemation/host": "workspace:*",
     "@hono/node-server": "^1.19.9",
     "bcryptjs": "^3.0.3",
@@ -55,7 +56,6 @@
   },
   "devDependencies": {
     "@codemation/eslint-config": "workspace:*",
-    "@codemation/next-host": "workspace:*",
     "@types/http-proxy": "^1.17.15",
     "@types/node": "^25.3.5",
     "@types/ws": "^8.18.1",
@@ -66,6 +66,12 @@
     "vitest": "4.0.18"
   },
   "peerDependencies": {
+    "@codemation/next-host": "workspace:*",
     "tsx": ">=4.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@codemation/next-host": {
+      "optional": true
+    }
   }
 }

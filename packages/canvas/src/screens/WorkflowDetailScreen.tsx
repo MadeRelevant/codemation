@@ -117,7 +117,7 @@ export function WorkflowDetailScreen(args: Readonly<WorkflowDetailScreenArgs>) {
   const badgeState = useWorkflowRealtimeBadgeState();
   const realtimeBadge = resolveWorkflowRealtimeBadge(badgeState);
 
-  // Build slot ctx objects (minimal subsets per D2).
+  // Build slot ctx objects (minimal subsets).
   const headerCtx: WorkflowDetailHeaderSlotContext = {
     workflowId: args.workflowId,
     workflowName: controller.displayedWorkflow?.name,
@@ -219,6 +219,8 @@ export function WorkflowDetailScreen(args: Readonly<WorkflowDetailScreenArgs>) {
                     propertiesTargetNodeId={controller.propertiesPanelNodeId}
                     isLiveWorkflowView={controller.isLiveWorkflowView}
                     isRunning={controller.isRunning}
+                    runId={controller.viewedRunId}
+                    runStatus={controller.viewedRunStatus}
                     onSelectNode={controller.selectCanvasNode}
                     onOpenPropertiesNode={controller.openPropertiesPanelForNode}
                     onRunNode={controller.runCanvasNode}

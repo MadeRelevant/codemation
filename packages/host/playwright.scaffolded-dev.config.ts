@@ -34,13 +34,19 @@ export default defineConfig({
   ],
   use: {
     trace: "retain-on-failure",
-    video: "retain-on-failure",
+    // Video is disabled: it requires Playwright's ffmpeg binary, and every
+    // cdn.playwright.dev download hangs on CI (delivers bytes then never closes the
+    // stream). trace + screenshot already cover on-failure debugging without ffmpeg.
+    video: "off",
     screenshot: "only-on-failure",
   },
   projects: [
     {
       name: "chromium",
-      use: { ...devices["Desktop Chrome"] },
+      // Use the runner's preinstalled Google Chrome (channel) instead of Playwright's
+      // bundled chromium: cdn.playwright.dev deterministically hangs after the binary
+      // download on CI, and the system Chrome is the same engine/version.
+      use: { ...devices["Desktop Chrome"], channel: "chrome" },
     },
   ],
 });

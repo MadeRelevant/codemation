@@ -13,7 +13,14 @@ function makeWorkflow(): WorkflowDto {
     nodes: [
       { id: AGENT_NODE_ID, name: "Agent", type: "AIAgentNode", kind: "node", role: "agent" } as never,
       // MCP connection node: same shape AgentConnectionNodeCollector emits.
-      { id: MCP_NODE_ID, name: "Gmail", type: "gmail", kind: "node", role: "tool", parentNodeId: AGENT_NODE_ID } as never,
+      {
+        id: MCP_NODE_ID,
+        name: "Gmail",
+        type: "gmail",
+        kind: "node",
+        role: "tool",
+        parentNodeId: AGENT_NODE_ID,
+      } as never,
     ],
     edges: [],
   };
@@ -48,9 +55,7 @@ describe("WorkflowDetailPresenter — subjectName on invocation execution nodes"
       ],
     });
 
-    const invocationNames = nodes
-      .filter((n) => n.workflowConnectionNodeId === MCP_NODE_ID)
-      .map((n) => n.node.name);
+    const invocationNames = nodes.filter((n) => n.workflowConnectionNodeId === MCP_NODE_ID).map((n) => n.node.name);
     expect(invocationNames).toContain("search_threads");
     expect(invocationNames).toContain("send_email");
   });

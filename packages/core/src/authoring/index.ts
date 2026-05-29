@@ -11,6 +11,12 @@ export type {
   DefineNodeOptions,
 } from "./defineNode.types";
 export { defineBatchNode, defineNode } from "./defineNode.types";
+export type {
+  DefinedHumanApprovalNode,
+  HumanApprovalDecisionResult,
+  HumanApprovalOutputJson,
+} from "./defineHumanApprovalNode.types";
+export { defineHumanApprovalNode, isHumanApprovalNode } from "./defineHumanApprovalNode.types";
 export type { DefineCredentialOptions } from "./defineCredential.types";
 export { defineCredential } from "./defineCredential.types";
 export { callableTool } from "./callableTool.types";

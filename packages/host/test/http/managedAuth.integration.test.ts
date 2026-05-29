@@ -80,7 +80,7 @@ async function createHarness(jwksUrl: string): Promise<FrontendHttpIntegrationHa
     consumerRoot: path.resolve(import.meta.dirname, "../.."),
     env: {
       WORKSPACE_ID,
-      WORKSPACE_PAIRING_SECRET: "aGVsbG8td29ybGQtcGFpcmluZy1zZWNyZXQta2V5LTMyLWJ5",
+      WORKSPACE_PAIRING_SECRET: "Y29kZW1hdGlvbi1tYW5hZ2VkLWF1dGgtdGVzdC0zMmI=",
       CONTROL_PLANE_URL: "https://cp.integration.test",
       CONTROL_PLANE_JWKS_URL: jwksUrl,
       CONTROL_PLANE_ISSUER: ISSUER,

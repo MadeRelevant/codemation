@@ -54,7 +54,11 @@ export class CredentialTypeRegistryImpl implements CredentialTypeRegistry {
         const nextType: AnyCredentialType =
           sourcePriority === SOURCE_PRIORITY[existing.source]
             ? { ...existing.type, definition }
-            : { definition, createSession: this.createUnsupportedSessionFactory(definition.typeId, source), test: this.createUnsupportedHealthTester(definition.typeId, source) };
+            : {
+                definition,
+                createSession: this.createUnsupportedSessionFactory(definition.typeId, source),
+                test: this.createUnsupportedHealthTester(definition.typeId, source),
+              };
         this.recordEntry(definition.typeId, { type: nextType, source });
         continue;
       }
@@ -90,7 +94,11 @@ export class CredentialTypeRegistryImpl implements CredentialTypeRegistry {
     return this.entries.get(typeId)?.type;
   }
 
-  private insert(source: CredentialTypeSource, type: AnyCredentialType, logger: ReturnType<LoggerFactory["create"]>): void {
+  private insert(
+    source: CredentialTypeSource,
+    type: AnyCredentialType,
+    logger: ReturnType<LoggerFactory["create"]>,
+  ): void {
     const typeId = type.definition.typeId;
     const existing = this.entries.get(typeId);
     const sourcePriority = SOURCE_PRIORITY[source];
@@ -119,7 +127,10 @@ export class CredentialTypeRegistryImpl implements CredentialTypeRegistry {
     this.bySource.get(entry.source)!.add(typeId);
   }
 
-  private createUnsupportedSessionFactory(typeId: CredentialTypeId, source: CredentialTypeSource): AnyCredentialType["createSession"] {
+  private createUnsupportedSessionFactory(
+    typeId: CredentialTypeId,
+    source: CredentialTypeSource,
+  ): AnyCredentialType["createSession"] {
     return async () => {
       throw new Error(
         `Credential type "${typeId}" (source "${source}") was registered with definition only — no createSession implementation is available in this runtime.`,
@@ -127,7 +138,10 @@ export class CredentialTypeRegistryImpl implements CredentialTypeRegistry {
     };
   }
 
-  private createUnsupportedHealthTester(typeId: CredentialTypeId, source: CredentialTypeSource): AnyCredentialType["test"] {
+  private createUnsupportedHealthTester(
+    typeId: CredentialTypeId,
+    source: CredentialTypeSource,
+  ): AnyCredentialType["test"] {
     return async () => ({
       status: "unknown" as const,
       message: `Credential type "${typeId}" (source "${source}") has no local test implementation.`,

@@ -27,6 +27,12 @@ export type WorkflowElkMapperInput = Readonly<{
   nodeSnapshotsByNodeId: Readonly<Record<string, NodeExecutionSnapshot>>;
   connectionInvocations: ReadonlyArray<ConnectionInvocationRecord>;
   nodeStatusesByNodeId: Readonly<Record<string, NodeExecutionSnapshot["status"] | undefined>>;
+  /**
+   * Run-level status of the viewed run (e.g. "suspended"). Optional — only the
+   * suspended-run view threads it. When `"suspended"` and a node's displayed
+   * status is `"running"`, that node is marked `isWaitingForApproval`.
+   */
+  runStatus?: string;
   credentialAttentionTooltipByNodeId: ReadonlyMap<string, string>;
   selectedNodeId: string | null;
   propertiesTargetNodeId: string | null;
@@ -82,6 +88,7 @@ export class WorkflowElkResultMapper {
     const {
       nodeSnapshotsByNodeId,
       nodeStatusesByNodeId,
+      runStatus,
       credentialAttentionTooltipByNodeId,
       selectedNodeId,
       propertiesTargetNodeId,
@@ -131,6 +138,7 @@ export class WorkflowElkResultMapper {
           role: n.role,
           icon: n.icon,
           status: nodeStatusesByNodeId[n.id],
+          isWaitingForApproval: runStatus === "suspended" && nodeStatusesByNodeId[n.id] === "running",
           selected: selectedNodeId === n.id,
           propertiesTarget: propertiesTargetNodeId === n.id,
           isAttachment: Boolean(n.parentNodeId),

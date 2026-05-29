@@ -4,6 +4,8 @@ import ChevronDown from "lucide-react/dist/esm/icons/chevron-down";
 import CircleCheckBig from "lucide-react/dist/esm/icons/circle-check-big";
 import Clock3 from "lucide-react/dist/esm/icons/clock-3";
 import LoaderCircle from "lucide-react/dist/esm/icons/loader-circle";
+import UserCheck from "lucide-react/dist/esm/icons/user-check";
+import UserX from "lucide-react/dist/esm/icons/user-x";
 import X from "lucide-react/dist/esm/icons/x";
 
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@codemation/ui";
@@ -17,6 +19,34 @@ import type {
 } from "@codemation/canvas";
 import { NodePropertiesSectionNavigationButtons } from "./NodePropertiesSectionNavigationButtons";
 import { NodePropertiesTimelineRenderer } from "./NodePropertiesTimelineRenderer";
+
+const PILL_BASE = "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-bold";
+const PILL_EMERALD = `${PILL_BASE} border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300`;
+const PILL_DESTRUCTIVE = `${PILL_BASE} border-destructive/30 bg-destructive/10 text-destructive`;
+const PILL_AMBER = `${PILL_BASE} border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300`;
+const PILL_PRIMARY = `${PILL_BASE} border-primary/30 bg-primary/10 text-primary`;
+const PILL_NEUTRAL = `${PILL_BASE} border-border/70 bg-muted/40 text-foreground`;
+
+type StatusPillConfig = { className: string; Icon: typeof CircleCheckBig; iconClassName: string };
+
+// HITL approved/rejected get person-with-check / person-with-x glyphs to stand
+// apart from a plain "completed" node; the rest mirror their non-HITL kin.
+const STATUS_PILL_CONFIG: Readonly<Record<string, StatusPillConfig>> = {
+  completed: { className: PILL_EMERALD, Icon: CircleCheckBig, iconClassName: "size-3.5" },
+  "hitl-auto-accepted": { className: PILL_EMERALD, Icon: CircleCheckBig, iconClassName: "size-3.5" },
+  "hitl-approved": { className: PILL_EMERALD, Icon: UserCheck, iconClassName: "size-3.5" },
+  "hitl-rejected": { className: PILL_DESTRUCTIVE, Icon: UserX, iconClassName: "size-3.5" },
+  "hitl-cancelled": { className: PILL_DESTRUCTIVE, Icon: UserX, iconClassName: "size-3.5" },
+  failed: { className: PILL_DESTRUCTIVE, Icon: X, iconClassName: "size-3.5 stroke-[3]" },
+  "hitl-timeout": { className: PILL_AMBER, Icon: Clock3, iconClassName: "size-3.5" },
+  running: { className: PILL_PRIMARY, Icon: LoaderCircle, iconClassName: "size-3.5 animate-spin" },
+  queued: { className: PILL_PRIMARY, Icon: LoaderCircle, iconClassName: "size-3.5 animate-spin" },
+};
+const NEUTRAL_PILL_CONFIG: StatusPillConfig = {
+  className: PILL_NEUTRAL,
+  Icon: Clock3,
+  iconClassName: "size-3.5 text-muted-foreground",
+};
 
 export class NodePropertiesSectionRenderer {
   static renderPill(pill: Readonly<{ label: string; value: string }>, key: string): JSX.Element {
@@ -35,46 +65,11 @@ export class NodePropertiesSectionRenderer {
   }
 
   static renderStatusPill(status: string, key: string): JSX.Element {
-    const normalized = status.toLowerCase();
-    if (normalized === "completed") {
-      return (
-        <span
-          key={key}
-          className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-bold text-emerald-700 dark:text-emerald-300"
-        >
-          <CircleCheckBig className="size-3.5" strokeWidth={2.4} />
-          <span>{status}</span>
-        </span>
-      );
-    }
-    if (normalized === "failed") {
-      return (
-        <span
-          key={key}
-          className="inline-flex items-center gap-1.5 rounded-full border border-destructive/30 bg-destructive/10 px-2.5 py-1 text-[11px] font-bold text-destructive"
-        >
-          <X className="size-3.5 stroke-[3]" />
-          <span>{status}</span>
-        </span>
-      );
-    }
-    if (normalized === "running" || normalized === "queued") {
-      return (
-        <span
-          key={key}
-          className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-2.5 py-1 text-[11px] font-bold text-primary"
-        >
-          <LoaderCircle className="size-3.5 animate-spin" strokeWidth={2.4} />
-          <span>{status}</span>
-        </span>
-      );
-    }
+    const cfg = STATUS_PILL_CONFIG[status.toLowerCase()] ?? NEUTRAL_PILL_CONFIG;
+    const Icon = cfg.Icon;
     return (
-      <span
-        key={key}
-        className="inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-muted/40 px-2.5 py-1 text-[11px] font-bold text-foreground"
-      >
-        <Clock3 className="size-3.5 text-muted-foreground" strokeWidth={2.2} />
+      <span key={key} className={cfg.className}>
+        <Icon className={cfg.iconClassName} strokeWidth={2.4} />
         <span>{status}</span>
       </span>
     );

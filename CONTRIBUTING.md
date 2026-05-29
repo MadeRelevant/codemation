@@ -1,5 +1,15 @@
 # Contributing
 
+## Definition of Done
+
+For any non-trivial change, work isn't done until all five steps below have happened, in order. The same checklist applies to Claude Code sessions (see [`CLAUDE.md`](CLAUDE.md) "Way of working") — skipping a step is a tech-debt smell, call it out and explain why instead of silently moving on.
+
+1. **Map the story; confirm with stakeholders.** Sprint work lives under `planning/sprints/<sprint-name>/<NN>-<slug>.md`. One-off fixes get a paragraph in the issue / PR description. Open questions surface _before_ implementation.
+2. **Define test scenarios up front.** A short bullet list in the story or PR — happy path + edges + failure modes. Becomes the spec for step 3.
+3. **Write unit + integration tests alongside the code.** Both — the HITL sprint surfaced five real runtime bugs that only manifested under the real `PrismaWorkflowRunRepository` + tsx-dev module loading (see `packages/host/test/hitl/hitlWiringGaps.integration.test.ts`). Pure in-memory tests miss real wiring gaps. Never `vi.mock` / `vi.stubGlobal` / `vi.stubEnv` (ESLint-forbidden).
+4. **All gates clean locally.** At minimum `pnpm run lint:eslint && pnpm typecheck && pnpm run test:unit`. For cross-package or persistence/engine changes: `pnpm run check`. Add a changeset under `.changeset/`. Never `--no-verify`.
+5. **Verify in the actual product via MCP browser.** For any UI / engine / runtime change, drive the relevant flow in chrome-devtools MCP and confirm the change does what it's supposed to. If browser verification is impossible (library-only change, dev server broken for unrelated reasons), say so explicitly rather than claim verified.
+
 ## Branching and pull requests
 
 - **Do not push directly to `main`.** Open a **pull request** from a feature branch.

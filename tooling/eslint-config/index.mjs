@@ -15,6 +15,7 @@ const allowedConstructorNames = new Set([
   "RegExp",
   "Response",
   "Set",
+  "SuspensionRequest",
   "URL",
   "WeakMap",
   "WeakSet",
@@ -630,6 +631,7 @@ export default [
       "packages/host/src/infrastructure/logging/LogLevelPolicy.ts",
       "packages/host/src/infrastructure/logging/PerformanceLogPolicy.ts",
       "packages/host/src/infrastructure/persistence/PrismaMigrationDeployer.ts",
+      "packages/host/src/infrastructure/persistence/PrismaMigrationOperations.ts",
       // src/bin/** files are environment-boundary entry points — reading process.env is their purpose.
       "packages/host/src/bin/**",
     ],
@@ -752,9 +754,12 @@ export default [
     },
   },
   {
-    files: ["packages/host/src/infrastructure/persistence/PrismaMigrationDeployer.ts"],
+    files: [
+      "packages/host/src/infrastructure/persistence/PrismaMigrationDeployer.ts",
+      "packages/host/src/infrastructure/persistence/PrismaMigrationOperations.ts",
+    ],
     rules: {
-      // Prisma driver adapters are created locally inside the migration deployer.
+      // Prisma driver adapters and PrismaMigrationOperations are created locally inside the migration deployer.
       "codemation/no-manual-di-new": "off",
     },
   },

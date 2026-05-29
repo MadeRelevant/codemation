@@ -5,13 +5,17 @@ import type {
   NodeActivationRequest,
   NodeExecutionContext,
   NodeExecutionSnapshot,
+  NodeExecutionStatus,
   NodeId,
   NodeInputsByPort,
   NodeOutputs,
   PendingNodeExecution,
+  PendingResumeEntry,
   PersistedRunSchedulingState,
   PersistedRunState,
+  ResumeContext,
   RunDataFactory,
+  RunHaltReason,
   RunId,
   RunQueueEntry,
   RunResult,
@@ -146,6 +150,12 @@ export class RunContinuationService {
 
     data.setOutputs(args.nodeId, args.outputs);
     const completedAt = new Date().toISOString();
+
+    // Resolve HITL status from the node's decision output.
+    // Only fires when the output carries `item.json.decision.status` written by a
+    // defineHumanApprovalNode-based node. Non-HITL nodes never have this field.
+    const hitlResolution = this.resolveHitlStatus(args.outputs);
+
     const completedSnapshot = this.semantics.createFinishedSnapshot({
       workflow: wf,
       previous: state.nodeSnapshotsByNodeId?.[args.nodeId],
@@ -157,7 +167,42 @@ export class RunContinuationService {
       finishedAt: completedAt,
       inputsByPort: pendingExecution.inputsByPort,
       outputs: args.outputs,
+      hitlStatus: hitlResolution?.nodeStatus,
     });
+
+    // Halt the run for HITL rejection / timeout outcomes.
+    if (hitlResolution?.halt) {
+      const haltedState = this.persistedRunStateTerminalBuilder.mergeTerminal({
+        state,
+        engineCounters: state.engineCounters ?? { completedNodeActivations: 0 },
+        status: "halted",
+        reason: hitlResolution.reason,
+        queue: [],
+        outputsByNode: data.dump(),
+        nodeSnapshotsByNodeId: {
+          ...(state.nodeSnapshotsByNodeId ?? {}),
+          [args.nodeId]: completedSnapshot,
+        },
+        finishedAtIso: completedAt,
+      });
+      await this.workflowExecutionRepository.save(haltedState);
+      await this.nodeEventPublisher.publish("nodeCompleted", completedSnapshot);
+      await this.terminalPersistence.maybeDeleteAfterTerminalState({
+        workflow: wf,
+        state: haltedState,
+        finalStatus: "failed",
+        finishedAt: completedAt,
+      });
+      const result: RunResult = {
+        runId: state.runId,
+        workflowId: state.workflowId,
+        startedAt: state.startedAt,
+        status: "halted",
+        reason: hitlResolution.reason,
+      };
+      this.waiters.resolveRunCompletion(result);
+      return result;
+    }
 
     const completedActivations = (state.engineCounters?.completedNodeActivations ?? 0) + 1;
     const engineCounters = { completedNodeActivations: completedActivations };
@@ -501,7 +546,7 @@ export class RunContinuationService {
     return await this.resumeFromNodeError(args);
   }
 
-  async waitForCompletion(runId: RunId): Promise<Extract<RunResult, { status: "completed" | "failed" }>> {
+  async waitForCompletion(runId: RunId): Promise<Extract<RunResult, { status: "completed" | "failed" | "halted" }>> {
     const existing = await this.workflowExecutionRepository.load(runId);
     if (existing?.status === "completed") {
       const wf = this.resolvePersistedWorkflow(existing);
@@ -525,9 +570,18 @@ export class RunContinuationService {
         error: { message: "Run failed" },
       };
     }
+    if (existing?.status === "halted") {
+      return {
+        runId: existing.runId,
+        workflowId: existing.workflowId,
+        startedAt: existing.startedAt,
+        status: "halted",
+        reason: existing.reason ?? "hitl-rejected",
+      };
+    }
 
     const result = await this.waiters.waitForCompletion(runId);
-    if (result.status !== "completed" && result.status !== "failed") {
+    if (result.status !== "completed" && result.status !== "failed" && result.status !== "halted") {
       throw new Error(`Unexpected run completion status: ${result.status}`);
     }
     return result;
@@ -535,6 +589,122 @@ export class RunContinuationService {
 
   async waitForWebhookResponse(runId: RunId): Promise<WebhookRunResult> {
     return await this.waiters.waitForWebhookResponse(runId);
+  }
+
+  /**
+   * Re-activate a previously suspended run item with a human decision.
+   *
+   * Called by the HITL resume endpoint. This method:
+   * 1. Loads `PersistedRunState` and locates the suspension entry by `taskId`.
+   * 2. Removes the entry from the `suspension` array; if empty, run stays `"suspended"` until
+   *    enqueue flips it to `"pending"`.
+   * 3. Writes `pendingResume` onto the state so `NodeExecutionRequestHandlerService` can
+   *    splice `resumeContext` into the node's execution context.
+   * 4. Reconstructs the original input from `outputsByNode` of the upstream node and
+   *    enqueues a new activation via `activationEnqueueService`.
+   *
+   * @throws if the run is not found, not suspended, or the `taskId` is unknown.
+   */
+  async resumeRun(args: { runId: RunId; taskId: string; resumeContext: ResumeContext }): Promise<RunResult> {
+    const state = await this.workflowExecutionRepository.load(args.runId);
+    if (!state) throw new Error(`Unknown runId: ${args.runId}`);
+    if (state.status !== "suspended") {
+      throw new Error(`Run ${args.runId} is not suspended (status: ${state.status})`);
+    }
+
+    const suspensionEntry = (state.suspension ?? []).find((s) => s.taskId === args.taskId);
+    if (!suspensionEntry) {
+      throw new Error(`No suspension entry with taskId "${args.taskId}" found on run ${args.runId}`);
+    }
+
+    const wf = this.resolvePersistedWorkflow(state);
+    if (!wf) throw new Error(`Unknown workflowId: ${state.workflowId}`);
+
+    const { topology, planner } = this.planningFactory.create(wf);
+    const def = topology.defsById.get(suspensionEntry.nodeId);
+    if (!def || def.kind !== "node") {
+      throw new Error(`Node ${suspensionEntry.nodeId} is not a runnable node`);
+    }
+
+    // Reconstruct input: find the parent node that fed this node and use its main output.
+    // The single-item input corresponds to `itemIndex` in the original activation batch.
+    const data = this.runDataFactory.create(state.outputsByNode);
+    const limits = this.resolveEngineLimitsFromState(state);
+    const base = this.runExecutionContextFactory.create({
+      runId: state.runId,
+      workflowId: state.workflowId,
+      nodeId: suspensionEntry.nodeId,
+      parent: state.parent,
+      policySnapshot: state.policySnapshot,
+      subworkflowDepth: state.executionOptions?.subworkflowDepth ?? 0,
+      engineMaxNodeActivations: limits.engineMaxNodeActivations,
+      engineMaxSubworkflowDepth: limits.engineMaxSubworkflowDepth,
+      data,
+      nodeState: this.nodeStatePublisherFactory.create(state.runId, state.workflowId, state.parent),
+      testContext: state.executionOptions?.testContext,
+    });
+
+    // Find the original input items for this node from upstream outputs.
+    // Use the workflow edges to resolve the parent node. If no parent found, fall back to empty.
+    const parentEdges = wf.edges.filter((e) => e.to.nodeId === suspensionEntry.nodeId);
+    const parentNodeId = parentEdges[0]?.from.nodeId;
+    const parentOutputPort = parentEdges[0]?.from.output ?? "main";
+    const allParentItems = parentNodeId ? (data.getOutputItems(parentNodeId, parentOutputPort) ?? []) : [];
+    // Each suspended item gets its own resume; pass the single item at itemIndex.
+    const resumeInput =
+      allParentItems.length > suspensionEntry.itemIndex ? [allParentItems[suspensionEntry.itemIndex]!] : allParentItems;
+
+    const newActivationId = this.activationIdFactory.makeActivationId();
+    const pendingResume: PendingResumeEntry = {
+      activationId: newActivationId,
+      nodeId: suspensionEntry.nodeId,
+      resumeContext: args.resumeContext,
+    };
+
+    const remainingSuspensions = (state.suspension ?? []).filter((s) => s.taskId !== args.taskId);
+
+    // Thread resumeContext into the execution context so the inline scheduler path
+    // (InlineDrivingScheduler) delivers it directly to the node's ctx.resumeContext.
+    // On the worker path (BullMQ), NodeExecutionRequestHandlerService re-derives it
+    // from state.pendingResume — passing it here is additive and harmless.
+    const baseWithResume = { ...base, resumeContext: args.resumeContext };
+
+    const batchId = `resume_${newActivationId}`;
+    const request = this.nodeActivationRequestComposer.createSingleFromDefinitionWithActivation({
+      activationId: newActivationId,
+      runId: state.runId,
+      workflowId: state.workflowId,
+      parent: state.parent,
+      executionOptions: state.executionOptions,
+      base: baseWithResume,
+      data,
+      definition: { id: suspensionEntry.nodeId, config: def.config },
+      batchId,
+      input: resumeInput,
+    });
+
+    const { result, queuedSnapshot } = await this.activationEnqueueService.enqueueActivationWithSnapshot({
+      runId: state.runId,
+      workflowId: state.workflowId,
+      startedAt: state.startedAt,
+      parent: state.parent,
+      executionOptions: state.executionOptions,
+      control: state.control,
+      workflowSnapshot: state.workflowSnapshot,
+      mutableState: state.mutableState,
+      policySnapshot: state.policySnapshot,
+      pendingQueue: [],
+      request,
+      previousNodeSnapshotsByNodeId: state.nodeSnapshotsByNodeId ?? {},
+      planner,
+      engineCounters: state.engineCounters,
+      connectionInvocations: state.connectionInvocations ?? [],
+      suspension: remainingSuspensions.length > 0 ? remainingSuspensions : undefined,
+      pendingResume,
+    });
+
+    await this.nodeEventPublisher.publish("nodeQueued", queuedSnapshot);
+    return result;
   }
 
   private async resumeFromWebhookControl(args: {
@@ -994,6 +1164,60 @@ export class RunContinuationService {
     };
     this.waiters.resolveRunCompletion(result);
     return result;
+  }
+
+  /**
+   * Inspects node outputs for a `decision.status` written by `defineHumanApprovalNode`.
+   * Returns the first-class HITL node status and halt classification, or `undefined`
+   * when the node is not a HITL approval node.
+   */
+  private resolveHitlStatus(outputs: NodeOutputs):
+    | {
+        nodeStatus: Extract<
+          NodeExecutionStatus,
+          "hitl-approved" | "hitl-rejected" | "hitl-timeout" | "hitl-auto-accepted"
+        >;
+        halt: boolean;
+        reason: RunHaltReason;
+      }
+    | { nodeStatus: Extract<NodeExecutionStatus, "hitl-approved" | "hitl-auto-accepted">; halt: false }
+    | undefined {
+    const firstItem = outputs?.main?.[0];
+    const decisionStatus =
+      firstItem &&
+      typeof firstItem === "object" &&
+      "json" in firstItem &&
+      firstItem.json &&
+      typeof firstItem.json === "object" &&
+      "decision" in firstItem.json &&
+      firstItem.json.decision &&
+      typeof firstItem.json.decision === "object" &&
+      "status" in firstItem.json.decision
+        ? (firstItem.json.decision as { status: string }).status
+        : undefined;
+
+    if (!decisionStatus) return undefined;
+
+    if (decisionStatus === "approved") {
+      return { nodeStatus: "hitl-approved", halt: false } as {
+        nodeStatus: "hitl-approved";
+        halt: false;
+      };
+    }
+    if (decisionStatus === "auto-accepted") {
+      return { nodeStatus: "hitl-auto-accepted", halt: false } as {
+        nodeStatus: "hitl-auto-accepted";
+        halt: false;
+      };
+    }
+    if (decisionStatus === "rejected") {
+      return { nodeStatus: "hitl-rejected", halt: true, reason: "hitl-rejected" as const };
+    }
+    if (decisionStatus === "timed-out") {
+      return { nodeStatus: "hitl-timeout", halt: true, reason: "hitl-timeout" as const };
+    }
+
+    return undefined;
   }
 
   private formatNodeLabel(args: {

@@ -4,10 +4,7 @@ import type { Clock, OAuthFlowExecutor, OAuthMaterial } from "@codemation/core";
 import { ApplicationTokens } from "../applicationTokens";
 import type { LoggerFactory } from "../application/logging/Logger";
 import { CredentialSecretCipher } from "../domain/credentials/CredentialSecretCipher";
-import type {
-  CredentialOAuth2MaterialRecord,
-  CredentialStore,
-} from "../domain/credentials/CredentialServices";
+import type { CredentialOAuth2MaterialRecord, CredentialStore } from "../domain/credentials/CredentialServices";
 
 /**
  * Reads OAuth2 material for a credential instance and proactively refreshes it
@@ -128,9 +125,7 @@ export class CredentialOAuth2MaterialReader {
       refreshToken: typeof json.refreshToken === "string" ? json.refreshToken : undefined,
       expiresAt: typeof json.expiresAt === "string" ? json.expiresAt : undefined,
       grantedScopes:
-        typeof json.grantedScopes === "string"
-          ? json.grantedScopes.split(/\s+/).filter((s) => s.length > 0)
-          : [],
+        typeof json.grantedScopes === "string" ? json.grantedScopes.split(/\s+/).filter((s) => s.length > 0) : [],
     };
   }
 }

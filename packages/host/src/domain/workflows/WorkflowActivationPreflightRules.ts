@@ -1,5 +1,10 @@
 import type { WorkflowCredentialHealthDto } from "../../application/contracts/CredentialContractsRegistry";
-import { getPersistedRuntimeTypeMetadata, injectable, type CredentialRequirement, type WorkflowDefinition } from "@codemation/core";
+import {
+  getPersistedRuntimeTypeMetadata,
+  injectable,
+  type CredentialRequirement,
+  type WorkflowDefinition,
+} from "@codemation/core";
 import { MissingRuntimeTriggerToken } from "@codemation/core/bootstrap";
 import { ManualTriggerNode } from "@codemation/core-nodes";
 
@@ -105,9 +110,7 @@ export class WorkflowActivationPreflightRules {
       const grantedSet = new Set(granted);
       const missing = required.filter((s) => !grantedSet.has(s));
       if (missing.length > 0) {
-        lines.push(
-          `Credential "${displayName}" missing scopes: ${missing.join(", ")}. Reconnect to grant.`,
-        );
+        lines.push(`Credential "${displayName}" missing scopes: ${missing.join(", ")}. Reconnect to grant.`);
       }
     }
 

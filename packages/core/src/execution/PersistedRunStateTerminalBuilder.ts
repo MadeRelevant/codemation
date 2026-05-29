@@ -1,4 +1,4 @@
-import type { EngineRunCounters, PersistedRunState, RunQueueEntry } from "../types";
+import type { EngineRunCounters, PersistedRunState, RunHaltReason, RunQueueEntry } from "../types";
 
 /**
  * Merges common terminal-run fields onto a loaded {@link PersistedRunState} without repeating object literals.
@@ -7,7 +7,9 @@ export class PersistedRunStateTerminalBuilder {
   mergeTerminal(args: {
     state: PersistedRunState;
     engineCounters: EngineRunCounters;
-    status: "completed" | "failed";
+    status: "completed" | "failed" | "halted";
+    /** Populated when `status === "halted"`. */
+    reason?: RunHaltReason;
     queue: RunQueueEntry[];
     outputsByNode: PersistedRunState["outputsByNode"];
     nodeSnapshotsByNodeId: NonNullable<PersistedRunState["nodeSnapshotsByNodeId"]>;
@@ -18,6 +20,7 @@ export class PersistedRunStateTerminalBuilder {
       ...args.state,
       engineCounters: args.engineCounters,
       status: args.status,
+      reason: args.reason,
       pending: undefined,
       queue: args.queue,
       outputsByNode: args.outputsByNode,

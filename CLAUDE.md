@@ -75,6 +75,45 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 ---
 
+## Way of working — Definition of Done
+
+For any non-trivial change (anything beyond a one-line typo / comment / doc tweak), the work isn't done until all five steps below have happened, in order. Skipping a step is a tech-debt smell — call it out explicitly and explain why instead of silently moving on.
+
+### 1. Map the story; confirm with stakeholders
+
+Write or update the planning artifact before touching code. For sprint work that means a story file under `planning/sprints/<sprint-name>/<NN>-<slug>.md` with `Why`, `Decisions`, `Implementation plan`, `Deliverables`, `Verification`, `Parallelism`, and `Open questions` sections. For one-off fixes a paragraph in the issue / PR description is enough. **Confirm the plan with the user before implementing** — surface the open questions first, not after the change is half-built. Existing sprint examples: `planning/sprints/hitl/`, `planning/sprints/current/`.
+
+### 2. Define test scenarios up front
+
+Before writing implementation, name the scenarios you'll cover (happy path + each edge case + each failure mode). A short bullet list in the story or PR body is enough. The list becomes the spec for step 3 — if a scenario isn't on the list you don't have to implement, and if a scenario is on the list, the matching test must exist in step 3.
+
+### 3. Write unit + integration tests alongside the code
+
+For framework work this means **both**:
+
+- **Unit tests** for the smallest verifiable shape (one class / one helper / one decision branch).
+- **Integration tests** that exercise the real wiring — the real Prisma repository, the real DI container, the real engine. Pure-in-memory tests miss real wiring gaps: the HITL sprint surfaced five separate runtime bugs that only manifested when `PrismaWorkflowRunRepository` + tsx-dev module loading were in play (see `packages/host/test/hitl/hitlWiringGaps.integration.test.ts` for the regression suite that documents them). When in doubt, add the integration test.
+
+Test file lives next to the code or under `packages/<pkg>/test/`. Follow the existing conventions (`*.test.ts` / `*.integration.test.ts`), and never use `vi.mock` / `vi.stubGlobal` / `vi.stubEnv` (forbidden by ESLint).
+
+### 4. All gates clean
+
+Run the closest realistic gate locally before declaring done:
+
+- `pnpm run lint:eslint && pnpm typecheck && pnpm run test:unit` — the husky pre-commit minimum, fast feedback.
+- For cross-package or persistence/engine changes: `pnpm run check` (lint + typecheck + every test suite). CI runs this same set; locals should be green first.
+- New changeset under `.changeset/` for any change touching publishable `packages/*`.
+
+Pre-commit may need `PRECOMMIT_TURBO_CONCURRENCY=1` when WSL is memory-constrained. Never skip hooks (`--no-verify`) unless the user explicitly asked.
+
+### 5. Verify in the actual product via the MCP browser
+
+Static analysis + tests can't see runtime issues like Turbopack chunk-loads, dev-mode module duplication, hot-reload reentry, or UI/UX regressions. **For any UI / engine / runtime change, drive the relevant flow in the browser using chrome-devtools MCP** (`mcp__chrome-devtools__*`) and confirm what you implemented actually does what it's supposed to. Take a snapshot or screenshot at the critical assertion point. If the change is library-only (no user-facing surface), document why browser verification doesn't apply.
+
+If you can't get the browser verification working (dev server down, port conflict, unrelated regression), **say so explicitly** — don't claim a change is verified when it isn't. The whole HITL sprint surfaced this: every "fix it and move on" without browser verification led to another silent regression that only the next browser session caught.
+
+---
+
 ## Read these first
 
 - **[`AGENTS.md`](AGENTS.md)** — authoritative architecture, DI rules, engine ↔ node contract, logging/forms/test conventions, ESLint architecture rules. Treat its rules as hard requirements.

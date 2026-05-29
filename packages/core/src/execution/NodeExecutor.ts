@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { isPortsEmission, isUnbrandedPortsEmissionShape } from "../contracts/emitPorts";
 import { CredentialUnboundError } from "../contracts/credentialTypes";
+import { SuspensionRequest } from "../contracts/runtimeTypes";
 
 import type {
   Item,
@@ -8,9 +9,11 @@ import type {
   NodeActivationRequest,
   NodeExecutionContext,
   NodeOutputs,
+  PersistedRunState,
   RunnableNode,
   RunnableNodeConfig,
   RunnableNodeExecuteArgs,
+  RunId,
   TriggerNode,
   WorkflowNodeInstanceFactory,
 } from "../types";
@@ -20,6 +23,8 @@ import { FanInMergeByOriginMerger } from "./FanInMergeByOriginMerger";
 import { ItemExprResolver } from "./ItemExprResolver";
 import { InProcessRetryRunner } from "./InProcessRetryRunner";
 import { NodeOutputNormalizer } from "./NodeOutputNormalizer";
+import { NodeSuspensionHandler } from "./NodeSuspensionHandler";
+import { RunSuspendedError } from "./RunSuspendedError";
 import { RunnableOutputBehaviorResolver } from "./RunnableOutputBehaviorResolver";
 
 export class NodeExecutor {
@@ -33,6 +38,10 @@ export class NodeExecutor {
     private readonly retryRunner: InProcessRetryRunner,
     itemExprResolver?: ItemExprResolver,
     outputBehaviorResolver?: RunnableOutputBehaviorResolver,
+    /** Required for HITL suspension support. When omitted, `SuspensionRequest` throws upward. */
+    private readonly suspensionHandler?: NodeSuspensionHandler,
+    /** Required alongside `suspensionHandler`. */
+    private readonly loadRunState?: (runId: RunId) => Promise<PersistedRunState | undefined>,
   ) {
     this.itemExprResolver = itemExprResolver ?? new ItemExprResolver();
     this.outputBehaviorResolver = outputBehaviorResolver ?? new RunnableOutputBehaviorResolver();
@@ -173,6 +182,7 @@ export class NodeExecutor {
       }) as NodeOutputs;
     }
     const byPort: Partial<Record<string, Item[]>> = {};
+    let hasSuspension = false;
     for (let i = 0; i < inputBatch.length; i++) {
       const item = inputBatch[i] as Item;
       this.assertItemJsonNotTopLevelArray(request.nodeId, item);
@@ -194,7 +204,51 @@ export class NodeExecutor {
         items: inputBatch,
         ctx: iterationCtx,
       };
-      const raw = await Promise.resolve(node.execute(args));
+      let raw: unknown;
+      try {
+        raw = await Promise.resolve(node.execute(args));
+      } catch (e) {
+        // Use both instanceof AND name check: under tsx/dev with mixed source/dist resolution,
+        // SuspensionRequest may load as two distinct class objects and instanceof fails. The
+        // name brand survives the duality because both copies set name="SuspensionRequest".
+        const isSuspension =
+          e instanceof SuspensionRequest ||
+          (e instanceof Error &&
+            e.name === "SuspensionRequest" &&
+            typeof (e as { request?: unknown }).request === "object");
+        if (isSuspension) {
+          if (!this.suspensionHandler || !this.loadRunState) {
+            // Suspension not supported in this executor configuration — propagate as a regular error.
+            throw new Error(
+              `Node ${request.nodeId} threw SuspensionRequest but this NodeExecutor has no suspensionHandler configured.`,
+              { cause: e },
+            );
+          }
+          // Per-item suspension: load current state, persist the suspension entry, and
+          // continue processing remaining items. If deliver throws it propagates upward.
+          const state = await this.loadRunState(request.runId);
+          if (!state) {
+            throw new Error(`NodeExecutor: run state not found for runId ${request.runId} during suspension`, {
+              cause: e,
+            });
+          }
+          // handleSuspension throws RunSuspendedError after persisting — we re-throw it
+          // to exit the loop immediately. Partial byPort outputs are intentionally dropped
+          // (TODO: consider stashing outputs of non-suspended items alongside the suspension).
+          await this.suspensionHandler.handle({
+            runId: request.runId,
+            nodeId: request.nodeId,
+            activationId: request.activationId,
+            itemIndex: i,
+            suspensionRequest: e as SuspensionRequest,
+            state,
+            telemetry: iterationCtx.telemetry,
+          });
+          hasSuspension = true; // unreachable — handler always throws, but satisfies TS control-flow
+          continue;
+        }
+        throw e;
+      }
       const normalized = this.outputNormalizer.normalizeExecuteResult({
         baseItem: item,
         raw,
@@ -208,6 +262,11 @@ export class NodeExecutor {
         list.push(...batch);
         byPort[port] = list;
       }
+    }
+    if (hasSuspension) {
+      // Unreachable in practice (suspensionHandler always throws RunSuspendedError) but
+      // guards against future refactors that might change handler behaviour.
+      throw new RunSuspendedError(request.runId, "unknown");
     }
     return byPort as NodeOutputs;
   }

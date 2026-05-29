@@ -35,6 +35,10 @@ export class HonoHttpAnonymousRoutePolicy {
     if (pathname === ApiPaths.whitelabelLogo()) {
       return true;
     }
+    // HITL token-authenticated resume endpoint — token is the auth, no session required
+    if (/^\/api\/hitl\/tasks\/[^/]+\/resume$/.test(pathname)) {
+      return true;
+    }
     return false;
   }
 }

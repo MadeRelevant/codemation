@@ -2,6 +2,7 @@ import type {
   JsonValue,
   NodeActivationId,
   NodeExecutionSnapshot,
+  NodeExecutionStatus,
   NodeId,
   NodeInputsByPort,
   NodeOutputs,
@@ -70,6 +71,11 @@ export class NodeExecutionSnapshotFactory {
     inputsByPort: NodeInputsByPort;
     outputs: NodeOutputs;
     fromPinnedOutput?: boolean;
+    /** Override the terminal status for HITL outcomes (defaults to `"completed"`). */
+    hitlStatus?: Extract<
+      NodeExecutionStatus,
+      "hitl-approved" | "hitl-rejected" | "hitl-timeout" | "hitl-auto-accepted" | "hitl-cancelled"
+    >;
   }): NodeExecutionSnapshot {
     const fromPinnedOutput = args.fromPinnedOutput ?? false;
     const startedAt = fromPinnedOutput ? (args.previous?.startedAt ?? args.finishedAt) : args.previous?.startedAt;
@@ -79,7 +85,7 @@ export class NodeExecutionSnapshotFactory {
       nodeId: args.nodeId,
       activationId: args.activationId,
       parent: args.parent,
-      status: "completed",
+      status: args.hitlStatus ?? "completed",
       queuedAt: args.previous?.queuedAt,
       startedAt,
       finishedAt: args.finishedAt,

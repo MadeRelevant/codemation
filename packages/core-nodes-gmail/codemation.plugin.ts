@@ -31,10 +31,7 @@ const gmailMcpServer: McpServerDeclaration = {
   acceptedCredentialTypes: ["oauth.google.gmail"],
   // Per https://developers.google.com/workspace/gmail/api/guides/configure-mcp-server —
   // the MCP server enforces the literal scope strings, not semantic supersets.
-  requiredScopes: [
-    "https://www.googleapis.com/auth/gmail.readonly",
-    "https://www.googleapis.com/auth/gmail.compose",
-  ],
+  requiredScopes: ["https://www.googleapis.com/auth/gmail.readonly", "https://www.googleapis.com/auth/gmail.compose"],
   staticHeaders: {},
   toolDescriptionOverrides: {},
 };

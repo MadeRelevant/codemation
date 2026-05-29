@@ -40,13 +40,13 @@ An empty query string returns all registered servers.
 
 ## Response fields
 
-| Field                    | Type     | Notes                                                                 |
-| ------------------------ | -------- | --------------------------------------------------------------------- |
-| `kind`                   | string   | Always `"mcp-server"` for now. Future: `"node"`, `"credential-type"` |
-| `id`                     | string   | Stable slug — add this string to the agent's mcpServers array         |
-| `displayName`            | string   | Human-readable name for UI or explanations                            |
-| `description`            | string   | What the server does                                                  |
-| `acceptedCredentialTypes`| string[] | Credential type ids accepted by this server (empty = no credential)   |
+| Field                     | Type     | Notes                                                                |
+| ------------------------- | -------- | -------------------------------------------------------------------- |
+| `kind`                    | string   | Always `"mcp-server"` for now. Future: `"node"`, `"credential-type"` |
+| `id`                      | string   | Stable slug — add this string to the agent's mcpServers array        |
+| `displayName`             | string   | Human-readable name for UI or explanations                           |
+| `description`             | string   | What the server does                                                 |
+| `acceptedCredentialTypes` | string[] | Credential type ids accepted by this server (empty = no credential)  |
 
 ## Credential types
 

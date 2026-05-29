@@ -32,6 +32,12 @@ export type WorkflowCanvasNodeData = Readonly<{
   hasOutputData: boolean;
   isLiveWorkflowView: boolean;
   isRunning: boolean;
+  /**
+   * True when the viewed run is suspended AND this node's displayed status is
+   * `running` — i.e. the run is paused waiting for a human decision on this
+   * HITL node. Drives the distinct "Waiting for approval" canvas treatment.
+   */
+  isWaitingForApproval?: boolean;
   retryPolicySummary?: string;
   hasNodeErrorHandler?: boolean;
   /** When true, empty main batches still schedule downstream; surfaced on the canvas. */

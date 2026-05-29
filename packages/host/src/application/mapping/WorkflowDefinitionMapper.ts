@@ -226,9 +226,7 @@ export class WorkflowDefinitionMapper implements DataMapper<WorkflowDefinition, 
       if (!AgentConfigInspector.isAgentNodeConfig(node.config)) {
         continue;
       }
-      const descriptors = AgentConnectionNodeCollector.collect(node.id, node.config, (id) =>
-        this.mcpCatalog.get(id),
-      );
+      const descriptors = AgentConnectionNodeCollector.collect(node.id, node.config, (id) => this.mcpCatalog.get(id));
       byAgentNodeId.set(node.id, descriptors);
       const byChildId = new Map<string, AgentConnectionNodeDescriptor>();
       for (const descriptor of descriptors) {

@@ -1,5 +1,10 @@
-export { CodemationPostgresPrismaClientFactory } from "./persistenceServer";
-export type { PrismaClient } from "./persistenceServer";
+// Direct re-export from source files, NOT via the persistenceServer barrel: that
+// barrel also re-exports PrismaMigrationDeployer, whose createRequire + dynamic
+// require.resolve trips the Turbopack module tracer ("whole project traced
+// unintentionally") when this server barrel is transitively reached from a
+// Next.js Server Component such as the dev/inbox page.
+export { CodemationPostgresPrismaClientFactory } from "./infrastructure/persistence/CodemationPostgresPrismaClientFactory";
+export type { PrismaDatabaseClient as PrismaClient } from "./infrastructure/persistence/PrismaDatabaseClient";
 export { ExecaProcessRunner } from "./process/ExecaProcessRunner";
 export type { ProcessRunner, ProcessRunOptions, ProcessRunResult } from "./process/ProcessRunner.types";
 export { ApiPaths } from "./presentation/http/ApiPaths";

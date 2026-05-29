@@ -180,27 +180,27 @@ export function CredentialDialogFormSections({
                 : ""}
             </span>
           )}
-          {isEdit && (
-            <div className="mt-1 flex flex-wrap gap-2">
-              <Button
-                type="button"
-                variant="default"
-                size="sm"
-                className="h-8 gap-1.5 px-2.5 text-xs font-semibold leading-none"
-                data-testid="credential-oauth2-connect-button"
-                onClick={() => void onConnectOAuth2()}
-              >
-                <span className="inline-flex items-center gap-1.5">
-                  {editingInstance?.oauth2Connection?.status === "connected" ? (
-                    <RefreshCw className="size-3.5 shrink-0" aria-hidden />
-                  ) : (
-                    <Plug className="size-3.5 shrink-0" aria-hidden />
-                  )}
-                  <span className="leading-none">
-                    {editingInstance?.oauth2Connection?.status === "connected" ? "Reconnect" : "Connect"}
-                  </span>
+          <div className="mt-1 flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="default"
+              size="sm"
+              className="h-8 gap-1.5 px-2.5 text-xs font-semibold leading-none"
+              data-testid="credential-oauth2-connect-button"
+              onClick={() => void onConnectOAuth2()}
+            >
+              <span className="inline-flex items-center gap-1.5">
+                {editingInstance?.oauth2Connection?.status === "connected" ? (
+                  <RefreshCw className="size-3.5 shrink-0" aria-hidden />
+                ) : (
+                  <Plug className="size-3.5 shrink-0" aria-hidden />
+                )}
+                <span className="leading-none">
+                  {editingInstance?.oauth2Connection?.status === "connected" ? "Reconnect" : "Connect"}
                 </span>
-              </Button>
+              </span>
+            </Button>
+            {isEdit && (
               <Button
                 type="button"
                 variant="destructive"
@@ -215,8 +215,8 @@ export function CredentialDialogFormSections({
                   <span className="leading-none">Disconnect</span>
                 </span>
               </Button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       )}
     </>

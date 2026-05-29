@@ -7,6 +7,9 @@ import type {
   WorkflowDefinition,
 } from "../../types";
 
+import type { DefinedNodeCredentialBindings } from "../../authoring/defineNode.types";
+import type { DefinedHumanApprovalNode, HumanApprovalOutputJson } from "../../authoring/defineHumanApprovalNode.types";
+import { isHumanApprovalNode } from "../../authoring/defineHumanApprovalNode.types";
 import { WorkflowBuilder } from "./WorkflowBuilder";
 import { WhenBuilder } from "./WhenBuilder";
 import type {
@@ -132,6 +135,39 @@ export class ChainCursor<TCurrentJson> {
       nextEndpoints.push(...builtBranch.endpoints);
     }
     return new ChainCursor<TNextJson>(this.wf, nextEndpoints);
+  }
+
+  /**
+   * Chainable shorthand for `.then(node.create(config, metadata?.name, metadata?.nodeId))`.
+   *
+   * Signals to readers that this step suspends the run and waits for a human decision.
+   * Throws at workflow-build time if `node` was not created via `defineHumanApprovalNode`.
+   *
+   * @example
+   * ```ts
+   * workflow
+   *   .trigger(...)
+   *   .humanApproval(inboxApproval, { title: "Approve?", body: "...", priority: "normal" })
+   *   .then(nextStep.create(...))
+   *   .build();
+   * ```
+   */
+  humanApproval<
+    TKey extends string,
+    TConfig extends Record<string, unknown>,
+    TBindings extends DefinedNodeCredentialBindings | undefined = undefined,
+  >(
+    node: DefinedHumanApprovalNode<TKey, TConfig, TCurrentJson & Record<string, unknown>, TBindings>,
+    config: TConfig,
+    metadata?: { name?: string; nodeId?: string },
+  ): ChainCursor<HumanApprovalOutputJson<TCurrentJson & Record<string, unknown>>> {
+    if (!isHumanApprovalNode(node)) {
+      throw new Error(
+        `.humanApproval() requires a node created via defineHumanApprovalNode (got '${(node as { key?: string }).key ?? String(node)}').`,
+      );
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return this.then(node.create(config as any, metadata?.name, metadata?.nodeId));
   }
 
   build(): WorkflowDefinition {

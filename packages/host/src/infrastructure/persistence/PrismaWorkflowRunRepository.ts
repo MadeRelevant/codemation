@@ -173,6 +173,7 @@ export class PrismaWorkflowRunRepository implements WorkflowRunRepository, Workf
       control: this.parseJson(row.controlJson),
       workflowSnapshot: this.parseJson(row.workflowSnapshotJson),
       mutableState: this.parseJson(row.mutableStateJson),
+      ...this.loadHitlState(row.hitlStateJson),
       policySnapshot: this.parseJson(row.policySnapshotJson),
       engineCounters: this.parseJson(row.engineCountersJson),
       status: row.status as PersistedRunState["status"],
@@ -416,6 +417,7 @@ export class PrismaWorkflowRunRepository implements WorkflowRunRepository, Workf
           policySnapshotJson: state.policySnapshot ? JSON.stringify(state.policySnapshot) : null,
           engineCountersJson: state.engineCounters ? JSON.stringify(state.engineCounters) : null,
           mutableStateJson: state.mutableState ? JSON.stringify(state.mutableState) : null,
+          hitlStateJson: this.buildHitlStateJson(state),
           outputsByNodeJson: JSON.stringify(this.buildPersistedOutputsByNode(state)),
         },
       });
@@ -593,6 +595,43 @@ export class PrismaWorkflowRunRepository implements WorkflowRunRepository, Workf
       itemIndex: row.itemIndex ?? undefined,
       parentInvocationId: row.parentInvocationId ?? undefined,
       ...(row.childRunId !== null && row.childRunId !== undefined ? { childRunId: row.childRunId } : {}),
+    };
+  }
+
+  /**
+   * Serialize HITL state fields into the dedicated `hitl_state_json` column.
+   * Returns null when none of the HITL fields are populated.
+   */
+  private buildHitlStateJson(state: PersistedRunState): string | null {
+    const hasHitl =
+      (state.suspension && state.suspension.length > 0) ||
+      state.pendingResume !== undefined ||
+      state.reason !== undefined;
+    if (!hasHitl) return null;
+    return JSON.stringify({
+      ...(state.suspension && state.suspension.length > 0 ? { suspension: state.suspension } : {}),
+      ...(state.pendingResume !== undefined ? { pendingResume: state.pendingResume } : {}),
+      ...(state.reason !== undefined ? { reason: state.reason } : {}),
+    });
+  }
+
+  /**
+   * Load HITL state (suspension array, pendingResume context, halt reason) from the
+   * dedicated `hitl_state_json` column.
+   */
+  private loadHitlState(
+    hitlStateJson: string | null,
+  ): Pick<PersistedRunState, "suspension" | "pendingResume" | "reason"> {
+    const parsed = this.parseJson<{
+      suspension?: PersistedRunState["suspension"];
+      pendingResume?: PersistedRunState["pendingResume"];
+      reason?: PersistedRunState["reason"];
+    }>(hitlStateJson);
+    if (!parsed) return {};
+    return {
+      suspension: parsed.suspension,
+      pendingResume: parsed.pendingResume,
+      reason: parsed.reason,
     };
   }
 

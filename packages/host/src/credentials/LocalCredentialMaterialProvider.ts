@@ -19,8 +19,7 @@ import type { CredentialStore } from "../domain/credentials/CredentialServices";
  * `material:{source,ref}` pointer on the `CredentialInstance` row points back
  * at the row's own instance id for local credentials.
  *
- * Story 01 — this provider is registered in DI but no existing call site reads
- * through it yet. Story 02 wires the resolver to dispatch by `ref.source`.
+ * This provider is registered in DI; the resolver dispatches by `ref.source`.
  *
  * `callerContext` is accepted but ignored: standalone mode has no CP-side
  * audit log. See `docs/design/credentials-oauth-unification.md`

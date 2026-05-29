@@ -18,7 +18,15 @@ export const SNAPSHOT_STATUS_RANK: Readonly<Record<NodeExecutionSnapshot["status
   running: 2,
   completed: 3,
   skipped: 3,
+  // HITL terminal outcomes rank alongside their non-HITL equivalents: approved/
+  // auto-accepted are success-terminal (like completed); rejected/timeout/cancelled
+  // are failure-terminal (like failed).
+  "hitl-approved": 3,
+  "hitl-auto-accepted": 3,
   failed: 4,
+  "hitl-rejected": 4,
+  "hitl-timeout": 4,
+  "hitl-cancelled": 4,
 };
 
 export function mergeItemRecordsMonotonic(

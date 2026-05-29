@@ -46,7 +46,7 @@ import { Output, generateText, jsonSchema } from "ai";
 type AnyGenerateTextResult = GenerateTextResult<ToolSet, any>;
 import { z } from "zod";
 
-import type { AgentMcpIntegration, AgentMcpToolMap } from "@codemation/core";
+import type { AgentMcpIntegration, AgentMcpToolMap, ResumeContext } from "@codemation/core";
 import type { AIAgent } from "./AIAgentConfig";
 import { AIAgentExecutionHelpersFactory } from "./AIAgentExecutionHelpersFactory";
 import { AgentToolExecutionCoordinator } from "./AgentToolExecutionCoordinator";
@@ -65,6 +65,10 @@ import {
   type PlannedToolCall,
   type ResolvedTool,
 } from "./aiAgentSupport.types";
+import type { AgentLoopCheckpoint } from "./AgentLoopCheckpoint.types";
+
+const HITL_SOLO_CONSTRAINT_SENTENCE =
+  "This tool requires human approval and may take time. Call it alone — do not invoke other tools in the same turn. Your turn will be paused until a decision is made.";
 
 type ResolvedGuardrails = Required<Pick<AgentGuardrailConfig, "maxTurns" | "onTurnLimitReached">> &
   Pick<AgentGuardrailConfig, "modelInvocationOptions">;
@@ -130,10 +134,118 @@ export class AIAgentNode implements RunnableNode<AIAgent<any, any>> {
   }
 
   async execute(args: RunnableNodeExecuteArgs<AIAgent<any, any>>): Promise<unknown> {
-    const prepared = await this.getOrPrepareExecution(args.ctx);
+    const { ctx } = args;
+
+    // HITL resume branch (story 10): the engine re-activates us after a human decision.
+    if (ctx.resumeContext) {
+      return this.executeResumed(args, ctx.resumeContext);
+    }
+
+    const prepared = await this.getOrPrepareExecution(ctx);
     const itemWithMappedJson = { ...args.item, json: args.input };
     const resultItem = await this.runAgentForItem(prepared, itemWithMappedJson, args.itemIndex, args.items);
     return resultItem.json;
+  }
+
+  /**
+   * Resume path: re-enters the agent loop after a HITL suspension.
+   * Reconstructs the conversation from the checkpoint, injects the human decision
+   * as a tool_result, and continues the loop from where it suspended.
+   */
+  private async executeResumed(
+    args: RunnableNodeExecuteArgs<AIAgent<any, any>>,
+    resumeContext: ResumeContext,
+  ): Promise<unknown> {
+    const { ctx } = args;
+    const taskMetadata = resumeContext.task.metadata ?? {};
+    const checkpoint = taskMetadata["agentCheckpoint"] as AgentLoopCheckpoint | undefined;
+    const onRejected = (taskMetadata["onRejected"] as "halt" | "return" | undefined) ?? "return";
+
+    if (!checkpoint) {
+      // Not an agent-HITL resume (e.g., a direct HITL node, not wrapped in agent). Fall through.
+      const prepared = await this.getOrPrepareExecution(ctx);
+      const itemWithMappedJson = { ...args.item, json: args.input };
+      const resultItem = await this.runAgentForItem(prepared, itemWithMappedJson, args.itemIndex, args.items);
+      return resultItem.json;
+    }
+
+    // If rejected with halt policy, the engine has already halted; return gracefully.
+    if (resumeContext.decision.kind === "decided" && resumeContext.decision.value === null && onRejected === "halt") {
+      return undefined;
+    }
+
+    const decision = this.normalizeDecision(resumeContext);
+
+    if (decision.status === "rejected" && onRejected === "halt") {
+      // Engine halts the run. Return nothing — the run is dead.
+      return undefined;
+    }
+
+    const prepared = await this.getOrPrepareExecution(ctx);
+    const item = args.item;
+    const itemInputsByPort = AgentItemPortMap.fromItem(item);
+    const itemScopedTools = this.createItemScopedTools(prepared.resolvedTools, ctx, item, args.itemIndex, args.items);
+
+    // Reconstruct conversation: checkpoint.conversation already includes the assistant message
+    // with the pending tool_use. Append the tool_result for the decision.
+    const toolResultEntry: ExecutedToolCall = {
+      toolName: checkpoint.pendingToolCallId,
+      toolCallId: checkpoint.pendingToolCallId,
+      result: decision,
+      serialized: JSON.stringify(decision),
+    };
+    const conversation: ModelMessage[] = [
+      ...checkpoint.conversation,
+      AgentMessageFactory.createToolResultsMessage([toolResultEntry]),
+    ];
+
+    const loopResult = await this.runTurnLoopUntilFinalAnswer({
+      prepared,
+      itemInputsByPort,
+      itemScopedTools,
+      conversation,
+      resumedTurnCount: checkpoint.turnCount,
+      resumedToolCallCount: checkpoint.toolCallCount,
+    });
+    await ctx.telemetry.recordMetric({ name: CodemationTelemetryMetricNames.agentTurns, value: loopResult.turnCount });
+    await ctx.telemetry.recordMetric({
+      name: CodemationTelemetryMetricNames.agentToolCalls,
+      value: loopResult.toolCallCount,
+    });
+    const outputJson = await this.resolveFinalOutputJson(
+      prepared,
+      itemInputsByPort,
+      conversation,
+      loopResult.finalText,
+      itemScopedTools.length > 0,
+    );
+    return this.buildOutputItem(item, outputJson).json;
+  }
+
+  /**
+   * Normalizes a {@link ResumeContext} decision into a flat JSON-serializable shape
+   * suitable for injection as a tool_result content.
+   */
+  private normalizeDecision(resumeContext: ResumeContext): Record<string, unknown> {
+    const { decision } = resumeContext;
+    if (decision.kind === "decided") {
+      const value = decision.value as Record<string, unknown> | null | undefined;
+      // Convention: the decision schema for an approval tool has { approved: boolean, note?: string }.
+      // The status is "approved" when approved === true, otherwise "rejected".
+      const isApproved =
+        typeof value === "object" && value !== null && "approved" in value ? Boolean(value["approved"]) : true;
+      return {
+        status: isApproved ? "approved" : "rejected",
+        value: decision.value,
+        actor: decision.actor,
+        decidedAt: decision.decidedAt.toISOString(),
+      };
+    }
+    if (decision.kind === "timed_out") {
+      return { status: "timed_out", at: decision.at.toISOString() };
+    }
+    // auto_accepted
+    return { status: "auto_accepted", at: decision.at.toISOString() };
   }
 
   private async getOrPrepareExecution(ctx: NodeExecutionContext<AIAgent<any, any>>): Promise<PreparedAgentExecution> {
@@ -272,12 +384,16 @@ export class AIAgentNode implements RunnableNode<AIAgent<any, any>> {
     itemInputsByPort: NodeInputsByPort;
     itemScopedTools: ReadonlyArray<ItemScopedToolBinding>;
     conversation: ModelMessage[];
+    /** When resuming from HITL suspension, the turn count at the point of suspension. */
+    resumedTurnCount?: number;
+    /** When resuming from HITL suspension, the tool-call count at the point of suspension. */
+    resumedToolCallCount?: number;
   }): Promise<Readonly<{ finalText: string; turnCount: number; toolCallCount: number }>> {
     const { prepared, itemInputsByPort, itemScopedTools, conversation } = args;
     const { ctx, guardrails, toolLoadingStrategy } = prepared;
 
     let finalText = "";
-    let toolCallCount = 0;
+    let toolCallCount = args.resumedToolCallCount ?? 0;
     let turnCount = 0;
     const repairAttemptsByToolName = new Map<string, number>();
     /** Tool IDs surfaced by find_tools across all prior turns in this item run. */
@@ -335,11 +451,20 @@ export class AIAgentNode implements RunnableNode<AIAgent<any, any>> {
         const plannedToolCalls = this.planToolCalls(itemScopedTools, coordinatorCalls, ctx.nodeId);
         toolCallCount += plannedToolCalls.length;
         await this.markQueuedTools(plannedToolCalls, ctx);
+        // Snapshot conversation with the assistant message appended — this is the checkpoint
+        // conversation the agent coordinator stores if a HITL tool suspends the run.
+        const assistantMsg =
+          result.assistantMessage ?? AgentMessageFactory.createAssistantWithToolCalls(result.text, result.toolCalls);
+        const conversationWithAssistant: ModelMessage[] = [...conversation, assistantMsg];
         const executed = await this.toolExecutionCoordinator.execute({
           plannedToolCalls,
           ctx,
           agentName: this.getAgentDisplayName(ctx),
           repairAttemptsByToolName,
+          conversationSnapshot: conversationWithAssistant,
+          turnCount,
+          toolCallCount,
+          modelId: this.resolveChatModelName(ctx.config.chatModel),
         });
         coordinatorExecutedCalls.push(...executed);
       }
@@ -448,7 +573,8 @@ export class AIAgentNode implements RunnableNode<AIAgent<any, any>> {
         connectionNodeId: ConnectionNodeIdFactory.toolConnectionNodeId(ctx.nodeId, entry.config.name),
         getCredentialRequirements: () => entry.config.getCredentialRequirements?.() ?? [],
       });
-      return {
+      const hitlBehavior = this.resolveHumanApprovalBehavior(entry.config);
+      const binding: ItemScopedToolBinding = {
         config: entry.config,
         inputSchema: entry.runtime.inputSchema,
         execute: async (input, hooks): Promise<unknown> => {
@@ -463,8 +589,22 @@ export class AIAgentNode implements RunnableNode<AIAgent<any, any>> {
             hooks,
           });
         },
-      } satisfies ItemScopedToolBinding;
+        ...(hitlBehavior !== undefined ? { humanApproval: hitlBehavior } : {}),
+      };
+      return binding;
     });
+  }
+
+  /**
+   * Detects whether a tool config is backed by a `defineHumanApprovalNode` marker
+   * and returns the HITL behavior config, or `undefined` when not a HITL tool.
+   */
+  private resolveHumanApprovalBehavior(config: ToolConfig): Readonly<{ onRejected: "halt" | "return" }> | undefined {
+    if (!this.isNodeBackedToolConfig(config)) return undefined;
+    const nodeConfig = config.node as unknown as { humanApprovalToolBehavior?: { onRejected?: "halt" | "return" } };
+    const marker = nodeConfig.humanApprovalToolBehavior;
+    if (marker === undefined) return undefined;
+    return { onRejected: marker.onRejected ?? "return" };
   }
 
   /**
@@ -505,6 +645,8 @@ export class AIAgentNode implements RunnableNode<AIAgent<any, any>> {
   /**
    * Builds a ToolSet from resolved tools for strategy initialization.
    * The strategy uses this for its "always-included" node-backed tool descriptions.
+   * HITL tools (detected via the `humanApprovalToolBehavior` field set by `defineHumanApprovalNode`) get the solo-constraint sentence
+   * appended to their description.
    */
   private buildToolSetFromResolved(resolvedTools: ReadonlyArray<ResolvedTool>): ToolSet {
     if (resolvedTools.length === 0) return {};
@@ -514,8 +656,11 @@ export class AIAgentNode implements RunnableNode<AIAgent<any, any>> {
         schemaName: entry.config.name,
         requireObjectRoot: true,
       });
+      const baseDescription = entry.config.description ?? entry.runtime.defaultDescription;
+      const isHitl = this.resolveHumanApprovalBehavior(entry.config) !== undefined;
+      const description = isHitl ? `${baseDescription} ${HITL_SOLO_CONSTRAINT_SENTENCE}` : baseDescription;
       toolSet[entry.config.name] = {
-        description: entry.config.description ?? entry.runtime.defaultDescription,
+        description,
         inputSchema: jsonSchema(schemaRecord as Parameters<typeof jsonSchema>[0]),
       };
     }
@@ -544,8 +689,15 @@ export class AIAgentNode implements RunnableNode<AIAgent<any, any>> {
         schemaName: entry.config.name,
         requireObjectRoot: true,
       });
+      const baseDescription = entry.config.description;
+      const description =
+        entry.humanApproval !== undefined && baseDescription !== undefined
+          ? `${baseDescription} ${HITL_SOLO_CONSTRAINT_SENTENCE}`
+          : entry.humanApproval !== undefined
+            ? HITL_SOLO_CONSTRAINT_SENTENCE
+            : baseDescription;
       toolSet[entry.config.name] = {
-        description: entry.config.description,
+        description,
         inputSchema: jsonSchema(schemaRecord as Parameters<typeof jsonSchema>[0]),
       };
     }

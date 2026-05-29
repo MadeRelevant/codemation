@@ -205,6 +205,9 @@ export class RunIntentService {
         if (completed.status === "failed") {
           throw new Error(completed.error.message);
         }
+        if (completed.status === "halted") {
+          throw new Error(`Run halted: ${completed.reason}`);
+        }
         return {
           runId: completed.runId,
           workflowId: completed.workflowId,

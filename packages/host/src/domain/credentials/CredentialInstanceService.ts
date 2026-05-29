@@ -126,9 +126,8 @@ export class CredentialInstanceService {
       setupStatus: credentialType.definition.auth?.kind === "oauth2" ? "draft" : "ready",
       createdAt: timestamp,
       updatedAt: timestamp,
-      // Story 01 (credentials-vault sprint): new instances are local-mode by
-      // default. Story 02 (CP material provider) will set source="control-plane"
-      // when managed mode is detected.
+      // New instances are local-mode by default. The CP material provider sets
+      // source="control-plane" when managed mode is detected.
       material: { source: "local", ref: instanceId },
     };
     await this.credentialStore.saveInstance({
