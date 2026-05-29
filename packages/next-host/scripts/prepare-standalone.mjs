@@ -63,10 +63,17 @@ class StandaloneRuntimePreparer {
     const standaloneNodeModulesRoot = path.join(standaloneRoot, "node_modules");
     const serverRoot = path.join(packagedAppRoot, ".next", "server");
     const aliasTargets = await this.collectExternalAliasTargets(standaloneRoot, serverRoot);
-    const packageNames = new Set(this.externalStandalonePackages);
+    const seedNames = new Set(this.externalStandalonePackages);
     for (const packageName of aliasTargets.values()) {
-      packageNames.add(packageName);
+      seedNames.add(packageName);
     }
+    // Externalized packages are not bundled, so their transitive dependencies must be
+    // physically present in the standalone node_modules too. Next only traces the seed
+    // packages, not their dep graph (e.g. @libsql/client needs @libsql/core,
+    // @libsql/hrana-client, libsql + its native bindings), so the SSR server throws
+    // ERR_MODULE_NOT_FOUND at runtime. Expand to the full resolvable closure and copy
+    // it flat into node_modules, which satisfies Node's resolution.
+    const packageNames = await this.expandToDependencyClosure(standaloneRoot, seedNames);
     for (const packageName of packageNames) {
       await this.copyPackageDirectory(
         standaloneRoot,
@@ -80,6 +87,37 @@ class StandaloneRuntimePreparer {
         packageName,
         path.join(standaloneNodeModulesRoot, ...aliasName.split("/")),
       );
+    }
+  }
+
+  static async expandToDependencyClosure(standaloneRoot, seedNames) {
+    const closure = new Set(seedNames);
+    const queue = [...seedNames];
+    while (queue.length > 0) {
+      const packageName = queue.shift();
+      for (const dependencyName of await this.readResolvableDependencies(standaloneRoot, packageName)) {
+        if (closure.has(dependencyName)) {
+          continue;
+        }
+        if (!(await this.canResolvePackageRoot(standaloneRoot, dependencyName))) {
+          continue;
+        }
+        closure.add(dependencyName);
+        queue.push(dependencyName);
+      }
+    }
+    return closure;
+  }
+
+  static async readResolvableDependencies(standaloneRoot, packageName) {
+    try {
+      const packageRoot = await this.resolvePackageRoot(standaloneRoot, packageName);
+      const manifest = JSON.parse(await readFile(path.join(packageRoot, "package.json"), "utf8"));
+      // optionalDependencies carry the platform-specific native bindings (e.g. libsql's
+      // @libsql/linux-x64-gnu); unresolvable ones are filtered out by canResolvePackageRoot.
+      return Object.keys({ ...(manifest.dependencies ?? {}), ...(manifest.optionalDependencies ?? {}) });
+    } catch {
+      return [];
     }
   }
 
