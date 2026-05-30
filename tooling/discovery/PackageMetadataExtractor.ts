@@ -32,7 +32,7 @@ export class PackageMetadataExtractor {
 
     const nodes = override.nodes ?? this.extractNodes(srcDir);
     const credentials = override.credentials ?? this.credentialReader.read(srcDir);
-    const examples = override.examples ?? this.extractExamples(srcDir, pkgJson.dependencies ?? {});
+    const examples = override.examples ?? this.extractExamples(srcDir, pkgJson.dependencies ?? {}, packageRoot);
 
     const kind = this.determineKind(nodes, examples);
 
@@ -301,7 +301,7 @@ export class PackageMetadataExtractor {
 
   // ── Example extraction ───────────────────────────────────────────────────────
 
-  private extractExamples(srcDir: string, packageDeps: Record<string, string>): ExampleMetadata[] {
+  private extractExamples(srcDir: string, packageDeps: Record<string, string>, packageRoot: string): ExampleMetadata[] {
     const examplesDir = path.join(srcDir, "examples");
     if (!fs.existsSync(examplesDir)) return [];
 
@@ -310,7 +310,7 @@ export class PackageMetadataExtractor {
       const text = fs.readFileSync(filePath, "utf8");
       // Compute relative path from the package root (parent of srcDir), preserving subdirs.
       const relPath = path.relative(path.dirname(srcDir), filePath);
-      examples.push(this.frontmatterParser.parse(relPath, text, packageDeps));
+      examples.push(this.frontmatterParser.parse(relPath, text, packageDeps, packageRoot));
     });
     return examples;
   }

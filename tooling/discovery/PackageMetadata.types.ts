@@ -48,7 +48,12 @@ export interface ExampleMetadata {
   description: string; // first JSDoc paragraph
   tags: string[]; // from frontmatter
   sourcePath: string; // path within package
-  dependencies: Record<string, string>; // package.json deps subset
+  /**
+   * Resolved concrete `@codemation/*` dependency versions (e.g. `{ "@codemation/core-nodes": "1.3.0" }`).
+   * Values are always concrete semver point-version strings — never `workspace:*` or caret ranges.
+   * An empty object means the example has no first-party dependency constraints (always `match`).
+   */
+  dependencies: Record<string, string>;
   code: string; // the example's full source, for the agent
 }
 
