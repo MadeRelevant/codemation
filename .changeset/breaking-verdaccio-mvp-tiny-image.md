@@ -1,5 +1,5 @@
 ---
-"@codemation/create-codemation": major
+"create-codemation": major
 ---
 
 **Breaking:** managed workspace template now declares `@codemation/cli`, `@codemation/core`, `@codemation/core-nodes`, `@codemation/core-nodes-gmail`, and `@codemation/host` as real `dependencies` (moved from `peerDependencies`). These are installed at workspace pod boot via `pnpm install --frozen-lockfile` against the in-cluster Verdaccio registry (`verdaccio.control-plane.svc.cluster.local:4873`).
