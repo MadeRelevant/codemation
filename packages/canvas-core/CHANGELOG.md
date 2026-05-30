@@ -1,5 +1,38 @@
 # @codemation/canvas-core
 
+## 0.2.0
+
+### Minor Changes
+
+- [#170](https://github.com/MadeRelevant/codemation/pull/170) [`0b3d2a3`](https://github.com/MadeRelevant/codemation/commit/0b3d2a3dc379c0d8a6509ae97e47f6bb880caea3) Thanks [@cblokland90](https://github.com/cblokland90)! - feat(credentials): app gallery API (framework half)
+
+  Adds the framework-side credential "app gallery" surface that the control
+  plane's credentials gallery UI consumes:
+  - `@codemation/host`: a `GET /api/credentials/apps` endpoint backed by a new
+    `GetCredentialAppsQuery` / handler and an `AppGalleryProjector` that projects
+    the configured credential types + connected instances into `AppGalleryEntry`
+    rows (`AppsResponse`). Wired through `CredentialContractsRegistry`,
+    `ApiPaths.credentialApps()`, the credential route registrar/handler, and DI.
+  - `@codemation/canvas-core`: `WorkflowCanvasApiClient.fetchCredentialApps()`,
+    the `credentialAppsQueryKey`, and a `useCredentialAppsQuery` hook.
+  - `@codemation/next-host`: `NextHostApiClientAdapter.fetchCredentialApps()` so
+    the dev shell satisfies the canvas API client contract.
+
+### Patch Changes
+
+- [#173](https://github.com/MadeRelevant/codemation/pull/173) [`01f6b48`](https://github.com/MadeRelevant/codemation/commit/01f6b489870b8d73aaba28222ab56700a4582e31) Thanks [@cblokland90](https://github.com/cblokland90)! - Fix second `credentials: "omit"` site in `createWorkflowCanvasApiClient` — the
+  debugger-overlay binary upload helper had the same conditional as the primary
+  fetch helper (`token === null ? "same-origin" : "omit"`), which breaks the
+  upload when the canvas client is configured against a same-origin proxy whose
+  upstream gate requires the session cookie. Now always `"same-origin"`, matching
+  the primary helper fixed in [#171](https://github.com/MadeRelevant/codemation/issues/171).
+
+- [#167](https://github.com/MadeRelevant/codemation/pull/167) [`3044474`](https://github.com/MadeRelevant/codemation/commit/3044474495525490735510ff74500b53761284b6) Thanks [@cblokland90](https://github.com/cblokland90)! - feat(hitl): Human-in-the-Loop — engine suspend/resume, inbox approval node + channels (local + control-plane), agent-as-tool, decision/timeout handling, inbox decision UX (toast + node status icons + "waiting for approval"), plus the consolidated dev/canvas/host fixes shipped alongside.
+
+- Updated dependencies [[`0b3d2a3`](https://github.com/MadeRelevant/codemation/commit/0b3d2a3dc379c0d8a6509ae97e47f6bb880caea3), [`3044474`](https://github.com/MadeRelevant/codemation/commit/3044474495525490735510ff74500b53761284b6), [`0b3d2a3`](https://github.com/MadeRelevant/codemation/commit/0b3d2a3dc379c0d8a6509ae97e47f6bb880caea3)]:
+  - @codemation/host@0.9.0
+  - @codemation/core@0.12.0
+
 ## 0.1.2
 
 ### Patch Changes

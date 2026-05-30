@@ -1,5 +1,12 @@
 # @codemation/core-nodes-ocr
 
+## 0.2.3
+
+### Patch Changes
+
+- Updated dependencies [[`3044474`](https://github.com/MadeRelevant/codemation/commit/3044474495525490735510ff74500b53761284b6)]:
+  - @codemation/core@0.12.0
+
 ## 0.2.2
 
 ### Patch Changes
