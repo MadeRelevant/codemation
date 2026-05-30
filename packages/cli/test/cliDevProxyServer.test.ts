@@ -754,15 +754,35 @@ test("workflow WS: event on client A's child socket goes only to client A not cl
   // Wait for both upstream sockets to be established.
   await waitFor(() => runtime.connectedSockets.length >= 2);
 
+  // Record what each child socket receives so we can identify client A's child
+  // socket by the subscribe it forwards — the order in which the proxy opens
+  // upstream child sockets is NOT guaranteed to match client-construction order,
+  // so connectedSockets[0] is not reliably client A's (this was a flaky-under-load
+  // assumption). Subscribe A and B to distinct rooms and match by room id.
+  const childSockets = [...runtime.connectedSockets];
+  const childReceived = childSockets.map((socket) => {
+    const received: string[] = [];
+    socket.on("message", (data) => {
+      received.push(typeof data === "string" ? data : data.toString("utf8"));
+    });
+    return received;
+  });
+
   const sharedRoomId = "shared-workflow-id";
+  const roomA = "room-a";
   clientA.send(JSON.stringify({ kind: "subscribe", roomId: sharedRoomId }));
+  clientA.send(JSON.stringify({ kind: "subscribe", roomId: roomA }));
   clientB.send(JSON.stringify({ kind: "subscribe", roomId: sharedRoomId }));
   await waitFor(() => payloadsA.some((p) => p.includes('"kind":"subscribed"')));
   await waitFor(() => payloadsB.some((p) => p.includes('"kind":"subscribed"')));
+  // Wait until exactly one child socket has forwarded client A's unique room.
+  await waitFor(() => childReceived.some((received) => received.some((m) => m.includes(roomA))));
+  const childSocketAIndex = childReceived.findIndex((received) => received.some((m) => m.includes(roomA)));
+  const childSocketA = childSockets[childSocketAIndex];
+  assert.ok(childSocketA, "could not identify client A's child socket");
 
-  // Send an event on client A's child socket (first connected).
-  const childSocketA = runtime.connectedSockets[0];
-  assert.ok(childSocketA);
+  // Send an event on client A's child socket — it must reach A (both are
+  // subscribed to sharedRoomId) and must NOT reach B (per-client child socket).
   const eventPayload = JSON.stringify({
     kind: "event",
     event: { workflowId: sharedRoomId, type: "run.started" },

@@ -210,9 +210,15 @@ describe("HitlTimeoutWorker.processTimeoutForTask", () => {
       const store = ctx.createStore();
       const resumeCalls: unknown[] = [];
       const engine = createStubEngine(resumeCalls);
+      // This is the Redis-backed lane: declare scheduler.kind "bullmq" + redisUrl
+      // explicitly. The scheduler/worker gate Redis on scheduler.kind (matching the
+      // rest of the host), so the default "local" mode is inert — this test must
+      // opt into bullmq for start()/enqueue to actually use Redis.
+      const baseConfig = makeAppConfig();
       const appConfig = {
-        ...makeAppConfig(),
-        env: { ...makeAppConfig().env, CODEMATION_BULLMQ_PREFIX: `test-worker-${randomUUID()}` },
+        ...baseConfig,
+        env: { ...baseConfig.env, CODEMATION_BULLMQ_PREFIX: `test-worker-${randomUUID()}` },
+        scheduler: { ...baseConfig.scheduler, kind: "bullmq" as const, redisUrl: process.env.REDIS_URL },
       };
       const scheduler = new RealHitlTimeoutJobScheduler(appConfig as never);
       const noOpResumeTelemetry = { forTask: async () => undefined } as never;
