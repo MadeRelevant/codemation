@@ -332,7 +332,10 @@ export function createWorkflowCanvasApiClient(options: WorkflowCanvasApiClientOp
       formData.append("file", args.file);
       const token = await getToken();
       const headers = buildHeaders(token);
-      const credentials: RequestCredentials = token === null ? "same-origin" : "omit";
+      // Always "same-origin" — see the matching note on the primary request
+      // helper above. Bearer + same-origin proxy needs the cookie to pass the
+      // upstream session gate; cross-origin still naturally drops cookies.
+      const credentials: RequestCredentials = "same-origin";
       const response = await fetchImpl(
         url(`api/workflows/${encodeURIComponent(workflowId)}/debugger-overlay/binary/upload`),
         { method: "POST", body: formData, headers, credentials, cache: "no-store" },

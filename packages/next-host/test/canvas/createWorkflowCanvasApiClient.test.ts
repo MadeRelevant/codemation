@@ -63,11 +63,15 @@ describe("createWorkflowCanvasApiClient", () => {
       expect(calls[0]!.init.credentials).toBe("same-origin");
     });
 
-    it("uses omit credentials when getToken returns a token", async () => {
+    it("uses same-origin credentials when getToken returns a token", async () => {
+      // Always "same-origin" — for a relative/same-origin apiBase the browser
+      // sends cookies (so an upstream proxy can pass an auth gate), and drops
+      // them cross-origin. Previously this was "omit" when a Bearer token was
+      // set, which broke same-origin proxy deployments.
       const { fakeFetch, calls } = makeFakeFetch([{ status: 200, body: [] }]);
       const client = makeClient(fakeFetch);
       await client.fetchWorkflows();
-      expect(calls[0]!.init.credentials).toBe("omit");
+      expect(calls[0]!.init.credentials).toBe("same-origin");
     });
   });
 
