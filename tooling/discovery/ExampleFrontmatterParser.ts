@@ -1,3 +1,4 @@
+import * as fs from "node:fs";
 import * as path from "node:path";
 import * as ts from "typescript";
 import type { ExampleMetadata } from "./PackageMetadata.types.js";
@@ -12,12 +13,17 @@ import type { ExampleMetadata } from "./PackageMetadata.types.js";
  *   @dependencies Additional package pins in `name@version` form (comma-separated).
  */
 export class ExampleFrontmatterParser {
-  parse(filePath: string, sourceText: string, packageDeps: Record<string, string>): ExampleMetadata {
+  parse(
+    filePath: string,
+    sourceText: string,
+    packageDeps: Record<string, string>,
+    packageRoot?: string,
+  ): ExampleMetadata {
     const name = path.basename(filePath, ".example.ts");
     const sourceFile = ts.createSourceFile(filePath, sourceText, ts.ScriptTarget.Latest, true);
 
     const { description, tags, uses } = this.extractJsDocFrontmatter(sourceFile, sourceText);
-    const dependencies = this.resolveDependencies(uses, packageDeps);
+    const dependencies = this.resolveDependencies(uses, packageRoot ?? "", packageDeps);
 
     return {
       name,
@@ -128,14 +134,48 @@ export class ExampleFrontmatterParser {
       .filter(Boolean);
   }
 
-  private resolveDependencies(uses: string[], packageDeps: Record<string, string>): Record<string, string> {
+  private resolveDependencies(
+    uses: string[],
+    packageRoot: string,
+    packageDeps: Record<string, string>,
+  ): Record<string, string> {
     const result: Record<string, string> = {};
     for (const pkg of uses) {
-      const version = packageDeps[pkg];
-      if (version) {
-        result[pkg] = version;
+      if (!pkg.startsWith("@codemation/")) continue; // first-party only (D6)
+      if (!packageDeps[pkg]) continue;
+      const concrete = this.resolveConcreteVersion(pkg, packageRoot);
+      if (concrete) {
+        result[pkg] = concrete;
+      } else {
+        // Fallback: log and use the raw specifier (D2).
+        process.stderr.write(
+          `[extract-metadata] warn: could not resolve concrete version for ${pkg}; ` +
+            `using raw specifier "${packageDeps[pkg]}"\n`,
+        );
+        result[pkg] = packageDeps[pkg];
       }
     }
     return result;
+  }
+
+  resolveConcreteVersion(pkg: string, packageRoot: string): string | null {
+    // Walk node_modules from packageRoot upward to find the installed copy (D1, D3).
+    let dir = packageRoot;
+    for (let i = 0; i < 8; i++) {
+      const candidate = path.join(dir, "node_modules", pkg, "package.json");
+      if (fs.existsSync(candidate)) {
+        try {
+          const raw = fs.readFileSync(candidate, "utf8");
+          const parsed = JSON.parse(raw) as { version?: string };
+          if (typeof parsed.version === "string") return parsed.version;
+        } catch {
+          // malformed package.json — keep walking
+        }
+      }
+      const parent = path.dirname(dir);
+      if (parent === dir) break; // reached filesystem root
+      dir = parent;
+    }
+    return null;
   }
 }

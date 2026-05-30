@@ -28,6 +28,8 @@
   },
   "scripts": {
     "changeset:verify": "pnpm --workspace-root run changeset:verify",
+    "build": "pnpm build:metadata",
+    "build:metadata": "tsx ../../tooling/discovery/scripts/extract-metadata.ts",
     "test": "vitest run",
     "test:unit": "vitest run"
   },
@@ -48,6 +50,7 @@
     "README.md",
     "CHANGELOG.md",
     "bin",
+    "dist",
     "lib",
     "skills"
   ]

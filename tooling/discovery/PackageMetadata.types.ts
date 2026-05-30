@@ -22,7 +22,7 @@ export interface PackageMetadata {
   packageName: string; // e.g. "@codemation/core-nodes-slack"
   packageVersion: string; // mirrors package.json
   description: string; // mirrors package.json
-  kind: "nodes" | "examples" | "mixed";
+  kind: "nodes" | "examples" | "skills" | "mixed";
 
   // Populated for node packages
   nodes?: NodeMetadata[];
@@ -30,6 +30,9 @@ export interface PackageMetadata {
 
   // Populated for example packages
   examples?: ExampleMetadata[];
+
+  // Populated for packages that ship SKILL.md files
+  skills?: SkillMetadata[];
 }
 
 export interface NodeMetadata {
@@ -48,8 +51,27 @@ export interface ExampleMetadata {
   description: string; // first JSDoc paragraph
   tags: string[]; // from frontmatter
   sourcePath: string; // path within package
-  dependencies: Record<string, string>; // package.json deps subset
+  /**
+   * Resolved concrete `@codemation/*` dependency versions (e.g. `{ "@codemation/core-nodes": "1.3.0" }`).
+   * Values are always concrete semver point-version strings — never `workspace:*` or caret ranges.
+   * An empty object means the example has no first-party dependency constraints (always `match`).
+   */
+  dependencies: Record<string, string>;
   code: string; // the example's full source, for the agent
+}
+
+export interface SkillMetadata {
+  name: string; // SKILL.md `name` frontmatter field (directory slug as fallback)
+  description: string; // SKILL.md `description` frontmatter field
+  tags: string[]; // from `tags` frontmatter field (comma-separated, trimmed)
+  sourcePath: string; // path within package, e.g. "skills/codemation-workflow-dsl/SKILL.md"
+  /**
+   * Resolved concrete `@codemation/*` dependency versions from the `uses` frontmatter field.
+   * Values are always concrete semver point-version strings. An empty object means the skill
+   * has no first-party dependency constraints and is universally available (always `match`).
+   */
+  dependencies: Record<string, string>;
+  code: string; // full SKILL.md source (frontmatter + body)
 }
 
 export interface CredentialMetadata {
@@ -66,4 +88,5 @@ export interface PackageMetadataOverride {
   nodes?: NodeMetadata[];
   credentials?: CredentialMetadata[];
   examples?: ExampleMetadata[];
+  skills?: SkillMetadata[];
 }

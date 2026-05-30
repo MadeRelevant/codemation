@@ -2,6 +2,7 @@
 name: codemation-credential-development
 description: Guides Codemation custom credential development with `defineCredential(...)`, typed sessions, credential testing, and node credential slots. Use when creating or updating custom credentials, credential registrations, or credential-aware custom nodes.
 compatibility: Designed for Codemation apps and plugins that register typed credentials.
+tags: credential, oauth, plugin
 ---
 
 # Codemation Credential Development

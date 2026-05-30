@@ -329,6 +329,81 @@ export class N {}
     });
   });
 
+  describe("skills extraction (Story 02)", () => {
+    it("skips skills when skills/ directory does not exist", () => {
+      fixture.writeFile("package.json", JSON.stringify({ name: "@test/pkg", version: "1.0.0" }));
+      fixture.writeFile("src/.keep", "");
+
+      const metadata = extractor.extract(fixture.dir);
+      expect(metadata.skills).toBeUndefined();
+    });
+
+    it("extracts skills from skills/<slug>/SKILL.md", () => {
+      fixture.writeFile("package.json", JSON.stringify({ name: "@test/skills", version: "1.0.0" }));
+      fixture.writeFile(
+        "skills/my-skill/SKILL.md",
+        `---
+name: my-skill
+description: A test skill.
+tags: workflow, dsl
+---
+
+# Body
+`,
+      );
+
+      const metadata = extractor.extract(fixture.dir);
+
+      expect(metadata.skills).toHaveLength(1);
+      const skill = metadata.skills![0];
+      expect(skill.name).toBe("my-skill");
+      expect(skill.description).toBe("A test skill.");
+      expect(skill.tags).toEqual(["workflow", "dsl"]);
+      expect(skill.sourcePath).toContain("SKILL.md");
+      expect(skill.code).toContain("# Body");
+    });
+
+    it("sets kind to 'skills' for a package with only skills", () => {
+      fixture.writeFile("package.json", JSON.stringify({ name: "@test/skills", version: "1.0.0" }));
+      fixture.writeFile(
+        "skills/my-skill/SKILL.md",
+        `---
+name: my-skill
+description: A test skill.
+tags: test
+---
+`,
+      );
+
+      const metadata = extractor.extract(fixture.dir);
+      expect(metadata.kind).toBe("skills");
+    });
+
+    it("sets kind to 'mixed' when package has both nodes and skills", () => {
+      fixture.writeFile("package.json", JSON.stringify({ name: "@test/mixed", version: "1.0.0" }));
+      fixture.writeFile(
+        "src/N.ts",
+        `
+import { nodeMetadata } from "@codemation/core";
+@nodeMetadata({ name: "N", packageName: "@test/mixed", description: "." })
+export class N {}
+        `.trim(),
+      );
+      fixture.writeFile(
+        "skills/my-skill/SKILL.md",
+        `---
+name: my-skill
+description: A skill.
+tags: test
+---
+`,
+      );
+
+      const metadata = extractor.extract(fixture.dir);
+      expect(metadata.kind).toBe("mixed");
+    });
+  });
+
   describe("credential extraction", () => {
     it("extracts credentials from defineCredential calls", () => {
       fixture.writeFile("package.json", JSON.stringify({ name: "@test/nodes", version: "1.0.0" }));

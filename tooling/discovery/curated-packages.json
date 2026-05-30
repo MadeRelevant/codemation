@@ -3,7 +3,8 @@
     "@codemation/core-nodes",
     "@codemation/core-nodes-gmail",
     "@codemation/core-nodes-ocr",
-    "@codemation/examples"
+    "@codemation/examples",
+    "@codemation/agent-skills"
   ],
   "_pendingPackages": []
 }

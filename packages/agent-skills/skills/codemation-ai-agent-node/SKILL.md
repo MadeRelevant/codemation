@@ -2,6 +2,8 @@
 name: codemation-ai-agent-node
 description: AIAgent constructor, message shape, output contract, and chat-model configs (managed and BYOK). Read before writing any workflow that uses AIAgent.
 compatibility: Codemation core-nodes. Requires @codemation/core-nodes import.
+tags: agent, llm, ai
+uses: "@codemation/core-nodes"
 ---
 
 # Codemation AI Agent Node

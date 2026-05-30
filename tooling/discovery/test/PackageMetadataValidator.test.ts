@@ -214,6 +214,80 @@ describe("PackageMetadataValidator", () => {
     });
   });
 
+  describe("skills validation (Story 02)", () => {
+    it("accepts valid skills-only metadata with kind 'skills'", () => {
+      const metadata: PackageMetadata = {
+        schemaVersion: 1,
+        packageName: "@codemation/agent-skills",
+        packageVersion: "0.2.0",
+        description: "Agent skills",
+        kind: "skills",
+        skills: [
+          {
+            name: "codemation-workflow-dsl",
+            description: "Guides workflow authoring.",
+            tags: ["workflow", "dsl"],
+            sourcePath: "skills/codemation-workflow-dsl/SKILL.md",
+            dependencies: { "@codemation/core-nodes": "0.8.1" },
+            code: "---\nname: codemation-workflow-dsl\n---\n# Body\n",
+          },
+        ],
+      };
+      const result = validator.validate(metadata);
+      expect(result.valid).toBe(true);
+      expect(result.errors).toHaveLength(0);
+    });
+
+    it("accepts a skill with empty dependencies (conceptual skill, always match)", () => {
+      const metadata: PackageMetadata = {
+        schemaVersion: 1,
+        packageName: "@codemation/agent-skills",
+        packageVersion: "0.2.0",
+        description: "Agent skills",
+        kind: "skills",
+        skills: [
+          {
+            name: "codemation-cli",
+            description: "CLI guidance.",
+            tags: ["cli"],
+            sourcePath: "skills/codemation-cli/SKILL.md",
+            dependencies: {},
+            code: "---\nname: codemation-cli\n---\n",
+          },
+        ],
+      };
+      expect(validator.validate(metadata).valid).toBe(true);
+    });
+
+    it("rejects skills that is not an array", () => {
+      const m = { ...validMetadata(), skills: {} as unknown as never };
+      expect(validator.validate(m).valid).toBe(false);
+    });
+
+    it("rejects a skill missing required name", () => {
+      const m = {
+        schemaVersion: 1 as const,
+        packageName: "@test/skills",
+        packageVersion: "1.0.0",
+        description: "",
+        kind: "skills" as const,
+        skills: [
+          {
+            name: "",
+            description: "A skill.",
+            tags: [],
+            sourcePath: "skills/x/SKILL.md",
+            dependencies: {},
+            code: "",
+          },
+        ],
+      };
+      const result = validator.validate(m);
+      expect(result.valid).toBe(false);
+      expect(result.errors.some((e) => e.includes("skills[0].name"))).toBe(true);
+    });
+  });
+
   it("accumulates multiple errors", () => {
     const m = { schemaVersion: 2, packageName: "", packageVersion: "", description: 1 };
     const result = validator.validate(m);

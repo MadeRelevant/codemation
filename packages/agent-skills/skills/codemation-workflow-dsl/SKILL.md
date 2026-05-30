@@ -2,6 +2,8 @@
 name: codemation-workflow-dsl
 description: Guides Codemation workflow authoring. Use when creating or updating workflow definitions in `src/workflows` — manual-trigger flows via `workflow("...").manualTrigger(...)`, or cron/webhook/other triggers via `createWorkflowBuilder({id, name}).trigger(...)`.
 compatibility: Designed for Codemation apps and plugins that author workflows.
+tags: workflow, dsl, authoring
+uses: "@codemation/core-nodes, @codemation/host"
 ---
 
 # Codemation Workflow DSL

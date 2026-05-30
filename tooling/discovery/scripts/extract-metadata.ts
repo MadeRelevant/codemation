@@ -28,5 +28,5 @@ if (!fs.existsSync(distDir)) {
 const outPath = path.join(distDir, "metadata.json");
 fs.writeFileSync(outPath, JSON.stringify(metadata, null, 2) + "\n", "utf8");
 process.stdout.write(
-  `[extract-metadata] wrote ${outPath} (${metadata.nodes?.length ?? 0} nodes, ${metadata.credentials?.length ?? 0} credentials, ${metadata.examples?.length ?? 0} examples)\n`,
+  `[extract-metadata] wrote ${outPath} (${metadata.nodes?.length ?? 0} nodes, ${metadata.credentials?.length ?? 0} credentials, ${metadata.examples?.length ?? 0} examples, ${metadata.skills?.length ?? 0} skills)\n`,
 );
