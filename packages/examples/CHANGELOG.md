@@ -1,5 +1,14 @@
 # @codemation/examples
 
+## 0.2.3
+
+### Patch Changes
+
+- [#174](https://github.com/MadeRelevant/codemation/pull/174) [`b2c1855`](https://github.com/MadeRelevant/codemation/commit/b2c185525fdbb903a6ad5e756cd180e249c3d6c3) Thanks [@cblokland90](https://github.com/cblokland90)! - fix(metadata): resolve concrete @codemation/_ dependency versions in dist/metadata.json — eliminates workspace:_ and caret range specifiers so the control-plane compatibility matcher can evaluate artifact deps against installed workspace versions
+
+- Updated dependencies [[`6efde7a`](https://github.com/MadeRelevant/codemation/commit/6efde7aa045050cd2fbd22015f7608c513a6f79f)]:
+  - @codemation/host@0.9.1
+
 ## 0.2.2
 
 ### Patch Changes
