@@ -28,7 +28,8 @@ import { ResumeTelemetryContextForRun } from "../application/telemetry/ResumeTel
 export class HitlTimeoutWorker {
   private readonly taskStore: HumanTaskStore;
   private worker: Worker | null = null;
-  private readonly connectionOptions: Readonly<Record<string, unknown>>;
+  /** Redis connection options in BullMQ mode; null in local/inline mode (no Redis). */
+  private readonly connectionOptions: Readonly<Record<string, unknown>> | null;
 
   constructor(
     @inject(HumanTaskStoreToken) taskStore: HumanTaskStore | undefined,
@@ -41,11 +42,15 @@ export class HitlTimeoutWorker {
       throw new Error("HitlTimeoutWorker: HumanTaskStore is not registered.");
     }
     this.taskStore = taskStore;
-    const redisUrl = appConfig.env.REDIS_URL ?? appConfig.env.CODEMATION_REDIS_URL ?? "redis://127.0.0.1:6379";
-    this.connectionOptions = RedisConnectionOptionsFactory.fromConfig({ url: redisUrl });
+    // Same gate as HitlTimeoutJobScheduler: only build a Redis connection when
+    // running in BullMQ mode. In local/inline mode start() is a no-op — there is
+    // no Redis to consume timeout jobs from.
+    const redisUrl = appConfig.scheduler.kind === "bullmq" ? (appConfig.scheduler.redisUrl ?? null) : null;
+    this.connectionOptions = redisUrl === null ? null : RedisConnectionOptionsFactory.fromConfig({ url: redisUrl });
   }
 
   start(): void {
+    if (!this.connectionOptions) return; // local/inline mode: no background worker.
     this.worker = new Worker(
       this.scheduler.getQueueName(),
       async (job: Job) => {
