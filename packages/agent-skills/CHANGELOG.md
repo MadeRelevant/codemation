@@ -1,5 +1,11 @@
 # @codemation/agent-skills
 
+## 0.3.0
+
+### Minor Changes
+
+- [#174](https://github.com/MadeRelevant/codemation/pull/174) [`b2c1855`](https://github.com/MadeRelevant/codemation/commit/b2c185525fdbb903a6ad5e756cd180e249c3d6c3) Thanks [@cblokland90](https://github.com/cblokland90)! - feat(metadata): emit skills[] into package metadata — SkillFrontmatterParser reads YAML-frontmatter SKILL.md files and resolves @codemation/\* uses deps to concrete versions via monorepo walk (D8); PackageMetadataExtractor walks skills/ directory; all 8 agent-skills SKILL.md files updated with tags and version-sensitive uses declarations per D7
+
 ## 0.2.0
 
 ### Minor Changes

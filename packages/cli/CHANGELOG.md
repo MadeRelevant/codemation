@@ -1,5 +1,14 @@
 # @codemation/cli
 
+## 1.0.1
+
+### Patch Changes
+
+- Updated dependencies [[`b2c1855`](https://github.com/MadeRelevant/codemation/commit/b2c185525fdbb903a6ad5e756cd180e249c3d6c3), [`6efde7a`](https://github.com/MadeRelevant/codemation/commit/6efde7aa045050cd2fbd22015f7608c513a6f79f)]:
+  - @codemation/agent-skills@0.3.0
+  - @codemation/host@0.9.1
+  - @codemation/next-host@0.6.1
+
 ## 1.0.0
 
 ### Minor Changes

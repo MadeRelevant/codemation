@@ -1,5 +1,13 @@
 # @codemation/canvas
 
+## 0.1.3
+
+### Patch Changes
+
+- Updated dependencies [[`6efde7a`](https://github.com/MadeRelevant/codemation/commit/6efde7aa045050cd2fbd22015f7608c513a6f79f)]:
+  - @codemation/host@0.9.1
+  - @codemation/canvas-core@0.2.1
+
 ## 0.1.2
 
 ### Patch Changes
