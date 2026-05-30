@@ -7,49 +7,35 @@ tags: concepts, architecture
 
 # Codemation Framework Concepts
 
-## Use this skill when
+## Mental model
 
-Use this skill to explain package ownership, runtime shape, observability boundaries, and the boundary between consumer code and framework code.
+Codemation is a workflow engine with a layered package structure. `@codemation/core` owns the engine and runtime contracts (must stay pure — no HTTP, UI, or vendor SDKs). `@codemation/host` adds persistence, credentials, APIs, and scheduler wiring. `@codemation/next-host` is the framework UI shell. `@codemation/cli` runs local development, build, and serve. Consumer apps define behavior in `codemation.config.ts` and `src/workflows/` — they never touch core internals.
 
-Do not use this skill as a substitute for detailed CLI, workflow DSL, or plugin implementation guidance when the user already knows the concept they need.
+## When to use / when NOT
 
-## Core map
+Use this skill to orient on package ownership, runtime shape, observability boundaries, and the consumer/framework divide.
+Do not use as a substitute for detailed CLI, workflow DSL, or plugin implementation guidance when you already know which skill you need.
 
-1. `@codemation/core` owns the engine, runtime contracts, and workflow DSL foundations.
-2. `@codemation/host` adds config loading, persistence, credentials, APIs, and scheduler wiring.
-3. `@codemation/next-host` owns the framework UI.
-4. `@codemation/cli` runs local development, build, serve, and user commands.
-5. Consumer apps define `codemation.config.ts` and workflow files.
+## Core concepts
 
-## Important concepts
-
-- workflows define behavior
-- triggers start runs
-- nodes process items
-- items carry workflow data
-- credentials provide typed runtime resources
-- activation is framework-managed and happens in the UI
-- telemetry is observability-first: traces, spans, artifacts, and metric points are framework-owned runtime data
-- run retention and telemetry retention can differ, so trend data can outlive raw run state
-- **workflow testing** is a first-class primitive: a `TestTrigger` node yields one item per test case, the orchestrator dispatches a workflow run per case with `executionOptions.testContext` set, and `Assertion` nodes (`emitsAssertions: true`) record per-run results into `TestAssertion` rows; the canvas exposes a Tests tab parallel to Live and Executions
-
-## Runtime rule of thumb
-
-1. Start with the minimum setup.
-2. Move to shared PostgreSQL and Redis when execution needs separate worker infrastructure.
-3. Keep workflow code stable while the runtime shape grows around it.
-4. Treat telemetry as part of the runtime contract, not as ad-hoc node-local logging.
+- **workflows** define behavior; **triggers** start runs; **nodes** process items; **items** carry `item.json` data.
+- **credentials** provide typed runtime resources (bound per operator instance, not per workflow code).
+- **activation** is framework-managed and happens in the UI — consumer code does not call it directly.
+- **telemetry** is observability-first: traces, spans, artifacts, and metric points are framework-owned runtime data.
+- **workflow testing** is a first-class primitive: `TestTrigger` yields one item per test case; `Assertion` nodes record per-run results into `TestAssertion` rows; the canvas exposes a Tests tab.
+- **run retention** and **telemetry retention** can differ — trend data can outlive raw run state.
 
 ## Where to go next
 
-- Authoring workflows → `codemation-workflow-dsl`
-- Building a reusable node → `codemation-custom-node-development`
-- Building a credential type → `codemation-credential-development`
-- Packaging as a plugin → `codemation-plugin-development`
-- Calling an MCP server from a workflow → `codemation-mcp-capabilities`
-- CLI commands / dev loop → `codemation-cli`
+| Task | Skill |
+|------|-------|
+| Authoring workflows | `codemation-workflow-dsl` |
+| Building a reusable node | `codemation-custom-node-development` |
+| Building a credential type | `codemation-credential-development` |
+| Packaging as a plugin | `codemation-plugin-development` |
+| Calling an MCP server from a workflow | `codemation-mcp-capabilities` |
+| CLI commands / dev loop | `codemation-cli` |
 
 ## Read next when needed
 
 - Read `references/architecture-map.md` for package ownership and runtime-mode guidance.
-- Use the `codemation-workflow-dsl` skill (and its `references/workflow-testing.md`) for hands-on test authoring with TestTrigger / IsTestRun / Assertion.

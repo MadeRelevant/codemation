@@ -1,6 +1,6 @@
 ---
 name: codemation-ai-agent-node
-description: AIAgent constructor, message shape, output contract, and chat-model configs (managed and BYOK). Read before writing any workflow that uses AIAgent.
+description: AIAgent constructor, message shape, managed and BYOK chatModel configs, outputSchema, mcpServers. Read before writing any workflow step that calls an LLM.
 compatibility: Codemation core-nodes. Requires @codemation/core-nodes import.
 tags: agent, llm, ai
 uses: "@codemation/core-nodes"
@@ -8,73 +8,18 @@ uses: "@codemation/core-nodes"
 
 # Codemation AI Agent Node
 
-> **Start here: call `find_examples` before reading further.**
->
-> - `find_examples({ query: "AIAgent" })` — basic usage and constructor patterns
-> - `find_examples({ query: "AIAgent multi-step" })` — chained pipeline patterns
-> - `find_examples({ query: "AIAgent tools" })` — agent with callable tools
-> - `find_examples({ query: "AIAgent gmail classify" })` — domain-specific examples
->
-> The sections below are a quick orientation for when you need the exact constructor or output shape.
+## Mental model
 
-## Use this skill when
+`AIAgent` is the single building block for any LLM step in a workflow. It receives items, runs a chat completion per item using the configured model and messages, and emits `{ output: string }` (or a parsed object when `outputSchema` is set) on its `main` port. The `chatModel` field determines whether the run consumes Codemation-managed quota (no credential needed) or a BYOK key the operator supplies. Every AIAgent emits exactly one output item per input item — it never fans out or filters.
 
-Writing a workflow that uses `AIAgent` — classification, extraction, summarisation, drafting, decision, or any step that calls an LLM.
-Use `codemation-workflow-dsl` for the surrounding workflow structure.
-Use `codemation-mcp-capabilities` when the agent needs MCP servers.
+## When to use / when NOT
 
-## When to use `AIAgent` vs other approaches
+Use `AIAgent` when a workflow step needs an LLM call: classification, extraction, summarisation, drafting, or decision.
+Use a plain `Callback` instead when the logic is deterministic code — no LLM needed.
+Use `mcpServers` (see `codemation-mcp-capabilities`) when the agent needs tool access to external services.
+Read `codemation-workflow-dsl` for the surrounding workflow structure.
 
-Use `AIAgent` when an item needs an LLM call with a fixed or per-item prompt and optional tool use.
-Use a plain `Callback` instead when the logic is deterministic code (no LLM needed).
-Use the `.agent(...)` fluent helper on a manual-trigger workflow only if you need the full fluent chain sugar — under the hood it also produces an `AIAgent`.
-
-## Constructor
-
-```ts
-import { AIAgent } from "@codemation/core-nodes";
-
-new AIAgent({
-  name: string,                          // display name and default node id slug
-  messages: AgentMessageConfig,          // see below
-  chatModel: ChatModelConfig,            // see Managed and BYOK sections below
-  tools?: ReadonlyArray<ToolConfig>,     // optional callable tools
-  id?: string,                           // stable node id (set explicitly if node has credential bindings)
-})
-```
-
-## `messages` shape
-
-`messages` is an ordered array of `{ role, content }` objects.
-
-```ts
-messages: [
-  { role: "system", content: "You are a helpful assistant that classifies emails." },
-  { role: "user", content: (args) => `Classify this email:\n\n${args.item.json.body}` },
-];
-```
-
-- `role` is `"system"` | `"user"` (use `"assistant"` only for few-shot examples — rare).
-- `content` can be a plain string or a function `(args: { item, itemIndex, items, ctx }) => string`.
-- Put the detailed instructions in the `system` message and the per-item data in the `user` message.
-
-## Output shape
-
-`AIAgent` emits `{ output: string }` on its single port `main`.
-
-The next node sees `item.json.output` as the agent's text response.
-Type your downstream `Callback` accordingly:
-
-```ts
-.then(new Callback<{ output: string }>("Handle result", (item) => {
-  const reply = item.json.output;
-  // ...
-}))
-```
-
-If you set `outputSchema` (a Zod schema), the agent validates and parses the output into a structured object. Without `outputSchema`, `item.json.output` is always a plain string.
-
-## Managed model (no credentials needed)
+## Quickstart
 
 ```ts
 import { AIAgent, CodemationChatModelConfig } from "@codemation/core-nodes";
@@ -85,46 +30,28 @@ new AIAgent({
     { role: "system", content: "Classify the email as spam or not-spam." },
     { role: "user", content: (args) => args.item.json.body as string },
   ],
-  chatModel: new CodemationChatModelConfig(
-    "Claude Haiku", // display label
-    "anthropic/claude-haiku-4-5-20251001", // managed model id
-  ),
+  chatModel: new CodemationChatModelConfig("Claude Haiku", "anthropic/claude-haiku-4-5-20251001"),
 });
 ```
 
-### Currently allowlisted managed models
+For full patterns — BYOK (`OpenAIChatModelConfig`), `outputSchema`, tools, multi-step pipelines, and gmail classification — use your harness's example-discovery tool: `find_examples({ query: "AIAgent" })`.
 
-| Model id                              | Notes                |
-| ------------------------------------- | -------------------- |
-| `anthropic/claude-haiku-4-5-20251001` | Fastest and cheapest |
-| `anthropic/claude-sonnet-4-6`         | Balanced             |
-| `anthropic/claude-opus-4-5-20251101`  | High capability      |
-| `anthropic/claude-opus-4-6`           | Latest flagship      |
+## Decision branches & gotchas
 
-Discover live: `GET <CONTROL_PLANE_URL>/api/llm/managed-models`
+**Managed vs BYOK:** use `CodemationChatModelConfig(label, modelId)` for managed models (no credential slot created). Use `OpenAIChatModelConfig(label, modelId, slotKey)` for BYOK — it creates a credential slot the operator must bind. Discover live managed model ids from `GET <CONTROL_PLANE_URL>/api/llm/managed-models`.
 
-## BYOK model (user supplies their own key)
+**Messages:** `content` is a plain string or a function `(args: { item, itemIndex, items, ctx }) => string`. Put instructions in the `system` message, per-item data in the `user` message. Use `"assistant"` role only for few-shot examples.
 
-```ts
-import { AIAgent, OpenAIChatModelConfig } from "@codemation/core-nodes";
+**Structured output:** add `outputSchema: z.object({...})` to validate and parse the response. Without it, `item.json.output` is always a plain string.
 
-new AIAgent({
-  name: "Summarise",
-  id: "summarise-agent", // stable id — required when node has a credential binding
-  messages: [
-    { role: "system", content: "Summarise the following text in one paragraph." },
-    { role: "user", content: (args) => args.item.json.text as string },
-  ],
-  chatModel: new OpenAIChatModelConfig(
-    "OpenAI GPT-4o", // display label
-    "gpt-4o", // OpenAI model id
-    "openai", // credential slot key — matches the slot used in getCredentialRequirements
-  ),
-});
-```
+**Stable node id:** if the node has a credential binding, set an explicit `id:` on the constructor. Without it the id derives from the `name` label — renaming the label orphans the binding. See `codemation-workflow-dsl` for the full id-stability rule.
 
-`OpenAIChatModelConfig` requires the user to connect an `openai.apiKey` credential. The concierge handles credential acquisition — the coding agent must not invent credentials.
+**Downstream access:** the next node sees `item.json.output` as the agent's text response. Cast it via a typed `Callback<{ output: string }>`.
 
-## MCP servers
+## Anti-patterns
 
-If you need tools / MCP servers on the agent, see the `codemation-mcp-capabilities` skill.
+- Do not hard-code API keys in the workflow file — use a BYOK credential slot so the operator supplies the key.
+- Do not use `AIAgent` for deterministic logic; use `Callback` instead (cheaper, faster, no LLM billing).
+- Do not attempt to return multiple items from a single `AIAgent` step — it emits exactly one output per input.
+
+See `references/anti-patterns.md` for version-specific gotchas.
