@@ -81,7 +81,15 @@ export function createWorkflowCanvasApiClient(options: WorkflowCanvasApiClientOp
     retryOn401 = true,
   ): Promise<Response> {
     const headers = buildHeaders(token, init.headers as Record<string, string> | undefined);
-    const credentials: RequestCredentials = token === null ? "same-origin" : "omit";
+    // Always "same-origin": send cookies for relative/same-origin URLs (so a
+    // same-origin proxy can pass an upstream auth gate), and don't send them
+    // cross-origin (Bearer alone is enough when the URL is the pod's public
+    // ingress URL). The previous "omit when token set" assumed apiBase is
+    // always the absolute pod URL — but in cluster mode the canvas now routes
+    // through customer-ui's same-origin proxy (`/api/ws-proxy/<workspaceId>/…`)
+    // whose middleware refuses /api/* without a session cookie, so the request
+    // 401'd before ever reaching the proxy route handler.
+    const credentials: RequestCredentials = "same-origin";
     const response = await fetchImpl(input, {
       cache: "no-store",
       ...init,
