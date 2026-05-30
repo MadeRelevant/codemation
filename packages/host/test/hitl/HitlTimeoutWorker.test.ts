@@ -40,7 +40,8 @@ function makeTask(overrides: Partial<HumanTaskRecord> = {}): HumanTaskRecord {
 }
 
 const APP_CONFIG = {
-  env: { REDIS_URL: "redis://127.0.0.1:6379", AUTH_SECRET: "test" },
+  env: { AUTH_SECRET: "test" },
+  scheduler: { kind: "local", workerQueues: [] },
 };
 
 function makeWorker(opts: { task?: HumanTaskRecord | undefined; storeUndefined?: boolean } = {}): {
@@ -94,5 +95,13 @@ describe("HitlTimeoutWorker guards", () => {
     expect(store!.markTimedOut).not.toHaveBeenCalled();
     expect(store!.markAutoAccepted).not.toHaveBeenCalled();
     expect(engine.resumeRun).not.toHaveBeenCalled();
+  });
+
+  it("start()/stop() are no-ops in local mode (no Redis worker constructed)", async () => {
+    // APP_CONFIG is scheduler.kind === "local": start() must return early without
+    // building a BullMQ Worker (which would open an ioredis connection).
+    const { worker } = makeWorker({ task: makeTask() });
+    expect(() => worker.start()).not.toThrow();
+    await expect(worker.stop()).resolves.toBeUndefined();
   });
 });
