@@ -24,8 +24,8 @@ export class PackageMetadataValidator {
     if (typeof m["description"] !== "string") {
       errors.push("description must be a string");
     }
-    if (!["nodes", "examples", "mixed"].includes(m["kind"] as string)) {
-      errors.push(`kind must be "nodes", "examples", or "mixed", got ${JSON.stringify(m["kind"])}`);
+    if (!["nodes", "examples", "skills", "mixed"].includes(m["kind"] as string)) {
+      errors.push(`kind must be "nodes", "examples", "skills", or "mixed", got ${JSON.stringify(m["kind"])}`);
     }
 
     if (m["nodes"] !== undefined) {
@@ -54,6 +54,16 @@ export class PackageMetadataValidator {
       } else {
         for (const [i, ex] of (m["examples"] as unknown[]).entries()) {
           errors.push(...this.validateExample(ex, `examples[${i}]`));
+        }
+      }
+    }
+
+    if (m["skills"] !== undefined) {
+      if (!Array.isArray(m["skills"])) {
+        errors.push("skills must be an array");
+      } else {
+        for (const [i, skill] of (m["skills"] as unknown[]).entries()) {
+          errors.push(...this.validateSkill(skill, `skills[${i}]`));
         }
       }
     }
@@ -102,6 +112,25 @@ export class PackageMetadataValidator {
         if (typeof f["required"] !== "boolean") errors.push(`${prefix}.fields[${i}].required must be a boolean`);
       }
     }
+    return errors;
+  }
+
+  private validateSkill(skill: unknown, prefix: string): string[] {
+    const errors: string[] = [];
+    if (typeof skill !== "object" || skill === null) {
+      return [`${prefix} must be an object`];
+    }
+    const s = skill as Record<string, unknown>;
+    if (typeof s["name"] !== "string" || !s["name"]) errors.push(`${prefix}.name must be a non-empty string`);
+    if (typeof s["description"] !== "string") errors.push(`${prefix}.description must be a string`);
+    if (!Array.isArray(s["tags"])) errors.push(`${prefix}.tags must be an array`);
+    if (typeof s["sourcePath"] !== "string" || !s["sourcePath"]) {
+      errors.push(`${prefix}.sourcePath must be a non-empty string`);
+    }
+    if (typeof s["dependencies"] !== "object" || s["dependencies"] === null || Array.isArray(s["dependencies"])) {
+      errors.push(`${prefix}.dependencies must be an object`);
+    }
+    if (typeof s["code"] !== "string") errors.push(`${prefix}.code must be a string`);
     return errors;
   }
 

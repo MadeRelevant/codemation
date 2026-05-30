@@ -3,12 +3,14 @@ import * as path from "node:path";
 import * as ts from "typescript";
 import { CredentialMetadataReader } from "./CredentialMetadataReader.js";
 import { ExampleFrontmatterParser } from "./ExampleFrontmatterParser.js";
+import { SkillFrontmatterParser } from "./SkillFrontmatterParser.js";
 import type {
   CredentialMetadata,
   ExampleMetadata,
   NodeMetadata,
   PackageMetadata,
   PackageMetadataOverride,
+  SkillMetadata,
 } from "./PackageMetadata.types.js";
 
 /**
@@ -24,6 +26,7 @@ import type {
 export class PackageMetadataExtractor {
   private readonly credentialReader = new CredentialMetadataReader();
   private readonly frontmatterParser = new ExampleFrontmatterParser();
+  private readonly skillParser = new SkillFrontmatterParser();
 
   extract(packageRoot: string): PackageMetadata {
     const pkgJson = this.readPackageJson(packageRoot);
@@ -33,8 +36,9 @@ export class PackageMetadataExtractor {
     const nodes = override.nodes ?? this.extractNodes(srcDir);
     const credentials = override.credentials ?? this.credentialReader.read(srcDir);
     const examples = override.examples ?? this.extractExamples(srcDir, pkgJson.dependencies ?? {}, packageRoot);
+    const skills = override.skills ?? this.extractSkills(packageRoot);
 
-    const kind = this.determineKind(nodes, examples);
+    const kind = this.determineKind(nodes, examples, skills);
 
     const metadata: PackageMetadata = {
       schemaVersion: 1,
@@ -47,6 +51,7 @@ export class PackageMetadataExtractor {
     if (nodes.length > 0) metadata.nodes = nodes;
     if (credentials.length > 0) metadata.credentials = credentials;
     if (examples.length > 0) metadata.examples = examples;
+    if (skills.length > 0) metadata.skills = skills;
 
     return metadata;
   }
@@ -76,11 +81,18 @@ export class PackageMetadataExtractor {
     return {};
   }
 
-  private determineKind(nodes: NodeMetadata[], examples: ExampleMetadata[]): "nodes" | "examples" | "mixed" {
+  private determineKind(
+    nodes: NodeMetadata[],
+    examples: ExampleMetadata[],
+    skills: SkillMetadata[],
+  ): "nodes" | "examples" | "skills" | "mixed" {
     const hasNodes = nodes.length > 0;
     const hasExamples = examples.length > 0;
-    if (hasNodes && hasExamples) return "mixed";
+    const hasSkills = skills.length > 0;
+    const count = [hasNodes, hasExamples, hasSkills].filter(Boolean).length;
+    if (count > 1) return "mixed";
     if (hasExamples) return "examples";
+    if (hasSkills) return "skills";
     return "nodes";
   }
 
@@ -313,6 +325,22 @@ export class PackageMetadataExtractor {
       examples.push(this.frontmatterParser.parse(relPath, text, packageDeps, packageRoot));
     });
     return examples;
+  }
+
+  // ── Skill extraction ─────────────────────────────────────────────────────────
+
+  private extractSkills(packageRoot: string): SkillMetadata[] {
+    const skillsDir = path.join(packageRoot, "skills");
+    if (!fs.existsSync(skillsDir)) return [];
+
+    const skills: SkillMetadata[] = [];
+    for (const entry of fs.readdirSync(skillsDir, { withFileTypes: true })) {
+      if (!entry.isDirectory()) continue;
+      const skillDir = path.join(skillsDir, entry.name);
+      const skill = this.skillParser.parse(skillDir, packageRoot);
+      if (skill) skills.push(skill);
+    }
+    return skills;
   }
 
   private walkExampleFiles(dir: string, visitor: (filePath: string) => void): void {

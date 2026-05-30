@@ -2,6 +2,8 @@
 name: codemation-custom-node-development
 description: Guides Codemation custom node development with `defineNode(...)` (`execute` per item), `defineBatchNode(...)` (batch `run`), reusable node modules, credential-aware nodes, and the class-based node fallback for advanced cases. Use when creating or updating custom nodes for apps or plugin packages.
 compatibility: Designed for Codemation apps and plugin packages that define reusable nodes.
+tags: node, custom, plugin
+uses: "@codemation/core"
 ---
 
 # Codemation Custom Node Development

@@ -28,6 +28,7 @@
   },
   "scripts": {
     "changeset:verify": "pnpm --workspace-root run changeset:verify",
+    "build:metadata": "tsx ../../tooling/discovery/scripts/extract-metadata.ts",
     "test": "vitest run",
     "test:unit": "vitest run"
   },

@@ -2,6 +2,7 @@
 name: codemation-plugin-development
 description: Guides Codemation plugin package development, including `definePlugin(...)`, plugin sandboxes, custom nodes, custom credentials, and publishable plugin package structure. Use when building or updating a Codemation plugin package or the plugin starter template.
 compatibility: Designed for Codemation plugin packages and the Codemation plugin starter template.
+tags: plugin, node, package
 ---
 
 # Codemation Plugin Development

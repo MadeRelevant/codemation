@@ -2,6 +2,7 @@
 name: codemation-mcp-capabilities
 description: Discover MCP servers registered on the Codemation control plane. Use before authoring agent workflows that reference mcpServers to find available server ids and their credential requirements.
 compatibility: Requires an installation paired with a connected control plane (Sprint 2+).
+tags: mcp, agent, tool
 ---
 
 # Codemation MCP Capabilities

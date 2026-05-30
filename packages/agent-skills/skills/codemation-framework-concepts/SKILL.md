@@ -2,6 +2,7 @@
 name: codemation-framework-concepts
 description: Explains Codemation package boundaries, runtime concepts, observability shape, and the normal consumer mental model. Use when the user asks where code belongs across `@codemation/core`, `@codemation/host`, `@codemation/next-host`, `@codemation/cli`, workflows, plugins, credentials, activation, telemetry, or runtime modes. Read this first when starting any Codemation task — it points at the right skill for the work.
 compatibility: Designed for Codemation apps, plugins, and framework contributors.
+tags: concepts, architecture
 ---
 
 # Codemation Framework Concepts

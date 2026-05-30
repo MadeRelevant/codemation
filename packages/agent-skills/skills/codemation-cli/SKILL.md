@@ -2,6 +2,7 @@
 name: codemation-cli
 description: Guides Codemation CLI work for consumer apps and framework-author development. Use when the user asks about `codemation dev`, `build`, `serve web`, `serve worker`, `user create`, `user list`, `--consumer-root`, `.codemation/output`, or consumer versus framework-author mode.
 compatibility: Designed for Codemation repositories and projects that use the Codemation CLI.
+tags: cli, dev
 ---
 
 # Codemation CLI
