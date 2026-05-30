@@ -1,5 +1,42 @@
 # @codemation/host
 
+## 0.9.0
+
+### Minor Changes
+
+- [#170](https://github.com/MadeRelevant/codemation/pull/170) [`0b3d2a3`](https://github.com/MadeRelevant/codemation/commit/0b3d2a3dc379c0d8a6509ae97e47f6bb880caea3) Thanks [@cblokland90](https://github.com/cblokland90)! - feat(credentials): app gallery API (framework half)
+
+  Adds the framework-side credential "app gallery" surface that the control
+  plane's credentials gallery UI consumes:
+  - `@codemation/host`: a `GET /api/credentials/apps` endpoint backed by a new
+    `GetCredentialAppsQuery` / handler and an `AppGalleryProjector` that projects
+    the configured credential types + connected instances into `AppGalleryEntry`
+    rows (`AppsResponse`). Wired through `CredentialContractsRegistry`,
+    `ApiPaths.credentialApps()`, the credential route registrar/handler, and DI.
+  - `@codemation/canvas-core`: `WorkflowCanvasApiClient.fetchCredentialApps()`,
+    the `credentialAppsQueryKey`, and a `useCredentialAppsQuery` hook.
+  - `@codemation/next-host`: `NextHostApiClientAdapter.fetchCredentialApps()` so
+    the dev shell satisfies the canvas API client contract.
+
+- [#167](https://github.com/MadeRelevant/codemation/pull/167) [`3044474`](https://github.com/MadeRelevant/codemation/commit/3044474495525490735510ff74500b53761284b6) Thanks [@cblokland90](https://github.com/cblokland90)! - feat(hitl): Human-in-the-Loop — engine suspend/resume, inbox approval node + channels (local + control-plane), agent-as-tool, decision/timeout handling, inbox decision UX (toast + node status icons + "waiting for approval"), plus the consolidated dev/canvas/host fixes shipped alongside.
+
+### Patch Changes
+
+- [#170](https://github.com/MadeRelevant/codemation/pull/170) [`0b3d2a3`](https://github.com/MadeRelevant/codemation/commit/0b3d2a3dc379c0d8a6509ae97e47f6bb880caea3) Thanks [@cblokland90](https://github.com/cblokland90)! - fix(host): allow CP_WEB_ORIGIN to be a comma-separated CORS allowlist
+
+  `ManagedCorsMiddleware` compared the request origin with `===` against the raw
+  `CP_WEB_ORIGIN` value, so when the provisioner injects more than one origin
+  (e.g. the Caddy origin plus the direct dev port) the joined string never
+  matched any real origin. Every CORS preflight 403'd, which left the control
+  plane's workspace canvas stuck on "Getting your canvas ready…". The middleware
+  now parses `CP_WEB_ORIGIN` as a comma-separated allowlist and echoes back the
+  request's own origin when it is a member.
+
+- Updated dependencies [[`3044474`](https://github.com/MadeRelevant/codemation/commit/3044474495525490735510ff74500b53761284b6)]:
+  - @codemation/core@0.12.0
+  - @codemation/core-nodes@0.9.0
+  - @codemation/eventbus-redis@0.0.40
+
 ## 0.8.0
 
 ### Minor Changes

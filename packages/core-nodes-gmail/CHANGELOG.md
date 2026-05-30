@@ -1,5 +1,20 @@
 # @codemation/core-nodes-gmail
 
+## 0.3.2
+
+### Patch Changes
+
+- [#170](https://github.com/MadeRelevant/codemation/pull/170) [`0b3d2a3`](https://github.com/MadeRelevant/codemation/commit/0b3d2a3dc379c0d8a6509ae97e47f6bb880caea3) Thanks [@cblokland90](https://github.com/cblokland90)! - fix(gmail): request the gmail.labels OAuth scope for label operations
+
+  The Gmail MCP server enforces a literal scope-name check. Label operations
+  (`create_label`, `label_message`, `label_thread`, `unlabel_*`) require
+  `gmail.labels`, which the semantic supersets `gmail.modify` / `gmail.send` do
+  not satisfy (they 403). Add `https://www.googleapis.com/auth/gmail.labels` to
+  the canonical scope set alongside `gmail.readonly` and `gmail.compose`.
+
+- Updated dependencies [[`3044474`](https://github.com/MadeRelevant/codemation/commit/3044474495525490735510ff74500b53761284b6)]:
+  - @codemation/core@0.12.0
+
 ## 0.3.1
 
 ### Patch Changes

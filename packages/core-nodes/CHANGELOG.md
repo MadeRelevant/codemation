@@ -1,5 +1,16 @@
 # @codemation/core-nodes
 
+## 0.9.0
+
+### Minor Changes
+
+- [#167](https://github.com/MadeRelevant/codemation/pull/167) [`3044474`](https://github.com/MadeRelevant/codemation/commit/3044474495525490735510ff74500b53761284b6) Thanks [@cblokland90](https://github.com/cblokland90)! - feat(hitl): Human-in-the-Loop — engine suspend/resume, inbox approval node + channels (local + control-plane), agent-as-tool, decision/timeout handling, inbox decision UX (toast + node status icons + "waiting for approval"), plus the consolidated dev/canvas/host fixes shipped alongside.
+
+### Patch Changes
+
+- Updated dependencies [[`3044474`](https://github.com/MadeRelevant/codemation/commit/3044474495525490735510ff74500b53761284b6)]:
+  - @codemation/core@0.12.0
+
 ## 0.8.1
 
 ### Patch Changes

@@ -1,5 +1,18 @@
 # @codemation/examples
 
+## 0.2.2
+
+### Patch Changes
+
+- [#167](https://github.com/MadeRelevant/codemation/pull/167) [`3044474`](https://github.com/MadeRelevant/codemation/commit/3044474495525490735510ff74500b53761284b6) Thanks [@cblokland90](https://github.com/cblokland90)! - feat(hitl): Human-in-the-Loop — engine suspend/resume, inbox approval node + channels (local + control-plane), agent-as-tool, decision/timeout handling, inbox decision UX (toast + node status icons + "waiting for approval"), plus the consolidated dev/canvas/host fixes shipped alongside.
+
+- Updated dependencies [[`0b3d2a3`](https://github.com/MadeRelevant/codemation/commit/0b3d2a3dc379c0d8a6509ae97e47f6bb880caea3), [`0b3d2a3`](https://github.com/MadeRelevant/codemation/commit/0b3d2a3dc379c0d8a6509ae97e47f6bb880caea3), [`3044474`](https://github.com/MadeRelevant/codemation/commit/3044474495525490735510ff74500b53761284b6), [`0b3d2a3`](https://github.com/MadeRelevant/codemation/commit/0b3d2a3dc379c0d8a6509ae97e47f6bb880caea3)]:
+  - @codemation/host@0.9.0
+  - @codemation/core-nodes-gmail@0.3.2
+  - @codemation/core@0.12.0
+  - @codemation/core-nodes@0.9.0
+  - @codemation/core-nodes-ocr@0.2.3
+
 ## 0.2.1
 
 ### Patch Changes
