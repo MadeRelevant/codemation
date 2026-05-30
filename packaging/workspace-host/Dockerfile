@@ -29,4 +29,4 @@ WORKDIR /workspace
 EXPOSE 4001
 
 ENTRYPOINT ["/sbin/tini", "--"]
-CMD ["node", "/workspace/node_modules/@codemation/cli/bin/codemation.js", "serve", "web", "--headless", "--consumer-root", "/workspace"]
+CMD ["node", "/workspace/node_modules/@codemation/cli/dist/bin.js", "serve", "web", "--headless", "--consumer-root", "/workspace"]
