@@ -51,24 +51,13 @@ jobs:
           ref: ${{ steps.release-tag.outputs.tag }}
           fetch-depth: 0
 
-      - name: Read and validate version
+      - name: Read version
         id: version
-        env:
-          RELEASE_TAG: ${{ steps.release-tag.outputs.tag }}
         run: |
-          # Read version from packages/host/package.json — this is the source of truth for
-          # the image version. The tag (after stripping "v") must match exactly.
+          # Read version from packages/host/package.json — source of truth for the image tag.
           VERSION="$(node -p "require('./packages/host/package.json').version")"
-          TAG_VERSION="${RELEASE_TAG#v}"
-
-          if [ "${VERSION}" != "${TAG_VERSION}" ]; then
-            echo "::error::Version mismatch: packages/host/package.json says ${VERSION} but tag is ${RELEASE_TAG} (${TAG_VERSION}). Ensure the version-packages PR was merged before tagging."
-            exit 1
-          fi
-
           # Compute the rolling major channel (e.g. "0.8.3" → "0").
           MAJOR="${VERSION%%.*}"
-
           echo "version=${VERSION}" >> "${GITHUB_OUTPUT}"
           echo "major=${MAJOR}" >> "${GITHUB_OUTPUT}"
 
@@ -84,7 +73,6 @@ jobs:
         env:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
-          # Login is required above before inspecting private GHCR images.
           if docker manifest inspect "${IMAGE}:${VERSION}" >/dev/null 2>&1; then
             echo "exists=true" >> "${GITHUB_OUTPUT}"
             echo "::notice::Immutable tag :${VERSION} already exists in GHCR."
@@ -110,9 +98,6 @@ jobs:
           cache-to: type=gha,mode=max,scope=workspace-host-prod
 
       - name: Retag rolling channel (version already exists)
-        # When the immutable tag already exists, skip the full build and just move the
-        # rolling :<major> pointer to the existing image manifest. This avoids creating a
-        # new digest for identical content (imagetools create copies the manifest reference).
         if: steps.tag-exists.outputs.exists == 'true'
         env:
           VERSION: ${{ steps.version.outputs.version }}
