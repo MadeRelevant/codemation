@@ -94,6 +94,15 @@ jobs:
           tags: |
             ${{ env.IMAGE }}:${{ steps.version.outputs.version }}
             ${{ env.IMAGE }}:${{ steps.version.outputs.major }}
+          # OCI source label makes GHCR auto-link the package to this repository
+          # on first push. Without it, a package pushed from elsewhere (e.g. a
+          # manual `docker push` during bootstrapping) stays linked to nothing
+          # and the workflow's GITHUB_TOKEN gets "permission_denied: write_package".
+          # See https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry#labelling-container-images
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.licenses=SEE LICENSE IN LICENSE
           cache-from: type=gha,scope=workspace-host-prod
           cache-to: type=gha,mode=max,scope=workspace-host-prod
 
