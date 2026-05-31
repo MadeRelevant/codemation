@@ -38,20 +38,29 @@ For full patterns — BYOK (`OpenAIChatModelConfig`), `outputSchema`, tools, mul
 
 ## Decision branches & gotchas
 
-**Managed vs BYOK:** use `CodemationChatModelConfig(label, modelId)` for managed models (no credential slot created). Use `OpenAIChatModelConfig(label, modelId, slotKey)` for BYOK — it creates a credential slot the operator must bind. Discover live managed model ids from `GET <CONTROL_PLANE_URL>/api/llm/managed-models`.
+**Managed mode (default — no API key needed):** use `CodemationChatModelConfig(label, modelId)`. In managed mode the LLM broker **auto-authenticates via the workspace HMAC pairing** — no API key, no credential slot, no user setup required. This is the correct default for all managed-mode workflows. Do NOT tell managed users to "get an API key" — the broker handles authentication transparently.
+
+```ts
+chatModel: new CodemationChatModelConfig("Claude Haiku", "anthropic/claude-haiku-4-5-20251001")
+// No credential slot created. Discover live model ids:
+// GET <CONTROL_PLANE_URL>/api/llm/managed-models
+```
+
+**BYOK (self-hosted / non-managed only):** use `OpenAIChatModelConfig(label, modelId, slotKey)` — it creates a credential slot the operator must bind with an API key. Only use this in self-hosted deployments where no managed broker is available.
 
 **Messages:** `content` is a plain string or a function `(args: { item, itemIndex, items, ctx }) => string`. Put instructions in the `system` message, per-item data in the `user` message. Use `"assistant"` role only for few-shot examples.
 
 **Structured output:** add `outputSchema: z.object({...})` to validate and parse the response. Without it, `item.json.output` is always a plain string.
 
-**Stable node id:** if the node has a credential binding, set an explicit `id:` on the constructor. Without it the id derives from the `name` label — renaming the label orphans the binding. See `codemation-workflow-dsl` for the full id-stability rule.
+**Stable node id:** if the node has a credential binding (BYOK), set an explicit `id:` on the constructor. Without it the id derives from the `name` label — renaming the label orphans the binding. See `codemation-workflow-dsl` for the full id-stability rule.
 
 **Downstream access:** the next node sees `item.json.output` as the agent's text response. Cast it via a typed `Callback<{ output: string }>`.
 
 ## Anti-patterns
 
-- Do not hard-code API keys in the workflow file — use a BYOK credential slot so the operator supplies the key.
+- Do not tell managed users to get an API key — use `CodemationChatModelConfig`; the broker authenticates automatically.
+- Do not use `OpenAIChatModelConfig` in managed mode — it creates an unnecessary credential slot and will prompt the user to bind a key they don't need.
 - Do not use `AIAgent` for deterministic logic; use `Callback` instead (cheaper, faster, no LLM billing).
 - Do not attempt to return multiple items from a single `AIAgent` step — it emits exactly one output per input.
 
-See `references/anti-patterns.md` for version-specific gotchas.
+See `references/anti-patterns.md` for version-specific gotchas (managed model id churn, chatModel string shorthand trap).

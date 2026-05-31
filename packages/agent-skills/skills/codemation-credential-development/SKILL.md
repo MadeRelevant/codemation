@@ -18,7 +18,19 @@ Do not use for general workflow authoring unless credential slots or runtime ses
 
 ## Quickstart
 
-No standalone snippet — the full `defineCredential(...)` shape is in `references/credential-patterns.md`. Use your harness's example-discovery tool for runnable examples: `find_examples({ query: "defineCredential" })` or `find_examples({ query: "credential slot" })`.
+No standalone snippet — the full `defineCredential(...)` shape is in `references/credential-patterns.md`. Use your harness's example-discovery tool for runnable examples: `find_examples({ query: "defineCredential api-key test" })` or `find_examples({ query: "credential slot" })`.
+
+## What `test()` does and why it matters
+
+Every credential type must implement `test(args)`. It is called:
+- When the operator clicks **Connect** in the credential dialog (validates before saving).
+- Before a workflow activates (blocks activation on failing credentials).
+
+`test()` receives the same `{ publicConfig, material }` args as `createSession()`. It must return `{ status: "healthy" | "failing", message, testedAt }`. A "failing" result blocks workflow activation and surfaces the `message` to the operator — use it to give actionable guidance ("API key is empty", "Endpoint returned 401 — key is invalid").
+
+Implement `test()` as a cheap probe against the real service when possible (e.g. a `/health` or `/me` call). At minimum, validate that required secret fields are non-empty. Do NOT call `createSession()` from inside `test()` — test independently so credential issues are caught before runtime.
+
+See the `define-credential-api-key` example for a concrete `test()` implementation: `find_examples({ query: "defineCredential api-key test" })`.
 
 ## Authoring rules
 

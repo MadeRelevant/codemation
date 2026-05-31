@@ -13,41 +13,17 @@ A Codemation plugin is an npm package with a `codemation.plugin.ts` composition 
 
 ## When to use / when NOT
 
-Use this skill for published plugin packages, plugin starter work, and sandbox-driven plugin development.
-Do not use for ordinary consumer workflow-only changes unless the work needs plugin packaging or reusable extension boundaries.
+**Plugin authoring is a framework-author / non-managed task.** Managed-mode agents work with credential slots and workflow DSL — they do not author or modify plugin packages.
 
-## Quickstart
-
-```ts
-import { definePlugin } from "@codemation/host/authoring";
-
-export default definePlugin({
-  nodes: [myNode],
-  credentials: [myCredentialType],
-  // mcpServers: [...],  // optional — see Decision branches below
-});
-```
-
-For full patterns — plugin package layout, sandbox setup, WorkflowTestKit usage, MCP server declaration, and publishing — use your harness's example-discovery tool: `find_examples({ query: "definePlugin" })` or `find_examples({ query: "plugin node credential" })`.
+Use this skill for published plugin packages, plugin starter work, and sandbox-driven plugin development. Do not use for ordinary consumer workflow-only changes.
 
 ## Decision branches & gotchas
 
-**Plugin package layout:** `codemation.plugin.ts` is the composition root; `src/nodes/*` for node definitions; `src/credentialTypes/*` for credential types; `src/index.ts` for public package exports; `test/*.test.ts` for Vitest + WorkflowTestKit tests.
-
-**WorkflowTestKit:** import from `@codemation/core/testing`. Use `registerDefinedNodes([...])` for `defineNode` packages, then `runNode(...)` or `run(...)` for fuller graphs. Use `codemation dev:plugin` when you need the UI and persistence.
-
-**Declaring MCP servers:** add `mcpServers: [declaration]` to `definePlugin(...)`. Each `McpServerDeclaration` requires `id` (globally unique slug `/^[a-z0-9-]+$/`), `displayName`, `description`, `transport`, `url`, and optional `acceptedCredentialTypes`. Use plugin-declared MCP servers when the provider has non-standard auth, or when co-locating with custom nodes for the same provider. For standard SaaS providers with OAuth/API-key credential types, prefer the control-plane registry — no plugin code needed.
-
-**Merge precedence (MCP servers):** plugin declarations < `codemation.config.ts` < control-plane registry (last-write-wins on `id` collisions). A warning is logged when a higher-priority source shadows a plugin declaration.
+**MCP servers in plugins:** Plugin-declared `mcpServers` is a non-managed pattern for self-hosted / framework-author scenarios. In managed mode, MCP servers are loaded from the control plane — see `codemation-mcp-capabilities` for the managed path.
 
 **Publishing guardrail:** `package.json#codemation.plugin` must point at runnable JavaScript (`./dist/codemation.plugin.js`). Do not rely on consumers TypeScript-loading plugin files from `node_modules`.
 
-## Anti-patterns
-
-- Do not put plugin registration logic inside workflow files — use `codemation.plugin.ts` as the composition root.
-- Do not ship source-only plugin entries as runtime dependencies — publish `dist/**`.
-- Do not declare an MCP server in a plugin for standard OAuth/API-key providers already in the control-plane registry — prefer the registry fast lane.
-
 ## Read next when needed
 
-- Read `references/plugin-structure.md` for package layout and node-versus-credential guidance.
+- Read `references/plugin-anatomy.md` for the full `definePlugin(...)` code, package layout, sandbox setup, MCP server declaration, binary payload rules, and publishing guidance.
+- Read `references/plugin-structure.md` for a concise package layout reference.
