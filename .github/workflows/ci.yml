@@ -547,6 +547,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs:
+      - path-filter
       - coverage-unit
       - coverage-integration
       - coverage-integration-sqlite
@@ -664,6 +665,19 @@ jobs:
               echo "Slice $f: $(wc -l < "$f") lines"
             fi
           done
+
+          # next-host coverage is produced by coverage-ui, which is path-filtered to
+          # run only on force_full / next_host / host changes. When it didn't run, the
+          # other suites (unit/integration) can still touch a few next-host files,
+          # yielding a PARTIAL slice. Uploading that partial slice defeats Codecov
+          # carryforward and shows a false drop on the next-host flag. Drop it so
+          # carryforward re-applies the base coverage instead.
+          if [ "${{ needs.path-filter.outputs.force_full }}" != "true" ] \
+             && [ "${{ needs.path-filter.outputs.next_host }}" != "true" ] \
+             && [ "${{ needs.path-filter.outputs.host }}" != "true" ]; then
+            rm -f coverage/lcov-next-host.info
+            echo "coverage-ui (next-host) was skipped — dropping next-host slice so carryforward applies."
+          fi
 
       # Optional: add CODECOV_TOKEN secret if uploads fail (public repos often work without it).
       # Four separate uploads — one per flag — so codecov can apply carryforward

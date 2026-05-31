@@ -7,23 +7,31 @@ tags: credential, oauth, plugin
 
 # Codemation Credential Development
 
-## Use this skill when
+## Mental model
+
+A credential type is a schema + runtime adapter: it declares `public` config (e.g. OAuth client id), `secret` material (e.g. tokens), a `createSession(...)` factory that returns the typed object nodes consume, and a `test(...)` function for pre-activation validation. Nodes declare named credential slots; operators bind concrete instances to those slots in the UI. The binding key is `(workflowId, nodeId, slotKey)`.
+
+## When to use / when NOT
 
 Use this skill for defining new credential types, wiring them into apps or plugins, and teaching nodes to request typed credential sessions.
+Do not use for general workflow authoring unless credential slots or runtime sessions are the core problem.
 
-Do not use this skill for general workflow authoring unless credential slots or runtime sessions are the core problem.
+## Quickstart
 
-## Credential binding stability
+No standalone snippet — the full `defineCredential(...)` shape is in `references/credential-patterns.md`. Use your harness's example-discovery tool for runnable examples: `find_examples({ query: "defineCredential api-key test" })` or `find_examples({ query: "credential slot" })`.
 
-Credentials bind to a node via `(workflowId, nodeId, slotKey)`. The `nodeId` defaults to a slug of the node's `name` label (lowercase, non-alphanumeric runs replaced with `-`). Renaming a credential-using node's label silently changes its id and the binding appears unbound in the UI — the operator must re-attach manually.
+## What `test()` does and why it matters
 
-To prevent this: either keep the node's label stable across edits, or set an explicit `id:` on the node config so the id is decoupled from the label.
+Every credential type must implement `test(args)`. It is called:
 
-## Core mental model
+- When the operator clicks **Connect** in the credential dialog (validates before saving).
+- Before a workflow activates (blocks activation on failing credentials).
 
-1. A credential type defines public config, secret material, session creation, and health testing.
-2. Nodes request credentials through named slots instead of hard-coded secrets.
-3. Operators configure concrete credential instances in the UI and bind them to those slots.
+`test()` receives the same `{ publicConfig, material }` args as `createSession()`. It must return `{ status: "healthy" | "failing", message, testedAt }`. A "failing" result blocks workflow activation and surfaces the `message` to the operator — use it to give actionable guidance ("API key is empty", "Endpoint returned 401 — key is invalid").
+
+Implement `test()` as a cheap probe against the real service when possible (e.g. a `/health` or `/me` call). At minimum, validate that required secret fields are non-empty. Do NOT call `createSession()` from inside `test()` — test independently so credential issues are caught before runtime.
+
+See the `define-credential-api-key` example for a concrete `test()` implementation: `find_examples({ query: "defineCredential api-key test" })`.
 
 ## Authoring rules
 
@@ -33,10 +41,16 @@ To prevent this: either keep the node's label stable across edits, or set an exp
 4. Implement `test(...)` so failure states are explicit before workflow activation.
 5. Register credential types at the app or plugin boundary, not inside random workflow files.
 
-## Node integration
+## Decision branches & gotchas
 
-- helper-defined nodes can declare credentials directly in `credentials`
-- class-based nodes can use lower-level credential requirement APIs when needed
+**Node integration:** helper-defined nodes declare credentials directly in the `credentials` field; class-based nodes use lower-level credential requirement APIs when needed.
+
+**Binding stability:** the `nodeId` defaults to a slug of the node's `name` label. Renaming a credential-using node's label silently changes its id and orphans the binding in the UI. To prevent this, set an explicit `id:` on credential-using node configs so the id is decoupled from the label.
+
+## Anti-patterns
+
+- Do not hard-code secrets in node implementation — use credential slots.
+- Do not register credential types inside workflow files — use the app or plugin composition root.
 
 ## Read next when needed
 

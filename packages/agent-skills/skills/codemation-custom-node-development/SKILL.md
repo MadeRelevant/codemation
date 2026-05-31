@@ -8,6 +8,10 @@ uses: "@codemation/core"
 
 # Codemation Custom Node Development
 
+## Mental model
+
+Custom nodes are the extension point for reusable business logic that doesn't belong inline in a workflow callback. `defineNode(...)` wraps a per-item `execute` function with a typed contract (input schema, credential slots, output shape); the engine calls it once per item. `defineBatchNode(...)` is the batch variant for logic that must see all items at once. Nodes compose into workflows via config class instances — the node definition is separate from the config class used to wire it into a workflow.
+
 ## Use this skill when
 
 Use this skill for reusable custom node work, whether the node lives inside an app or a published plugin package.
@@ -46,6 +50,8 @@ export const uppercaseNode = defineNode({
   },
 });
 ```
+
+For full patterns — credential-slotted nodes, batch nodes, fan-out, binary payloads, and test kit usage — use your harness's example-discovery tool: `find_examples({ query: "defineNode" })` or `find_examples({ query: "defineBatchNode" })`.
 
 ## Read next
 

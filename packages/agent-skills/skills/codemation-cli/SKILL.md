@@ -7,38 +7,43 @@ tags: cli, dev
 
 # Codemation CLI
 
-## Use this skill when
+## Mental model
 
-Use this skill for command selection, local development flow, and CLI troubleshooting in a Codemation app or monorepo.
+The CLI is a thin orchestrator: it loads `codemation.config.ts`, delegates to `@codemation/host` (web server) and worker packages, and manages build artifacts in `.codemation/output/`. It owns no workflow logic. There are two modes: **consumer mode** (`codemation dev`) runs a stable packaged UI against the consumer's workflows; **framework-author mode** (`codemation dev --watch-framework`) enables `next-host` HMR for monorepo development.
 
-Do not use this skill for workflow graph design, custom node implementation, or credential modeling unless the CLI command flow is the main question.
+## When to use / when NOT
 
-## Default approach
+Use this skill for command selection, local development flow, and CLI troubleshooting.
+Do not use for workflow graph design, custom node implementation, or credential modeling unless the CLI command is the core question.
 
-1. Confirm whether the user is in a standalone consumer project or the Codemation monorepo.
-2. Prefer `codemation --help` or `codemation <command> --help` before guessing flags.
-3. Explain the shortest command path first, then mention framework-author alternatives only if they matter.
-4. Keep the CLI thin in your mental model: it orchestrates host and runtime packages instead of owning workflow logic itself.
+## Quickstart
 
-## Command map
+```
+codemation dev                        # consumer development (default)
+codemation dev --watch-framework      # framework-author / UI HMR (monorepo)
+codemation build                      # emit .codemation/output/build
+codemation serve web                  # run packaged web host
+codemation serve worker               # start queue-backed worker
+codemation user create                # bootstrap local-auth user
+codemation user list                  # inspect auth users
+```
 
-- `codemation dev`: default consumer development flow with packaged UI and a stable CLI-owned dev gateway.
-- `codemation dev --watch-framework`: framework-author mode for monorepo work and `next-host` UI HMR.
-- `codemation build`: emits production-oriented consumer output under `.codemation/output/build`.
-- `codemation serve web`: runs the packaged web host for a built or configured consumer app.
-- `codemation serve worker`: starts the queue-backed worker runtime when execution is separated.
-- `codemation user create` and `codemation user list`: local-auth bootstrap and inspection commands.
+Use `codemation --help` or `codemation <command> --help` before guessing flags.
 
-## Working rules
+## Decision branches & gotchas
 
-1. Treat `codemation.config.ts` as the consumer entrypoint.
-2. Mention `.codemation/output` only when build artifacts or runtime bootstrap details matter.
-3. When the user is in the monorepo, distinguish framework-author mode from normal consumer mode explicitly.
-4. When Redis-backed execution is involved, mention the shared PostgreSQL requirement instead of assuming local SQLite still fits.
-5. In consumer mode, discovered plugins are loaded from the built JavaScript path declared in `package.json#codemation.plugin`, not from TypeScript source under `node_modules`.
-6. In plugin mode, the CLI TypeScript-loads only the current plugin repo through the generated `.codemation/plugin-dev/codemation.config.ts`.
-7. In the Codemation framework monorepo, automatic refresh of `.agents/skills/extracted` is intentionally disabled to keep the worktree clean.
-8. After `@codemation/cli` or `@codemation/agent-skills` package upgrades in monorepo work, remind the user to run `codemation skills sync` if they want the extracted packaged skills refreshed.
+**Standalone consumer vs monorepo:** confirm which context the user is in before suggesting commands. In the monorepo, distinguish framework-author mode from consumer mode explicitly.
+
+**Plugin loading:** in consumer mode, plugins are loaded from the built JavaScript path declared in `package.json#codemation.plugin` — not from TypeScript source under `node_modules`. In plugin dev mode, the CLI TypeScript-loads only the current plugin repo through the generated `.codemation/plugin-dev/codemation.config.ts`.
+
+**Redis-backed execution:** when Redis-backed execution is involved, mention the shared PostgreSQL requirement — local SQLite no longer fits.
+
+**Skills sync:** after `@codemation/cli` or `@codemation/agent-skills` package upgrades in monorepo work, run `codemation skills sync` to refresh extracted packaged skills in `.agents/skills/extracted`. Automatic refresh is intentionally disabled in the monorepo worktree to keep it clean.
+
+## Anti-patterns
+
+- Do not guess CLI flags — use `codemation <command> --help`.
+- Do not assume SQLite fits when Redis-backed workers are in play — check for the PostgreSQL requirement.
 
 ## Read next when needed
 
