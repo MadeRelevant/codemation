@@ -43,7 +43,8 @@ export const rankSalesByRevenue = defineBatchNode<
 >({
   key: "example.rank-sales-by-revenue",
   title: "Rank sales by revenue",
-  description: "Ranks each row by revenue descending and computes each row's share of the total. Requires the full batch — use defineBatchNode.",
+  description:
+    "Ranks each row by revenue descending and computes each row's share of the total. Requires the full batch — use defineBatchNode.",
   icon: "lucide:bar-chart-2",
   // run() receives plain TInputJson[] (not Item<> wrappers).
   // Return a ReadonlyArray<TOutputJson> of the SAME LENGTH — one entry per input row.

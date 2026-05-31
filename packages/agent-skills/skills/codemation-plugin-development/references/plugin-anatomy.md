@@ -29,6 +29,7 @@ test/
 ## Composition root (`codemation.plugin.ts`)
 
 The single file that:
+
 - calls `definePlugin(...)` and registers nodes + credentials
 - optionally defines a sandbox app via `defineCodemationApp(...)`
 
@@ -57,7 +58,7 @@ import { definePlugin } from "@codemation/host/authoring";
 import type { McpServerDeclaration } from "@codemation/host/authoring";
 
 const myMcpServer: McpServerDeclaration = {
-  id: "my-provider-mcp",         // globally unique slug /^[a-z0-9-]+$/
+  id: "my-provider-mcp", // globally unique slug /^[a-z0-9-]+$/
   displayName: "My Provider",
   description: "Exposes My Provider tools to AIAgent.",
   transport: "streamable-http",

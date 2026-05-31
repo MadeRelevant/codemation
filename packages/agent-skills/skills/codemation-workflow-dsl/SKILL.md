@@ -22,7 +22,12 @@ Do not use for CLI-only troubleshooting or deep host architecture questions unle
 ```ts
 // Manual trigger — full fluent sugar (.map, .if, .switch, .agent, .node, .then)
 import { workflow } from "@codemation/host";
-export default workflow("wf.example").manualTrigger("Start", { /* seed items */ }).map(/* ... */).build();
+export default workflow("wf.example")
+  .manualTrigger("Start", {
+    /* seed items */
+  })
+  .map(/* ... */)
+  .build();
 
 // Cron / webhook / any other trigger — low-level .then(new NodeConfig(...)) only
 import { createWorkflowBuilder, CronTrigger } from "@codemation/core-nodes";
@@ -47,11 +52,12 @@ For full patterns — multi-step pipelines, branching, SubWorkflow, binary, agen
 **Install state in example results.** Every `find_examples` result includes `installed: boolean` and `requiresInstall: string[]`. If `installed` is `false` or `requiresInstall` is non-empty, call `install_package` for each missing package before writing any workflow code that imports them.
 
 **When no example matches — self-solving fallback chain.**
+
 1. Retry with intent variations (different verb, more generic term).
 2. For HTTP APIs: `find_examples({ query: "defineRestNode" })` — covers basic and credential-slotted REST.
 3. For one-shot inline HTTP: `find_examples({ query: "HttpRequest" })`.
 4. For non-HTTP custom logic: `find_examples({ query: "defineNode template" })`.
-Do NOT ask the user to pick between primitives — they can't help; use the chain. Do NOT grep `node_modules/@codemation/*` for node implementations — examples are authoritative. Surface the technique used in your reply.
+   Do NOT ask the user to pick between primitives — they can't help; use the chain. Do NOT grep `node_modules/@codemation/*` for node implementations — examples are authoritative. Surface the technique used in your reply.
 
 **Workflow testing.** Three built-in nodes from `@codemation/core-nodes`: `TestTrigger` (yields one item per test case), `IsTestRun` (routes `true`/`false` by `ctx.testContext`), `Assertion` (emits `AssertionResult[]`, sets `emitsAssertions: true`). See `references/workflow-testing.md` for authoring details.
 

@@ -72,11 +72,18 @@ export const weatherApiKeyCredentialType = defineCredential({
     // Open-Meteo's /v1/forecast returns 200 for valid keys; 401 for invalid.
     // Replace this with the actual auth-test endpoint for your API.
     try {
-      const resp = await fetch("https://api.open-meteo.com/v1/forecast?latitude=52.37&longitude=4.89&current=temperature_2m", {
-        headers: { "X-Api-Key": apiKey },
-      });
+      const resp = await fetch(
+        "https://api.open-meteo.com/v1/forecast?latitude=52.37&longitude=4.89&current=temperature_2m",
+        {
+          headers: { "X-Api-Key": apiKey },
+        },
+      );
       if (resp.status === 401 || resp.status === 403) {
-        return { status: "failing", message: `API returned ${resp.status} — key is invalid.`, testedAt: new Date().toISOString() };
+        return {
+          status: "failing",
+          message: `API returned ${resp.status} — key is invalid.`,
+          testedAt: new Date().toISOString(),
+        };
       }
       return { status: "healthy", message: "API key accepted.", testedAt: new Date().toISOString() };
     } catch (err) {

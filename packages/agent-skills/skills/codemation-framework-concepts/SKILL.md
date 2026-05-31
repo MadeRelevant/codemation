@@ -27,14 +27,14 @@ Do not use as a substitute for detailed CLI, workflow DSL, or plugin implementat
 
 ## Where to go next
 
-| Task | Skill |
-|------|-------|
-| Authoring workflows | `codemation-workflow-dsl` |
-| Building a reusable node | `codemation-custom-node-development` |
-| Building a credential type | `codemation-credential-development` |
-| Packaging as a plugin | `codemation-plugin-development` |
-| Calling an MCP server from a workflow | `codemation-mcp-capabilities` |
-| CLI commands / dev loop | `codemation-cli` |
+| Task                                  | Skill                                |
+| ------------------------------------- | ------------------------------------ |
+| Authoring workflows                   | `codemation-workflow-dsl`            |
+| Building a reusable node              | `codemation-custom-node-development` |
+| Building a credential type            | `codemation-credential-development`  |
+| Packaging as a plugin                 | `codemation-plugin-development`      |
+| Calling an MCP server from a workflow | `codemation-mcp-capabilities`        |
+| CLI commands / dev loop               | `codemation-cli`                     |
 
 ## Read next when needed
 

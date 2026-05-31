@@ -41,6 +41,7 @@ In self-hosted / non-managed deployments, MCP servers can also be declared via `
 **Bind via UI only:** there is no inline credential field on the workflow definition. The operator binds the credential instance via the canvas credential dropdown before activation.
 
 **Typical flow (managed):**
+
 1. `GET /api/registry/capabilities?query=<term>` → find `id` and `acceptedCredentialTypes`.
 2. Add `id` to `mcpServers` in the `AIAgent` config.
 3. Report: "The user will need to bind a `<type>` credential instance via the canvas before activating."

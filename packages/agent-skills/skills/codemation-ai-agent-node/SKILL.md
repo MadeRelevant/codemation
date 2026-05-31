@@ -41,7 +41,7 @@ For full patterns — BYOK (`OpenAIChatModelConfig`), `outputSchema`, tools, mul
 **Managed mode (default — no API key needed):** use `CodemationChatModelConfig(label, modelId)`. In managed mode the LLM broker **auto-authenticates via the workspace HMAC pairing** — no API key, no credential slot, no user setup required. This is the correct default for all managed-mode workflows. Do NOT tell managed users to "get an API key" — the broker handles authentication transparently.
 
 ```ts
-chatModel: new CodemationChatModelConfig("Claude Haiku", "anthropic/claude-haiku-4-5-20251001")
+chatModel: new CodemationChatModelConfig("Claude Haiku", "anthropic/claude-haiku-4-5-20251001");
 // No credential slot created. Discover live model ids:
 // GET <CONTROL_PLANE_URL>/api/llm/managed-models
 ```

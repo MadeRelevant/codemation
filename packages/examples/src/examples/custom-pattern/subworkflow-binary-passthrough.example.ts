@@ -86,13 +86,7 @@ export default createWorkflowBuilder({
 
         // ctx.binary.withAttachment returns a new Item with item.binary["data"] = attachmentRef.
         // The BinaryAttachment reference (storageKey, not bytes) travels on the item.
-        results.push(
-          ctx.binary.withAttachment(
-            { ...item, json: { ...meta, attachmentRef } },
-            "data",
-            attachmentRef,
-          ),
-        );
+        results.push(ctx.binary.withAttachment({ ...item, json: { ...meta, attachmentRef } }, "data", attachmentRef));
       }
       return results;
     }),

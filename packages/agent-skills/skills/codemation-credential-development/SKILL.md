@@ -23,6 +23,7 @@ No standalone snippet — the full `defineCredential(...)` shape is in `referenc
 ## What `test()` does and why it matters
 
 Every credential type must implement `test(args)`. It is called:
+
 - When the operator clicks **Connect** in the credential dialog (validates before saving).
 - Before a workflow activates (blocks activation on failing credentials).
 
